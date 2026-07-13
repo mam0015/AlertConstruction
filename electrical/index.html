@@ -178,7 +178,7 @@
     </section>
 
     <section class="note">
-      <span class="warning">Customer Quote mode:</span> only shows the final customer total including GST. Internal allowance and builder pricing stay hidden.
+      <span class="warning">Customer Quote mode:</span> adds a fixed 20% profit to the catalogue subtotal, then adds 10% GST. Internal builder pricing stays hidden.
       <span class="builder-only"><br><br><span class="warning">Builder Price mode:</span> shows the base electrician price, GST and line totals for internal use.</span>
     </section>
 
@@ -236,7 +236,7 @@
       'use strict';
 
       var GST_RATE = 0.10;
-      var CUSTOMER_HIDDEN_ALLOWANCE_EX_GST = 2500;
+      var CUSTOMER_PROFIT_RATE = 0.20;
 
       function money(value){
         var n = Number(value || 0);
@@ -269,7 +269,7 @@
 
         var quoteBaseExGst = subtotalExGst;
         if (mode === 'customer' && subtotalExGst > 0){
-          quoteBaseExGst = subtotalExGst + CUSTOMER_HIDDEN_ALLOWANCE_EX_GST;
+          quoteBaseExGst = subtotalExGst * (1 + CUSTOMER_PROFIT_RATE);
         }
 
         var gst = quoteBaseExGst * GST_RATE;
@@ -399,7 +399,7 @@
 window.ACProjectCapture = async function(){
   var rows=Array.prototype.slice.call(document.querySelectorAll('.sections .item')),quantities=[],selected=[],base=0;
   rows.forEach(function(row){var qty=Math.max(0,Number((row.querySelector('.qtyInput')||{}).value||0)),rate=Number(row.getAttribute('data-rate')||0),name=((row.querySelector('.item-name strong')||row.querySelector('.item-name')||{}).textContent||'Electrical item').trim();quantities.push(qty);if(qty>0){selected.push({name:name,quantity:qty,rate:rate,lineTotal:qty*rate});base+=qty*rate;}});
-  var mode=(document.getElementById('mode')||{}).value||'customer',project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',builder=base*1.1,customerTotal=base>0?(base+2500)*1.1:0,total=mode==='builder'?builder:customerTotal;
+  var mode=(document.getElementById('mode')||{}).value||'customer',project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',builder=base*1.1,customerTotal=base>0?base*1.2*1.1:0,total=mode==='builder'?builder:customerTotal;
   return{module:'electrical',title:(project?project+' — ':'')+'Electrical Estimate',summary:selected.length+' selected items • '+total.toLocaleString('en-AU',{style:'currency',currency:'AUD'}),data:{project:project,customer:customer,mode:mode,quantities:quantities,items:selected,builderTotalIncGst:builder,customerTotalIncGst:customerTotal}};
 };
 </script>

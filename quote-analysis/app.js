@@ -54,6 +54,13 @@
     $('fileTitle').textContent=file.name;$('fileMeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB • Ready for review`;$('removeFile').hidden=false;$('analyseBtn').disabled=false;
   }
 
+  function inferFileType(file){
+    const known=['application/pdf','image/png','image/jpeg','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','text/csv'];
+    if(known.includes(String(file.type||'').toLowerCase()))return String(file.type).toLowerCase();
+    const ext=(String(file.name||'').match(/\.([^.]+)$/)||[])[1]?.toLowerCase();
+    return{pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',csv:'text/csv'}[ext]||'';
+  }
+
   function clearFile(){
     if(state.busy)return;
     state.file=null;state.fileData=null;$('quoteFile').value='';dropzone.classList.remove('has-file');$('fileTitle').textContent="Choose the tradie's quote";$('fileMeta').textContent='Tap here or drag the file into this box';$('removeFile').hidden=true;$('analyseBtn').disabled=true;
@@ -63,7 +70,7 @@
 
   async function callFunction(body){
     if(!config.functionUrl)throw new Error('The quote review connection has not been configured.');
-    const response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||'','Authorization':`Bearer ${config.publishableKey||''}`},body:JSON.stringify(body)});
+    const response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||''},body:JSON.stringify(body)});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||`Review service error (${response.status}).`);
     return data;
@@ -74,7 +81,7 @@
     setBusy(true);startProgress();
     try{
       if(!state.fileData)state.fileData=await readFile(state.file);
-      const data=await callFunction({mode:'quote',trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:state.file.type});
+      const data=await callFunction({mode:'quote',trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:inferFileType(state.file)});
       if(!data.analysis||!Array.isArray(data.analysis.items))throw new Error('The quote result was incomplete. Please try again.');
       state.result=data.analysis;
       state.items=data.analysis.items.map(item=>({
@@ -154,8 +161,8 @@
   function renderNotes(){
     const warnings=[...(state.result.warnings||[])];if(state.result.gst_treatment==='unknown')warnings.unshift('GST treatment could not be confirmed. Check whether the quote figures include or exclude GST.');if(!warnings.length)warnings.push('Confirm the extracted scope, quantities and exclusions before relying on the result.');
     $('warningList').innerHTML=warnings.map(item=>`<li>${esc(item)}</li>`).join('');
-    const market=state.result.market_review||{};$('marketSummary').textContent=market.summary||'No reliable public market comparison was available. The item verdicts above still use the current AC catalogue.';
-    const sources=Array.isArray(market.sources)?market.sources:[];$('sourceList').innerHTML=sources.map(source=>{const url=safeUrl(source.url);return url?`<a href="${esc(url)}" target="_blank" rel="noopener">${esc(source.title||url)}</a>`:''}).join('');
+    $('marketSummary').textContent='Every line verdict uses the fixed Alert Construction catalogue selected above. A difference greater than $100 is expensive, below −$100 is cheap, and anything within $100 is fair. Unmatched scope stays marked for manual review.';
+    $('sourceList').innerHTML='';
   }
 
   function resetAll(){
