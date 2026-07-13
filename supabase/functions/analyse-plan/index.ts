@@ -1,9 +1,4 @@
-import { withSupabase } from "jsr:@supabase/server@^1";
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
 const ALLOWED_ORIGINS=new Set(["https://mam0015.github.io","http://localhost:4173","http://127.0.0.1:4173"]);
-const ALLOWED_FILE_TYPES=new Set(["application/pdf","image/png","image/jpeg","image/webp","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","text/plain","text/csv"]);
-const MAX_DATA_URL_LENGTH=22_000_000;
 
 type CatalogItem={name:string;rate:number};
 type TradeConfig={label:string;required:string;rules:string;catalog:CatalogItem[]};
@@ -62,6 +57,11 @@ const QUOTE_SCHEMA={type:"object",additionalProperties:false,properties:{
   warnings:{type:"array",items:{type:"string"}}
 },required:["supplier","quote_number","summary","gst_treatment","quote_total_ex_gst","quote_total_inc_gst","items","warnings"]};
 
+const MARKET_SCHEMA={type:"object",additionalProperties:false,properties:{
+  summary:{type:"string"},
+  sources:{type:"array",items:{type:"object",additionalProperties:false,properties:{title:{type:"string"},url:{type:"string"}},required:["title","url"]}}
+},required:["summary","sources"]};
+
 function cors(origin:string|null){const allowed=origin&&ALLOWED_ORIGINS.has(origin)?origin:"https://mam0015.github.io";return{"Access-Control-Allow-Origin":allowed,"Access-Control-Allow-Headers":"authorization, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"}}
 function json(body:unknown,status:number,origin:string|null){return new Response(JSON.stringify(body),{status,headers:{...cors(origin),"Content-Type":"application/json"}})}
 function outputText(response:any){if(typeof response?.output_text==="string")return response.output_text;for(const output of response?.output||[])for(const content of output?.content||[])if(content.type==="output_text"&&typeof content.text==="string")return content.text;return""}
@@ -75,45 +75,31 @@ async function callOpenAI(apiKey:string,payload:Record<string,unknown>){
 }
 
 function filePart(body:any){
-  const type=String(body.fileType||"");
-  if(type.startsWith("image/"))return{type:"input_image",image_url:body.fileData,detail:"high"};
-  const part:any={type:"input_file",filename:String(body.fileName||"document").slice(0,180),file_data:body.fileData};
-  if(type==="application/pdf")part.detail="high";
-  return part;
+  const isImage=String(body.fileType||"").startsWith("image/");
+  return isImage?{type:"input_image",image_url:body.fileData,detail:"high"}:{type:"input_file",filename:String(body.fileName||"quote").slice(0,180),file_data:body.fileData};
 }
 
 function catalogueText(trade:TradeConfig){return trade.catalog.map((item,index)=>`${index} | ${item.name} | ${item.rate.toFixed(2)} ex GST`).join("\n")}
 
 async function analysePlan(apiKey:string,model:string,trade:TradeConfig,body:any){
-  const scanMode=body.scanMode==="smart"?"smart":"fast";
-  const modeInstruction=scanMode==="smart"
-    ?"Perform a deep, careful review. Inspect every relevant page, legend, schedule, symbol family, room and revision. Cross-check counts and explicitly look for duplicates."
-    :"Perform one efficient vision pass. Prioritise the plan legend, standard trade symbols and clear annotations. Do not spend time on speculative interpretation; flag uncertainty instead.";
-  const prompt=`You are a cautious Australian residential ${trade.label} plan take-off estimator. ${modeInstruction}
+  const prompt=`You are a cautious Australian residential ${trade.label} estimator analysing construction drawings for a preliminary estimate.
 
 FIRST PERFORM A STRICT DOCUMENT GATE.
 Required documentation: ${trade.required}
 If the requirement is not satisfied, return status "missing_trade_plan", an empty items array, and no priceable assumptions. Explain plainly that the selected ${trade.label} plan is missing and the matter must be discussed with the Builder.
 
-If and only if the gate passes, perform this symbol take-off workflow:
-1. Find and read the drawing legend/key first. Learn what each symbol means on THIS drawing; use standard Australian construction symbols only when the drawing has no legend.
-2. Locate each occurrence of those symbols in the drawing area. Never count the example symbol shown inside the legend itself.
-3. Count by page and room/zone, then cross-check the total against schedules and notes.
-4. Map only supported quantities to the fixed catalogue below. Do not invent an item merely because a room normally contains it.
-5. A single final plan does not prove that an item was moved or replaced. Classify replacement, relocation, install-only or existing work only when existing/demolition/proposed drawings, revision clouds or explicit notes support it. Otherwise use the new-work catalogue item and add a warning.
-6. Do not count symbols from another trade and do not count duplicate/revision sheets twice.
+If and only if the gate passes, count visible and measurable items. Read every relevant page, legend, note, schedule and symbol. Avoid duplicate pages and revisions. Count only supported evidence.
 
 Trade rules: ${trade.rules}
 
 Fixed Alert Construction catalogue. The first number is catalog_index and the final number is the fixed ex-GST rate:
 ${catalogueText(trade)}
 
-Only matched catalogue items belong in items. Put other visible scope in unpriced_items. Never change rates. Include page, room/zone, symbol/legend label or dimension evidence for every quantity. If the symbol is unclear, do not guess: add a warning and leave it unpriced.
+Only matched catalogue items belong in items. Put other scope in unpriced_items. Never change rates. Include page, room, symbol or dimension evidence for every quantity.
 
 User request: ${String(body.question||`Calculate the ${trade.label} work from this plan.`).slice(0,3000)}`;
-  const data=await callOpenAI(apiKey,{model,reasoning:{effort:scanMode==="smart"?"high":"low"},input:[{role:"user",content:[filePart(body),{type:"input_text",text:prompt}]}],text:{format:{type:"json_schema",name:"trade_plan_estimate",strict:true,schema:PLAN_SCHEMA}},store:true,max_output_tokens:scanMode==="smart"?6500:4500});
+  const data=await callOpenAI(apiKey,{model,input:[{role:"user",content:[filePart(body),{type:"input_text",text:prompt}]}],text:{format:{type:"json_schema",name:"trade_plan_estimate",strict:true,schema:PLAN_SCHEMA}},store:true,max_output_tokens:5000});
   const analysis=JSON.parse(outputText(data));if(analysis.status!=="success"){analysis.status="missing_trade_plan";analysis.items=[]}
-  analysis.method=scanMode;
   return{analysis,responseId:data.id};
 }
 
@@ -137,6 +123,20 @@ function normaliseQuote(extracted:any,trade:TradeConfig){
   return{supplier:String(extracted.supplier||""),quote_number:String(extracted.quote_number||""),summary:String(extracted.summary||""),gst_treatment:String(extracted.gst_treatment||"unknown"),quote_total_ex_gst:round(exTotal),quote_total_inc_gst:round(incTotal),items,warnings:Array.isArray(extracted.warnings)?extracted.warnings.map(String):[],counts};
 }
 
+async function marketReview(apiKey:string,model:string,trade:TradeConfig,analysis:any){
+  const candidates=analysis.items.filter((item:any)=>item.catalog_index>=0&&item.quoted_line_total_ex_gst>0).sort((a:any,b:any)=>Math.abs(b.difference_ex_gst)-Math.abs(a.difference_ex_gst)).slice(0,6);
+  if(!candidates.length)return{summary:"No matched priced items were available for a reliable market cross-check.",sources:[]};
+  const lines=candidates.map((item:any)=>`- ${item.quoted_name}; quantity ${item.quantity}; quoted line ${item.quoted_line_total_ex_gst.toFixed(2)} ex GST; AC match ${trade.catalog[item.catalog_index].name} at ${trade.catalog[item.catalog_index].rate.toFixed(2)} per unit ex GST`).join("\n");
+  const prompt=`Research current publicly available Australian pricing context, prioritising Victoria and Melbourne, for these ${trade.label} quote items:
+${lines}
+
+Use multiple relevant public sources where possible. Prefer current supplier, trade business, construction cost or product pricing sources. Do not replace, modify or recalculate the fixed AC catalogue comparison. Write one concise paragraph explaining whether the flagged pricing is broadly consistent with public market information, and mention when scope or labour/material inclusions prevent a fair public comparison. Return only sources actually used.`;
+  try{
+    const data=await callOpenAI(apiKey,{model,reasoning:{effort:"high"},tools:[{type:"web_search",search_context_size:"medium",user_location:{type:"approximate",country:"AU",region:"Victoria",city:"Melbourne"}}],tool_choice:"auto",input:prompt,text:{format:{type:"json_schema",name:"quote_market_context",strict:true,schema:MARKET_SCHEMA}},store:false,max_output_tokens:2200});
+    return JSON.parse(outputText(data));
+  }catch(error){console.error("market review failed",error instanceof Error?error.message:error);return{summary:"Current public market information was not reliable enough to add to this review. The item verdicts still use the fixed AC catalogue.",sources:[]}}
+}
+
 async function analyseQuote(apiKey:string,model:string,trade:TradeConfig,body:any){
   const prompt=`You are reviewing a real Australian ${trade.label} trade quote. Accuracy matters more than speed.
 
@@ -157,13 +157,15 @@ ${catalogueText(trade)}
 Return quote totals on both ex-GST and inc-GST bases when the document supports them. Clearly warn about exclusions, provisional sums, ambiguous GST, unclear quantities, unmatched scope, duplicated alternatives or anything that can make the comparison unreliable. Do not decide whether the overall quote is expensive from its total; the application will calculate each line separately using a fixed $100 line-item threshold.`;
   const data=await callOpenAI(apiKey,{model,reasoning:{effort:"high"},input:[{role:"user",content:[filePart(body),{type:"input_text",text:prompt}]}],text:{format:{type:"json_schema",name:"trade_quote_extraction",strict:true,schema:QUOTE_SCHEMA}},store:false,max_output_tokens:6500});
   const extracted=JSON.parse(outputText(data)),analysis:any=normaliseQuote(extracted,trade);
-  analysis.market_review={summary:"Compared only with the fixed Alert Construction catalogue. Edit any uncertain match before use.",sources:[]};
+  analysis.market_review=await marketReview(apiKey,model,trade,analysis);
   return{analysis};
 }
 
-async function processRequest(request:Request){
+Deno.serve(async(request)=>{
   const origin=request.headers.get("origin");
+  if(request.method==="OPTIONS")return new Response("ok",{headers:cors(origin)});
   if(request.method!=="POST")return json({error:"Method not allowed."},405,origin);
+  if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed."},403,origin);
   const apiKey=Deno.env.get("OPENAI_API_KEY");if(!apiKey)return json({error:"Review service is not configured."},503,origin);
   try{
     const body=await request.json(),trade=TRADE_CONFIG[body.trade];if(!trade)return json({error:"Select Electrical, Plumbing or Cladding."},400,origin);
@@ -174,30 +176,8 @@ async function processRequest(request:Request){
       return json({answer:outputText(data),responseId:data.id},200,origin);
     }
     if(!body.fileData||!body.fileName)return json({error:body.mode==="quote"?"Upload a quote before analysing it.":"Upload a plan before sending."},400,origin);
-    if(!["analyse","quote"].includes(String(body.mode||"")))return json({error:"Unsupported analysis mode."},400,origin);
-    const fileType=String(body.fileType||"").toLowerCase();
-    if(!ALLOWED_FILE_TYPES.has(fileType))return json({error:"Upload a PDF, Word, PNG, JPG, WEBP, TXT or CSV file."},400,origin);
-    const fileData=String(body.fileData||"");
-    if(fileData.length>MAX_DATA_URL_LENGTH)return json({error:"The file is too large."},413,origin);
-    if(!fileData.startsWith(`data:${fileType};base64,`))return json({error:"The uploaded file data is invalid."},400,origin);
+    if(String(body.fileData).length>22_000_000)return json({error:"The file is too large."},413,origin);
     const result=body.mode==="quote"?await analyseQuote(apiKey,model,trade,body):await analysePlan(apiKey,model,trade,body);
     return json(result,200,origin);
-  }catch(error){console.error("analysis error",error instanceof Error?error.message:error);return json({error:"AI analysis failed. Check the Edge Function logs and OPENAI_API_KEY, then try again."},500,origin)}
-}
-
-const authenticatedFetch=withSupabase({auth:["publishable","secret"]},async(request,ctx)=>{
-  const origin=request.headers.get("origin");
-  // Public browser calls must come from the deployed Alert Construction origin.
-  // Secret-key server calls may omit Origin for controlled testing and automation.
-  if(String(ctx.authMode).startsWith("publishable")&&!origin)return json({error:"Origin required."},403,origin);
-  return processRequest(request);
+  }catch(error){console.error("analysis error",error instanceof Error?error.message:error);return json({error:"The file could not be analysed reliably. Check the file and try again."},500,origin)}
 });
-
-export default {
-  fetch(request:Request){
-    const origin=request.headers.get("origin");
-    if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed."},403,origin);
-    if(request.method==="OPTIONS")return new Response("ok",{headers:cors(origin)});
-    return authenticatedFetch(request);
-  }
-};

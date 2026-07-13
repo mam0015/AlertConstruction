@@ -1,10 +1,10 @@
-const CACHE='ac-complete-ai-root-fix-v7';
+const CACHE='ac-app-dual-plan-analysis-v5';
 const ASSETS=[
   './',
   './index.html',
   './manifest.webmanifest',
   './assets/alert-construction-logo-white.svg',
-  './assets/app-icon.svg',
+  './assets/app-icon-192.png',
   './electrical/',
   './plumbing/',
   './cladding/',
@@ -12,6 +12,7 @@ const ASSETS=[
   './plan-ai/index.html',
   './plan-ai/styles.css',
   './plan-ai/config.js',
+  './plan-ai/local-analyser.js',
   './plan-ai/app.js',
   './quote-analysis/',
   './quote-analysis/index.html',
@@ -25,7 +26,7 @@ const ASSETS=[
 ];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(ASSETS.map(asset=>cache.add(asset)))));
+  event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(ASSETS.map(asset=>cache.add(asset)))).catch(()=>{}));
   self.skipWaiting();
 });
 

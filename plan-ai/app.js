@@ -2,7 +2,7 @@
   'use strict';
 
   const CATALOGS={
-    electrical:{label:'Electrical',path:'../electrical/index.html',storage:'ac_ai_electrical_prefill_v1',profit:'percent',items:[
+    electrical:{label:'Electrical',path:'../electrical/index.html',storage:'ac_ai_electrical_prefill_v1',profit:'allowance',items:[
       ['LED Downlight - Supply, wiring & install',65],['LED Downlight - Install only',45],['Bathroom Wall Light - Install on tiles',160],['Outdoor Entrance Light',180],['Shaving Cabinet Light',240],['Power Point - New wiring & install',65],['Power Point - Replacement / fit off',35],['Double Power Point with extra switch',75],['Weatherproof Power Point',150],['1 Gang Light Switch - Replacement',35],['1 Gang Light Switch - New wiring',65],['2 Gang Light Switch - Replacement',40],['2 Gang Light Switch - New wiring',75],['3 Gang Light Switch - Replacement',45],['3 Gang Light Switch - New wiring',85],['4 Gang Light Switch - Replacement',65],['Rotary LED Dimmer',90],['Electric Towel Heater',220],['Non-Electric Towel Rack',85],['3-in-1 Fan / Heat / Light Combo',250],['Rangehood Duct',320],['TV Antenna Point',55],['Data Point',55]
     ]},
     plumbing:{label:'Plumbing',path:'../plumbing/index.html',storage:'ac_ai_plumbing_prefill_v1',profit:'percent',items:[
@@ -15,7 +15,7 @@
     // a verified Carpentry catalogue and detection rules are supplied.
     carpentry:{enabled:false,label:'Carpentry',path:'../carpentry/index.html',storage:'ac_ai_carpentry_prefill_v1',profit:'percent',items:[]}
   };
-  const GST=.10,PROFIT=.20;
+  const GST=.10,CUSTOMER_ALLOWANCE=2500,PROFIT=.20;
   const config=window.AC_PLAN_AI_CONFIG||{};
   const state={trade:'electrical',method:'fast',file:null,fileData:null,responseId:null,analysis:null,items:[],busy:false};
   const cardData=new WeakMap();
@@ -37,15 +37,15 @@
   }));
 
   const METHOD_COPY={
-    fast:'Fast Vision uses one AI vision pass to read the plan legend and count visible symbols. It is quicker, but every quantity still needs checking.',
-    smart:'Smart Review uses a deeper AI review of pages, legends, symbols, notes and possible double-counting. It is slower and lower risk.'
+    fast:'Fast Scan searches readable schedules, labels, legends and repeated symbol tags on this device. Unusual or purely graphical symbols may need manual correction.',
+    smart:'Smart AI sends the selected plan to the configured secure analysis service for a deeper review of symbols, legends and notes.'
   };
   document.querySelectorAll('.method').forEach(button=>button.addEventListener('click',()=>{
     if(state.busy)return;
     state.method=button.dataset.method;state.responseId=null;state.analysis=null;state.items=[];
     document.querySelectorAll('.method').forEach(x=>{const active=x===button;x.classList.toggle('active',active);x.setAttribute('aria-checked',String(active))});
     $('methodNote').textContent=METHOD_COPY[state.method];
-    addMessage(state.method==='fast'?'Fast Vision selected. One AI vision pass will count the visible trade symbols.':'Smart Review selected. The secure AI service will perform a deeper multi-page plan review.','assistant');
+    addMessage(state.method==='fast'?'Fast Scan selected. The plan will be checked on this device without using the AI service.':'Smart AI selected. The secure AI service will perform the detailed plan review.','assistant');
   }));
 
   const dropzone=$('dropzone');
@@ -57,25 +57,18 @@
 
   function selectFile(file){
     if(!file)return;
-    const type=inferFileType(file);
-    if(!type)return showError('Please upload a PDF, Word, PNG, JPG, WEBP, TXT or CSV plan.');
+    if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(file.type))return showError('Please upload a PDF, PNG, JPG or WEBP plan.');
     const max=(Number(config.maxFileMb)||15)*1024*1024;if(file.size>max)return showError(`The plan must be smaller than ${config.maxFileMb||15} MB.`);
     state.file=file;state.fileData=null;state.responseId=null;dropzone.classList.add('has-file');
     $('fileTitle').textContent=file.name;$('fileMeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB • Uploaded and ready`;$('removeFileBtn').hidden=false;
     addMessage(`${file.name} is attached. Select a trade and analysis method, then send your question.`,'assistant');
-  }
-  function inferFileType(file){
-    const known=['application/pdf','image/png','image/jpeg','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','text/csv'];
-    if(known.includes(String(file.type||'').toLowerCase()))return String(file.type).toLowerCase();
-    const ext=(String(file.name||'').match(/\.([^.]+)$/)||[])[1]?.toLowerCase();
-    return{pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',csv:'text/csv'}[ext]||'';
   }
   function clearFile(){state.file=null;state.fileData=null;state.responseId=null;$('planFile').value='';dropzone.classList.remove('has-file');$('fileTitle').textContent='Upload house plan';$('fileMeta').textContent='Choose a file or drag it here';$('removeFileBtn').hidden=true}
   function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The selected plan could not be read.'));reader.readAsDataURL(file)})}
 
   async function callFunction(body){
     if(!config.functionUrl)throw new Error('The AI connection has not been activated yet.');
-    const response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||''},body:JSON.stringify(body)});
+    const response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||'','Authorization':`Bearer ${config.publishableKey||''}`},body:JSON.stringify(body)});
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||`AI service error (${response.status}).`);return data;
   }
 
@@ -86,13 +79,19 @@
     addMessage(question,'user');input.value='';setBusy(true);
     const thinking=addThinking();
     try{
-      const shouldAnalyse=!state.responseId||/calculate|estimate|extract|count|analyse|analyze|scan|محاسبه|قیمت|شمار/i.test(question);
+      const shouldAnalyse=state.method==='fast'||!state.responseId||/calculate|estimate|extract|count|analyse|analyze|محاسبه|قیمت/i.test(question);
       let data;
       if(shouldAnalyse){
-        if(!state.fileData)state.fileData=await readFile(state.file);
-        data=await callFunction({mode:'analyse',scanMode:state.method,trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:inferFileType(state.file),question});
-        state.responseId=data.responseId||null;state.analysis=data.analysis;
-        if(state.analysis){state.analysis.method=state.method;state.analysis.confidence=state.method==='fast'?'Medium — check every count':'Higher — still requires trade review'}
+        if(state.method==='fast'){
+          if(!window.ACLocalPlanAnalyser)throw new Error('The Fast Scan module did not load. Refresh the page or use Smart AI.');
+          const analysis=await window.ACLocalPlanAnalyser.analyse(state.file,state.trade,(progress,label)=>updateThinking(thinking,label,progress));
+          data={analysis};state.responseId=null;state.analysis=analysis;
+        }else{
+          if(!state.fileData)state.fileData=await readFile(state.file);
+          data=await callFunction({mode:'analyse',trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:state.file.type,question});
+          state.responseId=data.responseId||null;state.analysis=data.analysis;
+          if(state.analysis){state.analysis.method='smart';state.analysis.confidence='higher'}
+        }
         removeThinking(thinking);renderAnalysis(data.analysis);
       }else{
         data=await callFunction({mode:'question',trade:state.trade,previousResponseId:state.responseId,question});
@@ -107,7 +106,7 @@
     const row=document.createElement('div');row.className=`message-row ${type}`;row.innerHTML=`<div class="avatar">${type==='user'?'YOU':type==='failure'?'!':'AI'}</div><div class="bubble"></div>`;row.querySelector('.bubble').textContent=text;$('messages').appendChild(row);scrollMessages();return row;
   }
   function addThinking(){
-    const label=state.method==='fast'?'Running a fast vision pass across legends and symbols':'Reviewing every relevant page, legend, symbol and note';
+    const label=state.method==='fast'?'Scanning labels and matching the price list on this device':'Reading the plan with Smart AI and matching the price list';
     const row=document.createElement('div');row.className='message-row assistant';row.innerHTML=`<div class="avatar">${state.method==='fast'?'FS':'AI'}</div><div class="bubble"><div class="thinking"><i></i><i></i><i></i><span>${label}</span></div><small class="elapsed">0 seconds</small></div>`;$('messages').appendChild(row);startTime=Date.now();timerId=setInterval(()=>{const el=row.querySelector('.elapsed');if(el)el.textContent=`${Math.floor((Date.now()-startTime)/1000)} seconds`},1000);scrollMessages();return row;
   }
   function updateThinking(row,label,progress){if(!row)return;const text=row.querySelector('.thinking span');if(text)text.textContent=`${label||'Scanning plan'}${Number.isFinite(progress)?` • ${progress}%`:''}`}
@@ -142,8 +141,8 @@
     const rows=state.items.map((item,index)=>{const product=catalog.items[item.catalog_index],step=catalog.decimal?'0.01':'1';return `<div class="detected-row" data-item="${index}"><div class="detected-name"><strong>${esc(product[0])}</strong><small>${esc(item.evidence)}</small></div><div class="quantity"><button type="button" data-step="-${step}">−</button><input type="number" min="0" step="${step}" value="${item.quantity}" aria-label="Quantity"><button type="button" data-step="${step}">+</button></div><div class="line-price">${money(product[1]*item.quantity)}</div></div>`}).join('');
     const assumptions=(analysis.assumptions||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>No additional assumptions listed.</li>';
     const warnings=[...(analysis.warnings||[]),...(analysis.unpriced_items||[]).map(x=>`Unpriced: ${x}`)].map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Confirm all quantities with the Builder and relevant trade.</li>';
-    const method=analysis.method==='fast'?'Fast Vision':'Smart Review';const confidence=analysis.confidence||(analysis.method==='fast'?'Medium — check every count':'Higher — still requires trade review');
-    card.innerHTML=`<div class="result-top"><h3>${esc(catalog.label)} Estimate From Plan</h3><p>Matched to the existing Alert Construction ${esc(catalog.label)} catalogue. Review every editable quantity before use.</p><span class="result-method">${esc(method)}</span><span class="confidence">${esc(confidence)}</span></div><div class="totals"><div class="total-box"><span>Cost + GST</span><strong data-builder-total>$0.00</strong><small>Catalogue subtotal + 10% GST</small></div><div class="total-box"><span>Customer Estimate</span><strong data-customer-total>$0.00</strong><small>+20% margin, then +10% GST</small></div></div><div class="detected-list">${rows}</div><div class="result-notes"><div><strong>Assumptions</strong><ul>${assumptions}</ul></div><div><strong>Builder Check</strong><ul>${warnings}</ul></div></div><div class="result-actions"><button class="open-calculator" type="button">Open ${esc(catalog.label)} Calculator →</button></div>`;
+    const method=analysis.method==='fast'?'Fast Scan':'Smart AI';const confidence=analysis.confidence||(analysis.method==='fast'?'Medium confidence':'Higher confidence');
+    card.innerHTML=`<div class="result-top"><h3>${esc(catalog.label)} Estimate From Plan</h3><p>Matched to the existing Alert Construction ${esc(catalog.label)} Calculator. Review quantities before use.</p><span class="result-method">${esc(method)}</span><span class="confidence">${esc(confidence)}</span></div><div class="totals"><div class="total-box"><span>Builder Price</span><strong data-builder-total>$0.00</strong><small>Including GST</small></div><div class="total-box"><span>Customer Estimate</span><strong data-customer-total>$0.00</strong><small>Including GST</small></div></div><div class="detected-list">${rows}</div><div class="result-notes"><div><strong>Assumptions</strong><ul>${assumptions}</ul></div><div><strong>Builder Check</strong><ul>${warnings}</ul></div></div><div class="result-actions"><button class="open-calculator" type="button">Open ${esc(catalog.label)} Calculator →</button></div>`;
     $('messages').appendChild(card);bindResultCard(card);updateCard(card);
   }
 
@@ -152,7 +151,7 @@
     card.querySelectorAll('.detected-row').forEach(row=>{const input=row.querySelector('input'),index=Number(row.dataset.item);input.addEventListener('input',()=>{const n=Math.max(0,Number(input.value)||0);data.items[index].quantity=catalog.decimal?Math.round(n*100)/100:Math.round(n);input.value=data.items[index].quantity;row.querySelector('.line-price').textContent=money(catalog.items[data.items[index].catalog_index][1]*data.items[index].quantity);updateCard(card)});row.querySelectorAll('[data-step]').forEach(button=>button.addEventListener('click',()=>{input.value=Math.max(0,Number(input.value||0)+Number(button.dataset.step));input.dispatchEvent(new Event('input'))}))});
     card.querySelector('.open-calculator').addEventListener('click',()=>transferToCalculator(card));
   }
-  function totalsFor(card){const data=cardData.get(card),catalog=CATALOGS[data.trade],base=data.items.reduce((sum,item)=>sum+catalog.items[item.catalog_index][1]*item.quantity,0);return{builder:base*(1+GST),customer:base>0?base*(1+PROFIT)*(1+GST):0}}
+  function totalsFor(card){const data=cardData.get(card),catalog=CATALOGS[data.trade],base=data.items.reduce((sum,item)=>sum+catalog.items[item.catalog_index][1]*item.quantity,0);return{builder:base*(1+GST),customer:base>0?(catalog.profit==='allowance'?(base+CUSTOMER_ALLOWANCE)*(1+GST):base*(1+PROFIT)*(1+GST)):0}}
   function updateCard(card){const value=totalsFor(card);card.querySelector('[data-builder-total]').textContent=money(value.builder);card.querySelector('[data-customer-total]').textContent=money(value.customer)}
   function transferToCalculator(card){const data=cardData.get(card),catalog=CATALOGS[data.trade],quantities=Array(catalog.items.length).fill(0);data.items.forEach(item=>quantities[item.catalog_index]=item.quantity);localStorage.setItem(catalog.storage,JSON.stringify({quantities,project:state.file?state.file.name.replace(/\.[^.]+$/,''):`AI ${catalog.label} Estimate`,mode:'customer',createdAt:new Date().toISOString()}));window.location.href=catalog.path}
   window.ACProjectCapture=async function(){
