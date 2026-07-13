@@ -19,7 +19,7 @@
     <section class="intro">
       <div class="eyebrow">Alert Construction Intelligence</div>
       <h1>Ask your plan.<br><span>Estimate the trade.</span></h1>
-      <p>Upload a drawing, select the trade and ask AI to extract quantities using your Alert Construction price lists.</p>
+      <p>Upload a drawing, select the trade, then choose a fast on-device scan or a smarter AI review. Both methods transfer detected quantities into your existing Alert Construction calculators.</p>
     </section>
 
     <section class="chat-card">
@@ -32,10 +32,27 @@
         </div>
       </div>
 
+      <div class="method-bar">
+        <div class="method-heading"><strong>Choose Analysis Method</strong><small>You can change this before every scan.</small></div>
+        <div class="method-options" role="radiogroup" aria-label="Choose analysis method">
+          <button class="method active" data-method="fast" type="button" role="radio" aria-checked="true">
+            <span class="method-icon">⚡</span>
+            <span><strong>Fast Scan</strong><small>On-device • no AI cost</small></span>
+            <em>Medium confidence</em>
+          </button>
+          <button class="method" data-method="smart" type="button" role="radio" aria-checked="false">
+            <span class="method-icon">✦</span>
+            <span><strong>Smart AI</strong><small>Detailed plan review</small></span>
+            <em>Higher confidence</em>
+          </button>
+        </div>
+        <div class="method-note" id="methodNote">Fast Scan searches readable schedules, labels, legends and repeated symbol tags on this device. Unusual or purely graphical symbols may need manual correction.</div>
+      </div>
+
       <div class="messages" id="messages" aria-live="polite">
         <div class="message-row assistant">
           <div class="avatar">AI</div>
-          <div class="bubble">Upload the plan below, choose a trade, then ask me to calculate it. I will only produce a price when the selected trade can actually be read from the drawing.</div>
+          <div class="bubble">Upload the plan below, choose Electrical, Plumbing or Cladding, then select Fast Scan or Smart AI. Every detected quantity remains editable before it is transferred to the calculator.</div>
         </div>
       </div>
 
@@ -57,7 +74,10 @@
     <div class="notice"><strong>Preliminary estimate only.</strong> Every result must be checked against the plan and confirmed by the relevant licensed trade or Builder before it is used as a quote.</div>
     <div class="error-box" id="errorBox" hidden></div>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="./config.js"></script>
+  <script src="./local-analyser.js"></script>
   <script src="./app.js"></script>
   <script src="../shared/project-store.js"></script>
   <script src="../shared/project-bridge.js"></script>

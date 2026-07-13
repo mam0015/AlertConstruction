@@ -3,6 +3,13 @@ const ALLOWED_ORIGINS=new Set(["https://mam0015.github.io","http://localhost:417
 type CatalogItem={name:string;rate:number};
 type TradeConfig={label:string;required:string;rules:string;catalog:CatalogItem[]};
 
+// Future Carpentry module scaffold. It is intentionally excluded from TRADE_CONFIG,
+// so no Carpentry request can be submitted until verified prices and plan rules exist.
+// When the module is ready, move this entry into TRADE_CONFIG and populate catalog.
+const FUTURE_TRADE_CONFIG={
+  carpentry:{enabled:false,label:"Carpentry",required:"",rules:"",catalog:[] as CatalogItem[]}
+};
+
 const TRADE_CONFIG:Record<string,TradeConfig>={
   electrical:{
     label:"Electrical",
@@ -69,7 +76,7 @@ async function callOpenAI(apiKey:string,payload:Record<string,unknown>){
 
 function filePart(body:any){
   const isImage=String(body.fileType||"").startsWith("image/");
-  return isImage?{type:"input_image",image_url:body.fileData,detail:"high"}:{type:"input_file",filename:String(body.fileName||"quote").slice(0,180),file_data:body.fileData,detail:"high"};
+  return isImage?{type:"input_image",image_url:body.fileData,detail:"high"}:{type:"input_file",filename:String(body.fileName||"quote").slice(0,180),file_data:body.fileData};
 }
 
 function catalogueText(trade:TradeConfig){return trade.catalog.map((item,index)=>`${index} | ${item.name} | ${item.rate.toFixed(2)} ex GST`).join("\n")}

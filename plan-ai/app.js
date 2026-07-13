@@ -10,11 +10,14 @@
     ]},
     cladding:{label:'Cladding',path:'../cladding/index.html',storage:'ac_ai_cladding_prefill_v1',profit:'percent',decimal:true,items:[
       ['Thermory Pine Trax Natural C32 Cladding - 140 x 20 LM',15.71],['Thermory C32 Cladding - 5.4m Length',84.97],['Thermory C32 Cladding - estimated material coverage m²',112.25],['Thermory C32 Cladding - 28 Lengths / 151.40 LM',2379.24],['42 x 42 THERMOLIT SPR Corner Mould CP3 @ 4200mm',46.42],['42 x 42 THERMOLIT SPR Corner Mould CP3 LM',11.05],['Corner Moulding Pack - 6 Pieces',278.50],['Delivery Charge / Express Delivery UTE',86.36],['Original Invoice Package - 28 Lengths + 4 Corners + Delivery',2651.24],['Revised Invoice Package - 28 Lengths + 6 Corners + Delivery',2744.10],['Order Confirmation Package - 28 Lengths + Delivery, no corners',2465.60]
-    ]}
+    ]},
+    // Future trade scaffold. Kept in code but intentionally hidden from the UI until
+    // a verified Carpentry catalogue and detection rules are supplied.
+    carpentry:{enabled:false,label:'Carpentry',path:'../carpentry/index.html',storage:'ac_ai_carpentry_prefill_v1',profit:'percent',items:[]}
   };
   const GST=.10,CUSTOMER_ALLOWANCE=2500,PROFIT=.20;
   const config=window.AC_PLAN_AI_CONFIG||{};
-  const state={trade:'electrical',file:null,fileData:null,responseId:null,analysis:null,items:[],busy:false};
+  const state={trade:'electrical',method:'fast',file:null,fileData:null,responseId:null,analysis:null,items:[],busy:false};
   const cardData=new WeakMap();
   const $=id=>document.getElementById(id);
   let errorTimer,timerId,startTime;
@@ -33,6 +36,18 @@
     addMessage(`Switched to ${current().label}. I will use the ${current().label} price catalogue for the next calculation.`,'assistant');
   }));
 
+  const METHOD_COPY={
+    fast:'Fast Scan searches readable schedules, labels, legends and repeated symbol tags on this device. Unusual or purely graphical symbols may need manual correction.',
+    smart:'Smart AI sends the selected plan to the configured secure analysis service for a deeper review of symbols, legends and notes.'
+  };
+  document.querySelectorAll('.method').forEach(button=>button.addEventListener('click',()=>{
+    if(state.busy)return;
+    state.method=button.dataset.method;state.responseId=null;state.analysis=null;state.items=[];
+    document.querySelectorAll('.method').forEach(x=>{const active=x===button;x.classList.toggle('active',active);x.setAttribute('aria-checked',String(active))});
+    $('methodNote').textContent=METHOD_COPY[state.method];
+    addMessage(state.method==='fast'?'Fast Scan selected. The plan will be checked on this device without using the AI service.':'Smart AI selected. The secure AI service will perform the detailed plan review.','assistant');
+  }));
+
   const dropzone=$('dropzone');
   $('planFile').addEventListener('change',event=>selectFile(event.target.files[0]));
   ['dragenter','dragover'].forEach(name=>dropzone.addEventListener(name,event=>{event.preventDefault();dropzone.classList.add('drag')}));
@@ -46,7 +61,7 @@
     const max=(Number(config.maxFileMb)||15)*1024*1024;if(file.size>max)return showError(`The plan must be smaller than ${config.maxFileMb||15} MB.`);
     state.file=file;state.fileData=null;state.responseId=null;dropzone.classList.add('has-file');
     $('fileTitle').textContent=file.name;$('fileMeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB • Uploaded and ready`;$('removeFileBtn').hidden=false;
-    addMessage(`${file.name} is attached. Select a trade and send your question.`,'assistant');
+    addMessage(`${file.name} is attached. Select a trade and analysis method, then send your question.`,'assistant');
   }
   function clearFile(){state.file=null;state.fileData=null;state.responseId=null;$('planFile').value='';dropzone.classList.remove('has-file');$('fileTitle').textContent='Upload house plan';$('fileMeta').textContent='Choose a file or drag it here';$('removeFileBtn').hidden=true}
   function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The selected plan could not be read.'));reader.readAsDataURL(file)})}
@@ -64,12 +79,19 @@
     addMessage(question,'user');input.value='';setBusy(true);
     const thinking=addThinking();
     try{
-      const shouldAnalyse=!state.responseId||/calculate|estimate|extract|count|analyse|analyze|محاسبه|قیمت/i.test(question);
+      const shouldAnalyse=state.method==='fast'||!state.responseId||/calculate|estimate|extract|count|analyse|analyze|محاسبه|قیمت/i.test(question);
       let data;
       if(shouldAnalyse){
-        if(!state.fileData)state.fileData=await readFile(state.file);
-        data=await callFunction({mode:'analyse',trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:state.file.type,question});
-        state.responseId=data.responseId||null;state.analysis=data.analysis;
+        if(state.method==='fast'){
+          if(!window.ACLocalPlanAnalyser)throw new Error('The Fast Scan module did not load. Refresh the page or use Smart AI.');
+          const analysis=await window.ACLocalPlanAnalyser.analyse(state.file,state.trade,(progress,label)=>updateThinking(thinking,label,progress));
+          data={analysis};state.responseId=null;state.analysis=analysis;
+        }else{
+          if(!state.fileData)state.fileData=await readFile(state.file);
+          data=await callFunction({mode:'analyse',trade:state.trade,fileData:state.fileData,fileName:state.file.name,fileType:state.file.type,question});
+          state.responseId=data.responseId||null;state.analysis=data.analysis;
+          if(state.analysis){state.analysis.method='smart';state.analysis.confidence='higher'}
+        }
         removeThinking(thinking);renderAnalysis(data.analysis);
       }else{
         data=await callFunction({mode:'question',trade:state.trade,previousResponseId:state.responseId,question});
@@ -79,13 +101,15 @@
     finally{setBusy(false);input.focus()}
   });
 
-  function setBusy(value){state.busy=value;$('sendBtn').disabled=value;document.querySelectorAll('.trade').forEach(x=>x.disabled=value)}
+  function setBusy(value){state.busy=value;$('sendBtn').disabled=value;document.querySelectorAll('.trade,.method').forEach(x=>x.disabled=value)}
   function addMessage(text,type){
     const row=document.createElement('div');row.className=`message-row ${type}`;row.innerHTML=`<div class="avatar">${type==='user'?'YOU':type==='failure'?'!':'AI'}</div><div class="bubble"></div>`;row.querySelector('.bubble').textContent=text;$('messages').appendChild(row);scrollMessages();return row;
   }
   function addThinking(){
-    const row=document.createElement('div');row.className='message-row assistant';row.innerHTML='<div class="avatar">AI</div><div class="bubble"><div class="thinking"><i></i><i></i><i></i><span>Reading the plan and matching the price list</span></div><small class="elapsed">0 seconds</small></div>';$('messages').appendChild(row);startTime=Date.now();timerId=setInterval(()=>{const el=row.querySelector('.elapsed');if(el)el.textContent=`${Math.floor((Date.now()-startTime)/1000)} seconds`},1000);scrollMessages();return row;
+    const label=state.method==='fast'?'Scanning labels and matching the price list on this device':'Reading the plan with Smart AI and matching the price list';
+    const row=document.createElement('div');row.className='message-row assistant';row.innerHTML=`<div class="avatar">${state.method==='fast'?'FS':'AI'}</div><div class="bubble"><div class="thinking"><i></i><i></i><i></i><span>${label}</span></div><small class="elapsed">0 seconds</small></div>`;$('messages').appendChild(row);startTime=Date.now();timerId=setInterval(()=>{const el=row.querySelector('.elapsed');if(el)el.textContent=`${Math.floor((Date.now()-startTime)/1000)} seconds`},1000);scrollMessages();return row;
   }
+  function updateThinking(row,label,progress){if(!row)return;const text=row.querySelector('.thinking span');if(text)text.textContent=`${label||'Scanning plan'}${Number.isFinite(progress)?` • ${progress}%`:''}`}
   function removeThinking(row){clearInterval(timerId);if(row)row.remove()}
 
   function renderAnalysis(analysis){
@@ -117,7 +141,8 @@
     const rows=state.items.map((item,index)=>{const product=catalog.items[item.catalog_index],step=catalog.decimal?'0.01':'1';return `<div class="detected-row" data-item="${index}"><div class="detected-name"><strong>${esc(product[0])}</strong><small>${esc(item.evidence)}</small></div><div class="quantity"><button type="button" data-step="-${step}">−</button><input type="number" min="0" step="${step}" value="${item.quantity}" aria-label="Quantity"><button type="button" data-step="${step}">+</button></div><div class="line-price">${money(product[1]*item.quantity)}</div></div>`}).join('');
     const assumptions=(analysis.assumptions||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>No additional assumptions listed.</li>';
     const warnings=[...(analysis.warnings||[]),...(analysis.unpriced_items||[]).map(x=>`Unpriced: ${x}`)].map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Confirm all quantities with the Builder and relevant trade.</li>';
-    card.innerHTML=`<div class="result-top"><h3>${esc(catalog.label)} Estimate From Plan</h3><p>Matched to the existing Alert Construction ${esc(catalog.label)} Calculator. Review quantities before use.</p></div><div class="totals"><div class="total-box"><span>Builder Price</span><strong data-builder-total>$0.00</strong><small>Including GST</small></div><div class="total-box"><span>Customer Estimate</span><strong data-customer-total>$0.00</strong><small>Including GST</small></div></div><div class="detected-list">${rows}</div><div class="result-notes"><div><strong>Assumptions</strong><ul>${assumptions}</ul></div><div><strong>Builder Check</strong><ul>${warnings}</ul></div></div><div class="result-actions"><button class="open-calculator" type="button">Open ${esc(catalog.label)} Calculator →</button></div>`;
+    const method=analysis.method==='fast'?'Fast Scan':'Smart AI';const confidence=analysis.confidence||(analysis.method==='fast'?'Medium confidence':'Higher confidence');
+    card.innerHTML=`<div class="result-top"><h3>${esc(catalog.label)} Estimate From Plan</h3><p>Matched to the existing Alert Construction ${esc(catalog.label)} Calculator. Review quantities before use.</p><span class="result-method">${esc(method)}</span><span class="confidence">${esc(confidence)}</span></div><div class="totals"><div class="total-box"><span>Builder Price</span><strong data-builder-total>$0.00</strong><small>Including GST</small></div><div class="total-box"><span>Customer Estimate</span><strong data-customer-total>$0.00</strong><small>Including GST</small></div></div><div class="detected-list">${rows}</div><div class="result-notes"><div><strong>Assumptions</strong><ul>${assumptions}</ul></div><div><strong>Builder Check</strong><ul>${warnings}</ul></div></div><div class="result-actions"><button class="open-calculator" type="button">Open ${esc(catalog.label)} Calculator →</button></div>`;
     $('messages').appendChild(card);bindResultCard(card);updateCard(card);
   }
 
@@ -132,6 +157,6 @@
   window.ACProjectCapture=async function(){
     const cards=document.querySelectorAll('.result-card'),card=cards[cards.length-1];if(!card)throw new Error('Complete a plan estimate before saving it.');
     const saved=cardData.get(card),totals=totalsFor(card),analysis=state.analysis||{},name=state.file?state.file.name.replace(/\.[^.]+$/,''):'Plan';
-    return{module:'plan-estimate',title:name+' — '+CATALOGS[saved.trade].label+' Plan Estimate',summary:saved.items.length+' priced items • '+money(totals.builder)+' builder total',attachment:state.file,data:{trade:saved.trade,items:saved.items,analysis:analysis,builderTotalIncGst:totals.builder,customerTotalIncGst:totals.customer}};
+    return{module:'plan-estimate',title:name+' — '+CATALOGS[saved.trade].label+' Plan Estimate',summary:saved.items.length+' priced items • '+money(totals.builder)+' builder total',attachment:state.file,data:{trade:saved.trade,method:analysis.method||state.method,items:saved.items,analysis:analysis,builderTotalIncGst:totals.builder,customerTotalIncGst:totals.customer}};
   };
 })();
