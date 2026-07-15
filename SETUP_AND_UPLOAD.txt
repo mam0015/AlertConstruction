@@ -4,7 +4,8 @@ ALERT CONSTRUCTION — PRODUCT FOUNDATION SETUP
 This package keeps the existing black, white and yellow app design and adds:
 secure accounts and team roles, cloud project sync, an editable price catalogue,
 AI audit records, daylight mode, onboarding, search, confirm/undo safeguards,
-and offline-capable non-AI tools.
+offline-capable non-AI tools, a Victoria Property Value Guide, APP-aligned legal
+pages and privacy-safe first-party usage analytics.
 
 IMPORTANT
 ---------
@@ -17,9 +18,18 @@ PART A — CREATE THE SECURE DATABASE FOUNDATION
 
 1. Open the existing Supabase project.
 2. Open SQL Editor > New query.
-3. Copy and run the complete file:
+3. Copy and run the complete files IN THIS ORDER:
 
    supabase/migrations/20260714_product_foundation.sql
+   supabase/migrations/20260714_security_audit_hardening.sql
+   supabase/migrations/20260715_optional_team_code.sql
+   supabase/migrations/20260715_privacy_analytics.sql
+
+If Supabase reports `relation "public.profiles" does not exist`, the second
+file was run before the foundation. Stop, open a new SQL query, run the COMPLETE
+20260714_product_foundation.sql file first, wait for Success, and only then run
+20260714_security_audit_hardening.sql, 20260715_optional_team_code.sql and
+20260715_privacy_analytics.sql. Do not run selected fragments.
 
 This creates:
 - organisations and private team codes;
@@ -29,6 +39,15 @@ This creates:
 - the editable price catalogue and price history;
 - AI/project audit records;
 - Row Level Security policies.
+- an authenticated server probe for catalogue access;
+- rotatable team codes and immediate member revocation;
+- active-membership checks used by every protected RLS policy.
+- optional Team Code signup and recovery for accounts created before the
+  profiles table existed.
+- a self-service Continue Individually option for missing or inactive team
+  profiles. It creates a new private Owner workspace and a shareable Team Code.
+- limited first-party tool-usage events and an Owner-only 30-day usage summary.
+- 180-day detailed usage-event retention applied during normal event writes.
 
 Do not disable Row Level Security.
 
@@ -59,9 +78,25 @@ Dashboard method:
 CLI method:
   supabase functions deploy analyse-plan --no-verify-jwt
 
-The function now requires a signed-in Supabase user, uses the authenticated
-company catalogue where an office rate override exists, and never exposes the
-OpenAI key to the browser.
+The function now verifies every bearer token directly with Supabase Auth before
+it validates an upload or calls OpenAI. It uses the authenticated company
+catalogue where an office rate override exists and never exposes the OpenAI key
+to the browser. A publishable key without a valid user token must receive HTTP
+401, not a file-validation message.
+
+
+PART B2 — SET THE PRIVACY CONTACT BEFORE PRODUCTION
+----------------------------------------------------
+
+Open shared/platform-config.js and set:
+
+  supportEmail:'your-monitored-privacy-email@example.com'
+
+Use a real monitored business address. The Privacy Policy deliberately shows a
+configuration warning while this value is blank. This contact is needed for
+privacy access, correction and complaint requests. Have an Australian lawyer
+review the Privacy Policy and Terms before paid memberships or public customer
+access.
 
 
 PART C — UPLOAD THE WEBSITE TO GITHUB
@@ -81,6 +116,7 @@ Correct repository root:
   plumbing/
   cladding/
   renovation-budget/
+  property-estimate/
   plan-ai/
   quote-analysis/
   projects/
@@ -99,14 +135,26 @@ PART D — CREATE THE FIRST OWNER AND TEAM
 1. Open the deployed Dashboard.
 2. Open Account at the bottom-left.
 3. Choose Create Account.
-4. Enter the company name and Owner email.
-5. Sign in after email confirmation, if required.
-6. Copy the private team code shown on the Account page.
-7. Each staff member creates their own account and uses Join Team.
-8. The Owner assigns each person as:
+4. Enter the workspace/company name and Owner email.
+5. Leave Team Code blank. A blank code creates a private workspace and makes
+   this account its Owner.
+6. Sign in after email confirmation, if required.
+7. The private invitation code is shown only to the Owner. Share it only when
+   another person should join this workspace.
+8. A staff member can enter that optional code while creating their account;
+   without a code, they receive their own separate private workspace instead.
+9. The Owner assigns each person as:
    - Owner
    - Office / Estimator
    - Site Supervisor
+10. Test Rotate Code. Confirm the old code stops working.
+11. Test Revoke on a spare team account. Confirm its protected pages lock on
+    the next request; then Restore it.
+
+If an older account shows that its team is inactive, open Account & Team and
+choose Continue Individually. This does not require a Team Code. It creates a
+new private workspace, restores access to the tools and displays a new personal
+Team Code that the Owner can copy and share later.
 
 Owners and Estimators can edit company rates. Site Supervisors have read-only
 catalogue access. AI tools, projects, calculators and site records require an
@@ -119,12 +167,15 @@ PART E — CHECK THE LIVE SYSTEM
 Test these pages after signing in:
 - Dashboard
 - Renovation Budget Planner
+- Property Value Guide
 - Electrical, Plumbing and Cladding calculators
 - Projects & Schedule
 - Live Price Catalogue
 - AI Plan Estimator (Fast and Smart)
 - Quote Price Analysis
 - Site Checklist
+- Privacy Policy and Terms of Use
+- Account > Usage insights (Owner only, after opening several tools)
 
 Cross-device test:
 1. Create a project and save an estimate on device A.
@@ -143,7 +194,8 @@ OFFLINE AND DAYLIGHT USE
 - The calculators, renovation planner, saved local projects and checklist work
   without a signal after they have been cached.
 - AI Plan Estimator and Quote Analysis require internet access.
-- Use the bottom-left Day/Dark button for bright outdoor conditions.
+- Use the Day/Dark button in the dashboard account header (or the floating
+  product bar on internal pages) for bright outdoor conditions.
 
 
 PRICE CATALOGUE AND LEGACY RATES
@@ -193,12 +245,64 @@ Currently labelled planning allowances until AC trade data is supplied:
 - Permits and design
 
 
+VICTORIA PROPERTY VALUE GUIDE
+-----------------------------
+
+This tool is deterministic JavaScript and does not use AI. It works offline
+after being cached. Plans, photos and PDFs can be saved with the Project for
+human review, but they do not automatically change the estimate.
+
+Evidence order:
+1. Recent, genuinely comparable settled sales entered by the user.
+2. A current matching suburb median entered by the user.
+3. Broad December 2025 Valuer-General Victoria metropolitan/regional benchmark.
+
+The built-in official benchmark values are a fallback, not a suburb valuation.
+Townhouses do not have a separate figure in that broad series, so the app labels
+its house/unit midpoint as modelled and gives it low confidence. Update the
+benchmark or enter current comparables whenever newer verified data is available.
+
+The output is a preliminary market-value guide only. It is not a formal
+valuation, lender/tax/insurance valuation, agent estimated selling price or
+Victorian Statement of Information. Obtain a licensed agent and/or Certified
+Practising Valuer review before a financial decision.
+
+
 SECURITY NOTES
 --------------
 
 - The browser contains only the Supabase publishable key. This is expected.
 - No OpenAI secret or Supabase service-role key belongs in GitHub.
 - AI calls require both the publishable key and a signed-in user access token.
+- The Edge Function validates that token against /auth/v1/user and fails closed
+  if account verification is unavailable.
+- The Catalogue page calls catalogue_access_probe on the server before showing
+  any live catalogue rows. Supabase RLS independently enforces organisation and
+  role access on every catalogue request and write.
+- A hidden page is not treated as security. Revoked profiles are excluded by
+  current_organisation_id/current_ac_role, so old sessions lose database access.
+- Owners can rotate the shared join code and revoke or restore team members.
+  Revoking a member also rotates the code automatically; revoked accounts
+  cannot use a remembered code to rejoin.
+- Enable Confirm email in Supabase Authentication settings. Password reset and
+  verification-email resend controls are included on the Account page.
 - Customer estimates should show customer totals, not builder-rate breakdowns.
 - Every AI result remains preliminary and must be checked by the Builder or
   relevant licensed trade before being issued as a quote.
+
+
+PRIVACY-SAFE USAGE ANALYTICS
+----------------------------
+
+The app uses its existing Supabase backend instead of a third-party analytics
+cookie. It records only:
+- event type;
+- tool name;
+- pathname without query strings;
+- signed-in user/workspace identifiers; and
+- timestamp.
+
+It does NOT send plans, quote contents, project names, addresses, notes, search
+text, uploaded files, quantities or estimate values to analytics. Only Owners
+can view the 30-day tool-open summary on the Account page. Detailed events are
+limited to 180 days by the database function.

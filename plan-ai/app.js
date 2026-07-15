@@ -98,6 +98,7 @@
         state.responseId=data.responseId||null;state.analysis=data.analysis;
         if(state.analysis){state.analysis.method=state.method;state.analysis.confidence=state.method==='fast'?'Medium — check every count':'Higher — still requires trade review'}
         removeThinking(thinking);renderAnalysis(data.analysis);
+        if(data.analysis?.status==='success')window.ACAnalytics?.track?.('estimate_completed','ai-plan-estimator');
       }else{
         data=await callFunction({mode:'question',trade:state.trade,previousResponseId:state.responseId,question});
         state.responseId=data.responseId||state.responseId;removeThinking(thinking);addMessage(data.answer||'No answer was returned.','assistant');
@@ -161,7 +162,7 @@
   function transferToCalculator(card){const data=cardData.get(card),catalog=CATALOGS[data.trade],quantities=Array(catalog.items.length).fill(0);data.items.forEach(item=>quantities[item.catalog_index]=item.quantity);localStorage.setItem(catalog.storage,JSON.stringify({quantities,project:state.file?state.file.name.replace(/\.[^.]+$/,''):`AI ${catalog.label} Estimate`,mode:'customer',createdAt:new Date().toISOString()}));window.location.href=catalog.path}
   window.ACProjectCapture=async function(){
     const cards=document.querySelectorAll('.result-card'),card=cards[cards.length-1];if(!card)throw new Error('Complete a plan estimate before saving it.');
-    const saved=cardData.get(card),totals=totalsFor(card),analysis=saved.analysis||{},name=state.file?state.file.name.replace(/\.[^.]+$/,''):'Plan',changes=saved.items.map((item,index)=>({catalog_index:item.catalog_index,from:saved.originalItems[index]?.quantity,to:item.quantity})).filter(item=>item.from!==item.to);
-    return{module:'plan-estimate',title:name+' — '+CATALOGS[saved.trade].label+' Plan Estimate',summary:saved.items.length+' priced items • '+money(totals.builder)+' builder total',attachment:state.file,data:{trade:saved.trade,method:analysis.method||state.method,items:saved.items,analysis:analysis,builderTotalIncGst:totals.builder,customerTotalIncGst:totals.customer,audit:{generatedAt:saved.generatedAt,responseId:saved.responseId,generatedBy:window.ACAuth?.user()?.email||'Local user',originalItems:saved.originalItems,humanChanges:changes,savedAt:new Date().toISOString()}}};
+    const saved=cardData.get(card),totals=totalsFor(card),analysis=saved.analysis||{},name=state.file?state.file.name.replace(/\.[^.]+$/,''):'Plan',savedAt=new Date().toISOString(),actor=window.ACAuth?.user()?.email||'Local user',changes=saved.items.map((item,index)=>({catalog_index:item.catalog_index,from:saved.originalItems[index]?.quantity,to:item.quantity,correctedAt:savedAt,correctedBy:actor})).filter(item=>item.from!==item.to);
+    return{module:'plan-estimate',title:name+' — '+CATALOGS[saved.trade].label+' Plan Estimate',summary:saved.items.length+' priced items • '+money(totals.builder)+' builder total',attachment:state.file,data:{trade:saved.trade,method:analysis.method||state.method,items:saved.items,analysis:analysis,builderTotalIncGst:totals.builder,customerTotalIncGst:totals.customer,audit:{generatedAt:saved.generatedAt,responseId:saved.responseId,generatedBy:actor,originalItems:saved.originalItems,humanChanges:changes,savedAt,savedBy:actor}}};
   };
 })();

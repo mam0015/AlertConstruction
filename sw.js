@@ -1,16 +1,18 @@
-const CACHE='ac-product-foundation-v9';
+const CACHE='ac-private-ai-analytics-v14';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/app-icon.svg',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
+  './property-estimate/','./property-estimate/index.html','./property-estimate/app.js',
   './plan-ai/','./plan-ai/index.html','./plan-ai/styles.css','./plan-ai/config.js','./plan-ai/app.js',
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
+  './legal/privacy.html','./legal/terms.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
-  './shared/product-shell.js','./shared/cloud-sync.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
+  './shared/product-shell.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
 ];
 
 self.addEventListener('install',event=>{

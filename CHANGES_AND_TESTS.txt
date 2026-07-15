@@ -1,6 +1,79 @@
 PRODUCT FOUNDATION & CLIENT ROADMAP — 14 JULY 2026
 ==================================================
 
+OPTIONAL TEAM CODE SIGNUP — 15 JULY 2026
+=========================================
+
+- Made Team Code explicitly optional during account creation.
+- A blank code now creates a separate private workspace and Owner account.
+- A valid invitation code joins the existing workspace as Site Supervisor.
+- Hid the confusing Join Existing Team control from Owners.
+- Added clear copy explaining that no code is required for personal use.
+- Added a safe migration that updates future signup behaviour and gives
+  accounts created before the profiles table existed a private Owner workspace.
+- Bumped the offline cache so the corrected account page replaces old copies.
+- Added Continue Individually for missing or inactive workspace profiles.
+- Individual recovery creates a private Owner workspace, immediately restores
+  tool access and generates a Team Code that can be copied and shared.
+- Reworded the protected-tool gate so it no longer claims a Team Code or Owner
+  restoration is the only way to continue.
+
+Validation completed:
+- Blank-code and supplied-code signup payloads: pass.
+- Owner invitation display and hidden Join Team control: pass.
+- Database migration markers, syntax and full product tests: pass.
+
+
+VICTORIA PROPERTY VALUE GUIDE — 14 JULY 2026
+=============================================
+
+- Added a guided residential Property Value Guide for Victoria.
+- Kept only suburb, region and property type as essential questions; all other
+  answers are optional and improve the evidence-confidence score.
+- Uses recent comparable sales first, a matching suburb median second and the
+  December 2025 Valuer-General Victoria broad market figures only as fallback.
+- Adjusts comparable sales transparently for sale timing, land/floor area,
+  bedrooms, bathrooms, car spaces and condition when those facts are supplied.
+- Shows a midpoint, defensible range, evidence source, confidence score, every
+  applied adjustment and the missing information that would improve the guide.
+- Added plan/photo/PDF attachments for human review without using AI.
+- Added notes, follow-up date, Save Draft, Print / Save PDF, Save to Project,
+  reopen/edit support and automatic project follow-up tasks.
+- Added multi-file Project attachments while retaining old single-file records.
+- Added the tool to dashboard search, Projects quick links and offline PWA cache.
+- Clearly distinguishes a preliminary guide from a formal valuation, agent
+  estimated selling price and Victorian Statement of Information.
+
+Validation completed:
+- JavaScript syntax and product validation: pass.
+- Three-comparable calculation, confidence, project save and reopen tests: pass.
+
+
+SECURITY & AUDIT HARDENING — CLIENT REVIEW PASS
+===============================================
+
+- Added a real authenticated catalogue_access_probe server check.
+- Catalogue rows now remain hidden if the server/RLS check cannot be verified.
+- Added active membership enforcement to organisation and role RLS helpers.
+- Added Owner controls to rotate the team code and revoke/restore a member.
+- Added account, role, sign-out and last-synced information to the dashboard.
+- Made Owner, Office/Estimator and Site Supervisor permissions visible.
+- Added recent activity showing catalogue versions, project/AI saves and team
+  access changes with actor identity and timestamps.
+- Added server audit writes when a project or corrected AI result is saved.
+- Added per-correction correctedBy and correctedAt metadata.
+- Added dashboard tool search, category filtering and trust labels.
+- Made daylight mode visible in the dashboard header without changing the
+  existing black, white and yellow default theme.
+- Added password-reset, verification resend and email verification status.
+- Added explicit confirmation/Undo copy to calculator clears and checklist
+  reset; checklist reset now has a seven-second Undo action.
+- Standardised the Electrical page title and Checklist AC mark.
+
+Deployment required for this review pass:
+- Run supabase/migrations/20260714_security_audit_hardening.sql after the
+  original product foundation migration.
+
 - Added secure Supabase email/password accounts.
 - Added Owner, Office/Estimator and Site Supervisor roles.
 - Added private team joining codes and Owner role management.
@@ -99,3 +172,24 @@ Not possible without the owner's live credentials
 
 Always verify AI quantities against the legend and have the relevant licensed
 trade/Builder confirm scope before issuing a real quote.
+AI SECURITY, LEGAL AND ANALYTICS — 15 JULY 2026
+===============================================
+
+- Replaced the ineffective AI auth-mode wrapper with direct Supabase Auth user
+  verification for every Edge Function request.
+- Requests without an Origin, valid bearer token or verified Supabase user now
+  fail before file validation and before any OpenAI call.
+- Added an APP-aligned Privacy Policy and Australian Terms of Use.
+- Added prominent estimate-only/not-a-valuation/not-a-quote disclaimers to the
+  Property Value Guide, AI Plan Estimator and Quote Price Analysis.
+- Added Privacy and Terms links to every app page and a collection notice to
+  Create Account.
+- Added first-party Supabase usage analytics with no plan, quote, address,
+  notes, search text, uploaded file or estimate-value collection.
+- Added Owner-only 30-day Usage Insights and 180-day detailed event retention.
+- Added legal and analytics files to the offline cache.
+
+Deployment required:
+- Run supabase/migrations/20260715_privacy_analytics.sql.
+- Redeploy supabase/functions/analyse-plan/index.ts.
+- Set supportEmail in shared/platform-config.js before production.
