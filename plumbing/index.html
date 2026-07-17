@@ -63,25 +63,25 @@
     @media print{body{background:#fff;color:#000;padding:0}.app{width:100%}.hero,.total-card,.note,.section,.custom-card,.filters{box-shadow:none;border-color:#ddd;background:#fff;color:#000;break-inside:avoid}.actions,.filters,.custom-card{display:none}input,select{border:1px solid #ddd;background:#fff;color:#000}.logo,button{background:#000;color:#fff}.total{color:#000}.total-box{border-color:#000}summary{border-bottom-color:#ddd}.item{border-bottom-color:#eee}.item-name strong{color:#000}.subtitle,.item-desc,.section-title p,.total-title,.small-total,label,.note{color:#444}.qty-btn{display:none}.chev{display:none}details.section{display:block}details.section:not([open])>*{display:block}}
   </style>
 </head>
-<body class="customer-mode">
+<body class="builder-mode">
   <main class="app">
     <a href="../index.html" style="display:inline-flex;align-items:center;gap:6px;color:#b7b7b7;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px">← Back to dashboard</a>
     <section class="hero">
-      <div class="brand"><div class="logo">AC</div><div><h1>Plumbing Quote Calculator Pro</h1><p class="subtitle">Built from Odds On Plumbing invoices: rough-in, fit-off, gas, drainage and extras. Customer mode adds the selected profit margin, then GST, while hiding internal pricing.</p></div></div>
+      <div class="brand"><div class="logo">AC</div><div><h1>Plumbing Quote Calculator Pro</h1><p class="subtitle">Built from Odds On Plumbing invoices: rough-in, fit-off, gas, drainage and extras. Builder Quote mode adds the selected building margin before GST; Customer Direct does not.</p></div></div>
       <div class="grid-top">
         <div><label for="project">Project / Address</label><input id="project" type="text" placeholder="e.g. Point Cook renovation" autocomplete="off" /></div>
         <div><label for="customer">Prepared For</label><input id="customer" type="text" placeholder="Customer name" autocomplete="off" /></div>
-        <div><label for="mode">View Mode</label><select id="mode"><option value="customer" selected>Customer Quote</option><option value="builder">Builder Price</option></select></div>
-        <div><label for="profitMargin">Profit Margin %</label><input id="profitMargin" type="number" min="0" step="1" value="20" /></div>
+        <div><label for="mode">Price Mode</label><select id="mode"><option value="builder" selected>Builder Quote (+20%)</option><option value="customer">Customer Direct (no margin)</option></select></div>
+        <div><label for="profitMargin">Builder Margin %</label><input id="profitMargin" type="number" min="0" step="1" value="20" /></div>
       </div>
     </section>
 
     <section class="summary">
-      <div class="total-card"><div class="total-box"><div class="total-title" id="totalTitle">Customer Quote Total inc GST</div><div class="total" id="grandTotal">$0.00</div><div class="small-total builder-only" id="builderBreakdown">Ex GST: $0.00 | GST: $0.00</div></div><div class="stats"><div class="stat"><b id="itemCount">0</b><span>Selected items</span></div><div class="stat"><b id="qtyCount">0</b><span>Total quantity</span></div><div class="stat"><b id="subTotalMini">$0</b><span>Base ex GST</span></div></div></div>
+      <div class="total-card"><div class="total-box"><div class="total-title" id="totalTitle">Builder Quote Total inc GST</div><div class="total" id="grandTotal">$0.00</div><div class="small-total builder-only" id="builderBreakdown">Ex GST: $0.00 | GST: $0.00</div></div><div class="stats"><div class="stat"><b id="itemCount">0</b><span>Selected items</span></div><div class="stat"><b id="qtyCount">0</b><span>Total quantity</span></div><div class="stat"><b id="subTotalMini">$0</b><span>Base ex GST</span></div></div></div>
       <div class="actions"><button type="button" id="printBtn">Print / Save PDF</button><button type="button" class="secondary" id="clearBtn">Clear Quantities</button><button type="button" class="secondary" id="expandBtn">Open All</button><button type="button" class="danger" id="closeBtn">Close All</button></div><p class="subtitle" style="margin:8px 0 0">Clear Quantities asks for confirmation and provides a 7-second Undo option.</p>
     </section>
 
-    <section class="note"><span class="warning">Customer Quote mode:</span> shows only the final customer total inc GST. Builder rates, line totals and hidden margin are not shown. <span class="builder-only"><br><br><span class="warning">Builder Price mode:</span> shows internal ex GST rates, GST and line totals. Rates are based on the supplied invoices where possible, with practical per-fixture rates calculated from the same job totals.</span></section>
+    <section class="note"><span class="warning">Customer Direct mode:</span> adds 10% GST to the catalogue subtotal only; no building margin is applied and internal rates stay hidden. <span class="builder-only"><br><br><span class="warning">Builder Quote mode:</span> adds the selected building margin (20% by default), then 10% GST and shows the internal breakdown.</span></section>
 
     <section class="filters"><div><label for="search">Search item</label><input id="search" type="text" placeholder="Search toilet, shower, gas, kitchen..." /></div><div><label for="stageFilter">Stage</label><select id="stageFilter"><option value="all">All stages</option><option value="rough">Rough In</option><option value="fitoff">Fit Off</option><option value="extras">Extras</option></select></div><div><label for="quickAdd">Quick Add</label><select id="quickAdd"><option value="">Choose common item...</option><option value="rough-bathroom">Bathroom Rough-In Package</option><option value="fit-toilet">Toilet Fit-Off</option><option value="fit-shower">Shower Fit-Off</option><option value="extra-bath-waste">Coloured Bath Waste</option></select></div></section>
 
@@ -137,14 +137,14 @@
       function getQty(input){var value=parseInt(input.value,10); if(isNaN(value)||value<0) return 0; return value;}
       function rows(){return document.querySelectorAll('.item');}
       function calculateTotals(){
-        var modeEl=document.getElementById('mode'); var mode=modeEl?modeEl.value:'customer';
+        var modeEl=document.getElementById('mode'); var mode=modeEl?modeEl.value:'builder';
         var profitEl=document.getElementById('profitMargin'); var profitMargin=Math.max(0,Number(profitEl&&profitEl.value?profitEl.value:0));
         var subtotalExGst=0, selected=0, qtyTotal=0;
         rows().forEach(function(row){var rate=Number(row.getAttribute('data-rate')||0); var input=row.querySelector('.qtyInput'); var qty=input?getQty(input):0; var line=rate*qty; subtotalExGst+=line; if(qty>0){selected++; qtyTotal+=qty;} var lineBox=row.querySelector('.line-total'); if(lineBox) lineBox.textContent=money(line);});
-        var profitAmount=0; var quoteBaseExGst=subtotalExGst; if(mode==='customer' && subtotalExGst>0){profitAmount=subtotalExGst*(profitMargin/100); quoteBaseExGst=subtotalExGst+profitAmount;}
+        var profitAmount=0; var quoteBaseExGst=subtotalExGst; if(mode==='builder' && subtotalExGst>0){profitAmount=subtotalExGst*(profitMargin/100); quoteBaseExGst=subtotalExGst+profitAmount;}
         var gst=quoteBaseExGst*GST_RATE; var totalIncGst=quoteBaseExGst+gst;
         document.getElementById('grandTotal').textContent=money(totalIncGst);
-        document.getElementById('totalTitle').textContent=mode==='customer'?'Customer Quote Total inc GST':'Builder Price Total inc GST';
+        document.getElementById('totalTitle').textContent=mode==='builder'?'Builder Quote Total inc GST':'Customer Direct Total inc GST';
         document.getElementById('builderBreakdown').textContent='Base ex GST: '+money(subtotalExGst)+' | Profit: '+money(profitAmount)+' ('+profitMargin+'%) | Quote ex GST: '+money(quoteBaseExGst)+' | GST: '+money(gst);
         document.getElementById('itemCount').textContent=selected; document.getElementById('qtyCount').textContent=qtyTotal; document.getElementById('subTotalMini').textContent=shortMoney(subtotalExGst);
         document.body.classList.remove('customer-mode','builder-mode'); document.body.classList.add(mode==='customer'?'customer-mode':'builder-mode');
@@ -185,7 +185,7 @@
 window.ACProjectCapture = async function(){
   var rows=Array.prototype.slice.call(document.querySelectorAll('.sections .item')),quantities=[],selected=[],base=0;
   rows.forEach(function(row){var qty=Math.max(0,Number((row.querySelector('.qtyInput')||{}).value||0)),rate=Number(row.getAttribute('data-rate')||0),name=((row.querySelector('.item-name strong')||row.querySelector('.item-name')||{}).textContent||'Plumbing item').trim();quantities.push(qty);if(qty>0){selected.push({name:name,quantity:qty,rate:rate,lineTotal:qty*rate});base+=qty*rate;}});
-  var mode=(document.getElementById('mode')||{}).value||'customer',margin=Math.max(0,Number((document.getElementById('profitMargin')||{}).value||20)),project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',builder=base*1.1,customerTotal=base>0?base*(1+margin/100)*1.1:0,total=mode==='builder'?builder:customerTotal;
+  var mode=(document.getElementById('mode')||{}).value||'builder',margin=Math.max(0,Number((document.getElementById('profitMargin')||{}).value||20)),project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',customerTotal=base*1.1,builder=base>0?base*(1+margin/100)*1.1:0,total=mode==='builder'?builder:customerTotal;
   return{module:'plumbing',title:(project?project+' — ':'')+'Plumbing Estimate',summary:selected.length+' selected items • '+total.toLocaleString('en-AU',{style:'currency',currency:'AUD'}),data:{project:project,customer:customer,mode:mode,profitMargin:margin,quantities:quantities,items:selected,builderTotalIncGst:builder,customerTotalIncGst:customerTotal}};
 };
 </script>

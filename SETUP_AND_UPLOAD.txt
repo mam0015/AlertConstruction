@@ -109,6 +109,21 @@ catalogue where an office rate override exists and never exposes the OpenAI key
 to the browser. A publishable key without a valid user token must receive HTTP
 401, not a file-validation message.
 
+The AI Plan Estimator now requires two labelled files: Existing/Before and
+Proposed/Future. It reads the legend in each file separately, reports added,
+removed, moved and unchanged symbols, then maps each action separately to a
+verified catalogue rate. A removal or move is priced only where a suitable
+replacement, alteration or remove/reinstall item exists; unsupported actions
+remain Unpriced rather than receiving a made-up rate.
+
+Plan Estimator and all three trade calculators use the same price-mode rules:
+- Builder Quote: catalogue subtotal + 20% building margin, then +10% GST.
+- Customer Direct: catalogue subtotal +10% GST only; no 20% margin.
+
+You must redeploy this included Edge Function after uploading the website;
+otherwise the new two-file browser request will not be understood by the old
+server code. No SQL is required for this comparison update.
+
 
 PART B2 — SET THE PRIVACY CONTACT BEFORE PRODUCTION
 ----------------------------------------------------

@@ -1,4 +1,4 @@
-const CACHE='ac-auth-callback-v22';
+const CACHE='ac-action-pricing-v24';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg',

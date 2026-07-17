@@ -1,6 +1,63 @@
 PRODUCT FOUNDATION & CLIENT ROADMAP — 14 JULY 2026
 ==================================================
 
+ICON ACTION PRICING + BUILDER/CUSTOMER MODES — 17 JULY 2026
+===========================================================
+
+- The Plan Estimator now reads each Existing and Proposed legend separately
+  and can identify a clear standard Australian trade icon when no legend is
+  supplied, with reduced confidence and explicit evidence.
+- Every recognised symbol now has separate catalogue mappings for Added,
+  Removed and Moved actions. The app no longer assumes one rate fits all three.
+- Added work uses verified new-work rates. Electrical removals can use the
+  matching existing-work Replacement / fit-off allowance for power points and
+  1/2/3/4-gang switches; clearly moved downlights can use Install only.
+- Plumbing drain removal/relocation can use Sanitary Drain Alteration where the
+  plan genuinely shows remove/reinstall. Unsupported action rates stay clearly
+  Unpriced instead of receiving an invented amount.
+- The result now prices all matched actions, labels every line Added, Removed or
+  Moved, and retains editable quantities and source evidence.
+- Added a visible Builder Quote / Customer Direct selector to Plan Estimator.
+  Builder Quote = catalogue subtotal + 20% building margin, then 10% GST.
+  Customer Direct = catalogue subtotal + 10% GST only, with no 20% margin.
+- Aligned Electrical, Plumbing and Cladding calculators with the same pricing
+  mode definitions so transferred AI quantities keep the selected mode.
+- Updated Project records with price mode, subtotal, margin, GST and final total.
+- Added browser tests for action-based removal pricing and both final-total modes.
+- Bumped the offline cache to ac-action-pricing-v24.
+
+Deployment required:
+- Upload the complete website package.
+- Replace and redeploy supabase/functions/analyse-plan/index.ts.
+- No new SQL migration is required.
+
+EXISTING VS PROPOSED AI PLAN COMPARISON — 17 JULY 2026
+======================================================
+
+- Replaced the single-plan upload with separate Existing/Before and
+  Proposed/Future plan uploads.
+- Restricted plan comparison files to PDF or supported images so drawing
+  symbols remain visible; PDF is recommended for multi-page drawings.
+- The secure Edge Function now receives both labelled files, reads each file's
+  own legend, counts symbols by page/room, and compares matching locations.
+- Added a visible change schedule for Existing, Proposed, Added, Removed, Moved
+  and Unchanged quantities with confidence and evidence.
+- Added deterministic server-side arithmetic so every comparison satisfies:
+  Existing = Unchanged + Removed + Moved and
+  Proposed = Unchanged + Added + Moved.
+- Only supported additions are automatically priced. Removed, relocated and
+  unmatched work is reported but stays unpriced until verified rates exist.
+- Saving to Projects now keeps both uploaded plans, the full change schedule,
+  priced additions and the human-correction audit details.
+- Added integration tests for the dual-file request, removal result, pricing of
+  additions only, and saving both attachments.
+- Bumped the offline cache so an installed app replaces the single-plan tool.
+
+Deployment required:
+- Upload the complete website package.
+- Replace and redeploy supabase/functions/analyse-plan/index.ts.
+- No new SQL migration is required for this change.
+
 EMAIL VERIFICATION CALLBACK FIX — 17 JULY 2026
 ================================================
 

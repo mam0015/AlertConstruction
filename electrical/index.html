@@ -133,7 +133,7 @@
     }
   </style>
 </head>
-<body class="customer-mode">
+<body class="builder-mode">
   <main class="app">
     <a href="../index.html" style="display:inline-flex;align-items:center;gap:6px;color:#b7b7b7;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px">← Back to dashboard</a>
     <section class="hero">
@@ -156,8 +156,8 @@
         <div>
           <label for="mode">View Mode</label>
           <select id="mode">
-            <option value="customer" selected>Customer Quote</option>
-            <option value="builder">Builder Price</option>
+            <option value="builder" selected>Builder Quote (+20%)</option>
+            <option value="customer">Customer Direct (no margin)</option>
           </select>
         </div>
       </div>
@@ -166,7 +166,7 @@
     <section class="summary">
       <div class="total-card">
         <div class="total-box">
-          <div class="total-title" id="totalTitle">Customer Quote Total inc GST</div>
+          <div class="total-title" id="totalTitle">Builder Quote Total inc GST</div>
           <div class="total" id="grandTotal">$0.00</div>
           <div class="small-total builder-only" id="builderBreakdown">Ex GST: $0.00 | GST: $0.00</div>
         </div>
@@ -179,8 +179,8 @@
     </section>
 
     <section class="note">
-      <span class="warning">Customer Quote mode:</span> adds a fixed 20% profit to the catalogue subtotal, then adds 10% GST. Internal builder pricing stays hidden.
-      <span class="builder-only"><br><br><span class="warning">Builder Price mode:</span> shows the base electrician price, GST and line totals for internal use.</span>
+      <span class="warning">Customer Direct mode:</span> uses the catalogue subtotal and adds 10% GST only. The 20% building margin is not applied and internal line rates stay hidden.
+      <span class="builder-only"><br><br><span class="warning">Builder Quote mode:</span> adds a fixed 20% building margin to the catalogue subtotal, then adds 10% GST and shows the rate breakdown.</span>
     </section>
 
     <section class="sections" id="itemsWrap">
@@ -237,7 +237,7 @@
       'use strict';
 
       var GST_RATE = 0.10;
-      var CUSTOMER_PROFIT_RATE = 0.20;
+      var BUILDER_MARGIN_RATE = 0.20;
 
       function money(value){
         var n = Number(value || 0);
@@ -252,7 +252,7 @@
 
       function calculateTotals(){
         var modeEl = document.getElementById('mode');
-        var mode = modeEl ? modeEl.value : 'customer';
+        var mode = modeEl ? modeEl.value : 'builder';
         var rows = document.querySelectorAll('.item');
         var subtotalExGst = 0;
 
@@ -269,8 +269,8 @@
         }
 
         var quoteBaseExGst = subtotalExGst;
-        if (mode === 'customer' && subtotalExGst > 0){
-          quoteBaseExGst = subtotalExGst * (1 + CUSTOMER_PROFIT_RATE);
+        if (mode === 'builder' && subtotalExGst > 0){
+          quoteBaseExGst = subtotalExGst * (1 + BUILDER_MARGIN_RATE);
         }
 
         var gst = quoteBaseExGst * GST_RATE;
@@ -281,7 +281,7 @@
         var builderBreakdown = document.getElementById('builderBreakdown');
 
         if (grandTotal) grandTotal.textContent = money(totalIncGst);
-        if (totalTitle) totalTitle.textContent = mode === 'customer' ? 'Customer Quote Total inc GST' : 'Builder Price Total inc GST';
+        if (totalTitle) totalTitle.textContent = mode === 'builder' ? 'Builder Quote Total inc GST' : 'Customer Direct Total inc GST';
         if (builderBreakdown) builderBreakdown.textContent = 'Ex GST: ' + money(quoteBaseExGst) + ' | GST: ' + money(gst);
 
         document.body.classList.remove('customer-mode','builder-mode');
@@ -400,7 +400,7 @@
 window.ACProjectCapture = async function(){
   var rows=Array.prototype.slice.call(document.querySelectorAll('.sections .item')),quantities=[],selected=[],base=0;
   rows.forEach(function(row){var qty=Math.max(0,Number((row.querySelector('.qtyInput')||{}).value||0)),rate=Number(row.getAttribute('data-rate')||0),name=((row.querySelector('.item-name strong')||row.querySelector('.item-name')||{}).textContent||'Electrical item').trim();quantities.push(qty);if(qty>0){selected.push({name:name,quantity:qty,rate:rate,lineTotal:qty*rate});base+=qty*rate;}});
-  var mode=(document.getElementById('mode')||{}).value||'customer',project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',builder=base*1.1,customerTotal=base>0?base*1.2*1.1:0,total=mode==='builder'?builder:customerTotal;
+  var mode=(document.getElementById('mode')||{}).value||'builder',project=(document.getElementById('project')||{}).value||'',customer=(document.getElementById('customer')||{}).value||'',customerTotal=base*1.1,builder=base>0?base*1.2*1.1:0,total=mode==='builder'?builder:customerTotal;
   return{module:'electrical',title:(project?project+' — ':'')+'Electrical Estimate',summary:selected.length+' selected items • '+total.toLocaleString('en-AU',{style:'currency',currency:'AUD'}),data:{project:project,customer:customer,mode:mode,quantities:quantities,items:selected,builderTotalIncGst:builder,customerTotalIncGst:customerTotal}};
 };
 </script>
