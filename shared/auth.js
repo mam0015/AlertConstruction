@@ -1,12 +1,18 @@
 (function(global){
   'use strict';
-  const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1';
+  const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1',AUTH_SCRIPT_SRC=document.currentScript?.src||'';
   let session=readSession(),profile=null,profileError='',readyResolve;
   const ready=new Promise(resolve=>readyResolve=resolve);
 
   function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
   function saveSession(value){session=value||null;if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY);global.dispatchEvent(new CustomEvent('ac-auth-changed',{detail:{session,profile,profileError}}))}
   function base(){return String(config.supabaseUrl||'').replace(/\/$/,'')}
+  function appRoot(){
+    if(AUTH_SCRIPT_SRC)return new URL('../',AUTH_SCRIPT_SRC);
+    const marker='/login/',index=location.pathname.indexOf(marker),path=index>=0?location.pathname.slice(0,index+1):location.pathname.replace(/[^/]*$/,'');
+    return new URL(path||'/',location.origin);
+  }
+  function authRedirect(){return new URL('login/',appRoot()).href}
   function publicHeaders(extra={}){return{apikey:config.publishableKey||'','Content-Type':'application/json',...extra}}
   async function request(path,options={}){
     if(!base()||!config.publishableKey)throw new Error('Account service is not configured.');
@@ -23,7 +29,7 @@
     const type=params.get('type')||'';if(type)sessionStorage.setItem('ac_auth_redirect_type',type);history.replaceState(null,'',location.pathname+location.search);return type;
   }
   async function signIn(email,password){const data=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});saveSession(data);await loadProfile();return data}
-  async function signUp(email,password,companyName,teamCode=''){const data=await request('/auth/v1/signup',{method:'POST',body:JSON.stringify({email,password,data:{organisation_name:companyName||'Alert Construction',team_code:String(teamCode||'').trim().toUpperCase()}})});if(data.access_token)saveSession(data);await loadProfile();return data}
+  async function signUp(email,password,companyName,teamCode=''){const redirect=authRedirect(),data=await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email,password,data:{organisation_name:companyName||'Alert Construction',team_code:String(teamCode||'').trim().toUpperCase()}})});if(data.access_token)saveSession(data);await loadProfile();return data}
   async function refresh(){if(!session?.refresh_token)return null;try{const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});saveSession(data);return data}catch(_){profile=null;saveSession(null);return null}}
   async function signOut(){try{if(session?.access_token)await request('/auth/v1/logout',{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})}catch(_){}profile=null;profileError='';saveSession(null)}
   async function ensure(){if(!session)return null;const expires=Number(session.expires_at||0)*1000;if(expires&&expires<Date.now()+60000)await refresh();return session}
@@ -43,10 +49,10 @@
   function hasAccess(){return !!session&&!!profile&&profile.active!==false}
   function can(...roles){return hasAccess()&&(!roles.length||roles.includes(role())||role()==='owner')}
   async function requestPasswordReset(email){
-    const redirect=`${location.origin}${new URL('login/',new URL('../',document.currentScript?.src||location.href)).pathname}`;
+    const redirect=authRedirect();
     return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email})});
   }
-  async function resendVerification(email){return request('/auth/v1/resend',{method:'POST',body:JSON.stringify({type:'signup',email})})}
+  async function resendVerification(email){const redirect=authRedirect();return request(`/auth/v1/resend?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({type:'signup',email})})}
   async function updatePassword(password){const current=await ensure();if(!current?.access_token)throw new Error('Open the password reset email again or sign in first.');const updated=await request('/auth/v1/user',{method:'PUT',headers:{Authorization:`Bearer ${current.access_token}`},body:JSON.stringify({password})});if(updated?.id){session.user=updated;saveSession(session)}return updated}
   async function audit(action,payload={}){
     if(!hasAccess()||!profile?.organisation_id)return false;

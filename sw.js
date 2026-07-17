@@ -1,10 +1,12 @@
-const CACHE='ac-private-ai-analytics-v14';
+const CACHE='ac-auth-callback-v22';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
-  './assets/alert-construction-logo-white.svg','./assets/app-icon.svg',
+  './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg',
+  './assets/luxury-builder-hero.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
-  './property-estimate/','./property-estimate/index.html','./property-estimate/app.js',
+  './property-estimate/','./property-estimate/index.html','./property-estimate/victoria-sales-data.js','./property-estimate/app.js',
+  './permit-checklist/','./permit-checklist/index.html','./permit-checklist/app.js',
   './plan-ai/','./plan-ai/index.html','./plan-ai/styles.css','./plan-ai/config.js','./plan-ai/app.js',
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './projects/','./projects/index.html','./projects/app.js',

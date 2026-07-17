@@ -53,6 +53,7 @@
     const owner=active&&profile.role==='owner';if(owner&&org?.join_code){$('ownerCode').hidden=false;$('teamCode').textContent=org.join_code;$('codeAge').textContent=org.join_code_rotated_at?`Rotated ${new Date(org.join_code_rotated_at).toLocaleString('en-AU')}`:''}else $('ownerCode').hidden=true;
     await renderTeam(profile);await renderActivity(profile);await renderUsage(profile);
   }
-  const redirectType=sessionStorage.getItem('ac_auth_redirect_type');if(redirectType){sessionStorage.removeItem('ac_auth_redirect_type');setTimeout(()=>message(redirectType==='recovery'?'Secure recovery link accepted. Enter a new password below.':'Secure email link accepted.','good'),0)}
+  let shownRedirect='';function showRedirect(type){if(!type||type===shownRedirect)return;shownRedirect=type;sessionStorage.removeItem('ac_auth_redirect_type');setTimeout(()=>message(type==='recovery'?'Secure recovery link accepted. Enter a new password below.':'Email verified successfully. Your secure account is now active.','good'),0)}
+  window.addEventListener('ac-auth-redirect',event=>showRedirect(event.detail?.type));ACAuth.ready.then(()=>showRedirect(sessionStorage.getItem('ac_auth_redirect_type')));
   render();
 })();

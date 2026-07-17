@@ -97,11 +97,18 @@ function domFor(html){
   const property=domFor('property-estimate/index.html');
   property.window.confirm=()=>true;
   property.window.eval(read('shared/project-store.js'));
+  property.window.eval(read('property-estimate/victoria-sales-data.js'));
   property.window.eval(read('property-estimate/app.js'));
-  const broadGuide=property.window.ACPropertyEstimator.calculate({suburb:'Ballarat',postcode:'3350',region:'regional',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]});
-  if(broadGuide.method!=='victoria-benchmark'||broadGuide.confidence>=42||broadGuide.benchmarkDate!=='2025-12-31')throw new Error('Minimal-answer property fallback was not clearly broad and low-confidence');
+  const rowvilleGuide=property.window.ACPropertyEstimator.calculate({suburb:'Rowville',postcode:'3178',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]});
+  const meltonGuide=property.window.ACPropertyEstimator.calculate({suburb:'Melton',postcode:'3337',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]});
+  if(rowvilleGuide.method!=='official-suburb'||rowvilleGuide.midpoint<1100000||rowvilleGuide.midpoint>1250000)throw new Error('Rowville did not use its official matching-suburb evidence');
+  if(meltonGuide.midpoint<500000||meltonGuide.midpoint>600000||rowvilleGuide.midpoint-meltonGuide.midpoint<500000)throw new Error('Property suburb did not materially change the estimate');
+  let missingLocalBlocked=false;try{property.window.ACPropertyEstimator.calculate({suburb:'Not A Real Place',postcode:'',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]})}catch(_){missingLocalBlocked=true}
+  if(!missingLocalBlocked)throw new Error('Property estimator invented a price without local evidence');
   const medianGuide=property.window.ACPropertyEstimator.calculate({suburb:'Geelong',postcode:'3220',region:'regional',propertyType:'unit',suburbMedian:'540000',benchmarkDate:'2026-06-30',marketTrend:'',comparables:[]});
-  if(medianGuide.method!=='suburb-median'||medianGuide.benchmark!==540000)throw new Error('User-supplied matching suburb median was not preferred over the broad fallback');
+  if(medianGuide.method!=='official-and-independent'||medianGuide.localEvidence.officialValue!==647250||medianGuide.midpoint>=635000)throw new Error('Independent and official matching-suburb medians were not blended correctly');
+  const outlierGuide=property.window.ACPropertyEstimator.calculate({suburb:'Rowville',postcode:'3178',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',bedrooms:'3',bathrooms:'2',landArea:'500',floorArea:'160',condition:'average',comparables:[{price:900000,date:'2026-02-01',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'},{price:920000,date:'2026-02-05',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'},{price:2000000,date:'2026-02-09',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'}]});
+  if(outlierGuide.comparables.filter(comp=>comp.used===false).length!==1||outlierGuide.midpoint>=1200000)throw new Error('Extreme comparable sale was not excluded safely');
   property.window.document.querySelector('#estimateName').value='Victoria Home Test';
   property.window.document.querySelector('#suburb').value='Rowville';
   property.window.document.querySelector('#postcode').value='3178';
@@ -132,9 +139,45 @@ function domFor(html){
   const propertyReopened=domFor('property-estimate/index.html');
   propertyReopened.window.localStorage.setItem('ac_project_property_restore_v1',JSON.stringify({state:propertyCapture.data.state,result:propertyCapture.data.result,projectId:propertyProject.id,recordId:propertyRecord.id}));
   propertyReopened.window.eval(read('shared/project-store.js'));
+  propertyReopened.window.eval(read('property-estimate/victoria-sales-data.js'));
   propertyReopened.window.eval(read('property-estimate/app.js'));
   if(!propertyReopened.window.document.querySelector('#restoreNote').classList.contains('show'))throw new Error('Saved property estimate did not reopen from Projects');
   if(!propertyReopened.window.document.querySelector('.estimate-main'))throw new Error('Reopened property estimate did not restore its value guide');
 
-  console.log('PASS: Fast Vision, pricing, Quote Analysis, Projects, Renovation Budget and Property Value Guide UI');
+  const permit=domFor('permit-checklist/index.html');
+  permit.window.confirm=()=>true;
+  permit.window.eval(read('shared/project-store.js'));
+  permit.window.eval(read('permit-checklist/app.js'));
+  const permitResult=permit.window.ACPermitChecklist.assess({projectType:'extension',structural:true,external:true,plumbing:true,electrical:true,boundary:true,deliveryRole:'owner-builder',projectValue:'over20'});
+  if(!permitResult.permits.some(item=>item.id==='planning'&&item.status==='likely'))throw new Error('Extension did not flag a likely planning permit');
+  if(!permitResult.permits.some(item=>item.id==='building'&&item.status==='likely'))throw new Error('Structural extension did not flag a likely building permit');
+  if(!permitResult.permits.some(item=>item.id==='owner-builder'&&item.status==='likely'))throw new Error('Owner-builder threshold did not flag Certificate of Consent');
+  permit.window.document.querySelector('#projectName').value='Permit Smoke Test';
+  permit.window.document.querySelector('#projectType').value='extension';
+  permit.window.document.querySelector('#structural').checked=true;
+  permit.window.document.querySelector('#external').checked=true;
+  permit.window.document.querySelector('#followUpDate').value='2026-07-20';
+  permit.window.document.querySelector('#generate').click();
+  if(!permit.window.document.querySelector('#results').classList.contains('show'))throw new Error('Permit Checklist result did not open');
+  if(!permit.window.document.querySelector('#permitList').textContent.includes('Planning permit'))throw new Error('Permit result did not render its approvals');
+  const permitCapture=await permit.window.ACProjectCapture();
+  if(permitCapture.module!=='permit-checklist'||!permitCapture.data.state||!permitCapture.data.result)throw new Error('Permit project capture is incomplete');
+  const permitProject=permit.window.ACProjects.create({name:'Saved Permit Project'});
+  permit.window.eval(read('shared/project-bridge.js'));
+  permit.window.document.querySelector('.acp-fab').click();
+  permit.window.document.querySelector('#acpProject').value=permitProject.id;
+  permit.window.document.querySelector('.acp-save').click();
+  await waitFor(()=>permit.window.ACProjects.get(permitProject.id).records.length===1,'permit project save');
+  const permitRecord=permit.window.ACProjects.get(permitProject.id).records[0];
+  if(permitRecord.module!=='permit-checklist')throw new Error('Permit checklist was not saved into Projects');
+  if(!permit.window.ACProjects.get(permitProject.id).tasks.some(task=>task.notes===`permit-checklist:${permitRecord.id}`))throw new Error('Permit follow-up task was not scheduled');
+
+  const permitReopened=domFor('permit-checklist/index.html');
+  permitReopened.window.localStorage.setItem('ac_project_permit_restore_v1',JSON.stringify({state:permitCapture.data.state,result:permitCapture.data.result,projectId:permitProject.id,recordId:permitRecord.id}));
+  permitReopened.window.eval(read('shared/project-store.js'));
+  permitReopened.window.eval(read('permit-checklist/app.js'));
+  if(!permitReopened.window.document.querySelector('#restoreNote').classList.contains('show'))throw new Error('Saved Permit Checklist did not reopen from Projects');
+  if(!permitReopened.window.document.querySelector('#permitList').textContent.includes('Building permit'))throw new Error('Reopened Permit Checklist did not restore its results');
+
+  console.log('PASS: Fast Vision, pricing, Quote Analysis, Projects, Renovation Budget, Property Value Guide and Victoria Permit Checklist UI');
 })().catch(error=>{console.error(error);process.exit(1)});

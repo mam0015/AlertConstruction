@@ -9,11 +9,14 @@ const jsonResponse=(data,ok=true,status=200)=>({ok,status,json:async()=>data});
 (async()=>{
   const signupDom=new JSDOM('<!doctype html><body></body>',{url:'https://example.test/login/',runScripts:'outside-only'});
   signupDom.window.AC_PLATFORM_CONFIG={supabaseUrl:'https://secure.test',publishableKey:'public'};
-  const signupBodies=[];signupDom.window.fetch=async(_url,options={})=>{signupBodies.push(JSON.parse(options.body||'{}'));return jsonResponse({user:{id:'new-user'}},true,200)};
+  const signupCalls=[];signupDom.window.fetch=async(url,options={})=>{signupCalls.push({url:String(url),body:JSON.parse(options.body||'{}')});return jsonResponse({user:{id:'new-user'}},true,200)};
   signupDom.window.eval(read('shared/auth.js'));await signupDom.window.ACAuth.ready;
   await signupDom.window.ACAuth.signUp('owner@example.test','password1','My Workspace','');
   await signupDom.window.ACAuth.signUp('member@example.test','password1','Ignored Workspace',' ac123 ');
-  if(signupBodies[0].data.team_code!==''||signupBodies[1].data.team_code!=='AC123')throw new Error('Blank and supplied optional Team Codes were not sent correctly during signup');
+  await signupDom.window.ACAuth.resendVerification('owner@example.test');
+  await signupDom.window.ACAuth.requestPasswordReset('owner@example.test');
+  if(signupCalls[0].body.data.team_code!==''||signupCalls[1].body.data.team_code!=='AC123')throw new Error('Blank and supplied optional Team Codes were not sent correctly during signup');
+  for(const call of signupCalls)if(!call.url.includes('redirect_to=https%3A%2F%2Fexample.test%2Flogin%2F'))throw new Error(`Auth email request is missing the deployed login callback: ${call.url}`);
 
   const authDom=new JSDOM('<!doctype html><body></body>',{url:'https://example.test/login/',runScripts:'outside-only'});
   authDom.window.AC_PLATFORM_CONFIG={supabaseUrl:'https://secure.test',publishableKey:'public'};
@@ -38,6 +41,7 @@ const jsonResponse=(data,ok=true,status=200)=>({ok,status,json:async()=>data});
   loginDom.window.ACAuth={ready:Promise.resolve(),user:()=>({id:'owner1',email:'owner@example.test',email_confirmed_at:new Date().toISOString(),user_metadata:{organisation_name:'My Workspace'}}),profile:()=>({id:'owner1',organisation_id:'org1',role:'owner',active:true}),profileError:()=>'',headers:async()=>({Authorization:'Bearer token'}),hasAccess:()=>true,isSignedIn:()=>true,loadProfile:async()=>{},signOut:async()=>{},signIn:async()=>{},signUp:async()=>{},requestPasswordReset:async()=>{},resendVerification:async()=>{},updatePassword:async()=>{}};
   loginDom.window.fetch=async url=>{const value=String(url);if(value.includes('/organisations?'))return jsonResponse([{id:'org1',name:'My Workspace',join_code:'INVITE123',join_code_rotated_at:new Date().toISOString()}]);if(value.includes('/profiles?'))return jsonResponse([{id:'owner1',email:'owner@example.test',role:'owner',active:true,updated_at:new Date().toISOString()}]);if(value.includes('/ac_audit_log?')||value.includes('/price_catalogue_history?')||value.includes('/rpc/ac_usage_summary'))return jsonResponse([]);throw new Error(`Unexpected login request ${url}`)};
   loginDom.window.eval(read('login/app.js'));await waitFor(()=>!loginDom.window.document.querySelector('#ownerCode').hidden,'owner team code');
+  loginDom.window.dispatchEvent(new loginDom.window.CustomEvent('ac-auth-redirect',{detail:{type:'signup'}}));await waitFor(()=>loginDom.window.document.querySelector('#message').textContent.includes('Email verified successfully'),'email verification success message');
   if(!loginDom.window.document.querySelector('#joinChoice').hidden)throw new Error('Owners still see the confusing Join Existing Team box');
   if(!loginDom.window.document.querySelector('#signup').textContent.includes('completely fine'))throw new Error('Signup does not clearly explain that Team Code is optional');
   if(!loginDom.window.document.querySelector('#signup').textContent.includes('Privacy Policy')||loginDom.window.document.querySelector('#usageSection').hidden)throw new Error('Signup privacy notice or Owner usage insights are missing');
