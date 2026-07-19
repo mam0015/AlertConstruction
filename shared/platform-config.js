@@ -12,8 +12,8 @@
     catalogueCloudEnabled:true,
     analyticsEnabled:true,
     analyticsRetentionDays:180,
-    supportEmail:'',
-    privacyPolicyVersion:'2026-07-15',
-    schemaVersion:1
+    supportEmail:'info@alertconstruction.com.au',
+    privacyPolicyVersion:'2026-07-19',
+    schemaVersion:27
   };
 })(window);

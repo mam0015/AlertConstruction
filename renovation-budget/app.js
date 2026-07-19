@@ -10,7 +10,17 @@
   const esc=value=>String(value==null?'':value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const number=value=>Math.max(0,Number(value)||0);
   const yes=value=>String(value)==='yes';
-  function syncLiveRates(){if(!window.ACPriceCatalogue)return;['electrical','plumbing','cladding'].forEach(trade=>Object.values(R.verified[trade]||{}).forEach((item,index)=>{item.rate=window.ACPriceCatalogue.effectiveRate(trade,index,item.rate)}));Object.entries(R.allowances).forEach(([group,items])=>Object.entries(items).forEach(([key,item])=>{const row=window.ACPriceCatalogue.list().find(value=>value.item_key===`renovation:${group}:${key}`);if(row)item.rate=Number(row.builder_rate)}))}
+  function syncLiveRates(){
+    if(!window.ACPriceCatalogue)return;
+    ['electrical','plumbing','cladding'].forEach(trade=>Object.values(R.verified[trade]||{}).forEach((item,index)=>{
+      const rate=window.ACPriceCatalogue.effectiveRate(trade,index);
+      item.rate=rate==null?null:Number(rate);
+    }));
+    Object.entries(R.allowances).forEach(([group,items])=>Object.entries(items).forEach(([key,item])=>{
+      const row=window.ACPriceCatalogue.list().find(value=>value.item_key===`renovation:${group}:${key}`);
+      if(row&&row.verification_status==='approved')item.rate=Number(row.builder_rate);
+    }));
+  }
   if(window.ACPriceCatalogue){window.ACPriceCatalogue.ready.then(syncLiveRates);window.addEventListener('ac-catalogue-changed',syncLiveRates)}
 
   const categories=[
@@ -195,6 +205,9 @@
     const priority=scope=>state.priorities[scope]||defaultPriority(scope);
     function add(scope,trade,item,qty,source,options={}){
       qty=number(qty);if(!qty)return;
+      if(source==='ac'&&(item.rate==null||!Number.isFinite(Number(item.rate)))){
+        throw new Error(`Verified ${trade} pricing has not loaded. No estimate was calculated and no fallback price was used.`);
+      }
       const rate=Number(item.rate)*(source==='allowance'&&options.finishSensitive?qualityFactor:1),builder=rate*qty;
       lines.push({id:`${scope}_${trade}_${lines.length}`,scope,trade,name:item.name,qty,unit:item.unit,rate,builder,source,priority:priority(scope),critical:!!options.critical,note:options.note||''});
     }
@@ -268,13 +281,17 @@
 
   function calculate(){
     syncProjectFromForm();
-    const lines=buildLines(),totals=totalsFor(lines),essentialTotals=state.project.quality==='essential'?totals:totalsFor(buildLines('essential')),recommendation=recommendations(lines,totals);
-    state.result={createdAt:new Date().toISOString(),lines,totals,essentialTotal:essentialTotals.grand,recommendation};document.body.classList.add('result-ready');renderResults();goTo(4,true);saveDraft(false);
+    try{
+      const lines=buildLines(),totals=totalsFor(lines),essentialTotals=state.project.quality==='essential'?totals:totalsFor(buildLines('essential')),recommendation=recommendations(lines,totals),catalogueAudit=window.ACPriceCatalogue?.security?.()||null;
+      state.result={createdAt:new Date().toISOString(),lines,totals,essentialTotal:essentialTotals.grand,recommendation,catalogueAudit};document.body.classList.add('result-ready');renderResults();goTo(4,true);saveDraft(false);
+    }catch(error){
+      alert(`${error.message||'Verified company pricing is unavailable.'}\n\nSign in, open Live Price Catalogue, and confirm the v27 approved catalogue is available before trying again.`);
+    }
   }
 
   function recHtml(items,empty){return items.length?items.map(line=>`<div class="rec-item"><div>${esc(line.name)}<span>${esc(scopeInfo[line.scope]?.name||line.scope)}</span></div><strong>${money(line.customerCost)}</strong></div>`).join(''):`<div class="rec-empty">${esc(empty)}</div>`}
   function renderResults(){
-    const result=state.result;if(!result)return;const {lines,totals,recommendation}=result,good=totals.remaining>=0,quality=R.qualityLabels[state.project.quality]||state.project.quality;
+    const result=state.result;if(!result)return;const {lines,totals,recommendation}=result,good=totals.remaining>=0,quality=R.qualityLabels[state.project.quality]||state.project.quality,catalogue=result.catalogueAudit||{},catalogueVersion=catalogue.rate_version||'recorded server version';
     const groups={};lines.forEach(line=>(groups[line.trade]||(groups[line.trade]=[])).push(line));
     const groupHtml=Object.entries(groups).map(([trade,items])=>{
       const total=items.reduce((sum,line)=>sum+line.builder*(1+R.customerMargin)*(1+R.gst),0);
@@ -282,7 +299,7 @@
     }).join('');
     const saving=Math.max(0,totals.grand-result.essentialTotal),alternative=!good&&state.project.quality!=='essential'&&saving>500?` Changing all allowance-based finishes to Essential could reduce this planning total by approximately <strong>${money(saving)}</strong>.`:'';
     $('results').innerHTML=`
-      <div class="result-top"><section class="total-card"><div class="total-label">Estimated renovation total inc GST and contingency</div><div class="grand-total">${money(totals.grand)}</div><div class="total-note">${esc(quality)} finish · ${state.project.contingency}% contingency · ${lines.length} priced items</div></section><section class="budget-card"><div class="budget-grid"><div class="budget-stat"><span>Available budget</span><strong>${money(totals.budget)}</strong></div><div class="budget-stat ${good?'good':'bad'}"><span>${good?'Remaining':'Over budget'}</span><strong>${money(good?totals.remaining:totals.over)}</strong></div><div class="budget-stat"><span>Works inc GST</span><strong>${money(totals.worksInc)}</strong></div><div class="budget-stat"><span>Contingency</span><strong>${money(totals.contingency)}</strong></div></div></section></div>
+      <div class="result-top"><section class="total-card"><div class="total-label">Estimated renovation total inc GST and contingency</div><div class="grand-total">${money(totals.grand)}</div><div class="total-note">${esc(quality)} finish · ${state.project.contingency}% contingency · ${lines.length} priced items</div><div class="total-note">Protected catalogue: ${esc(catalogueVersion)} · server access verified at calculation time</div></section><section class="budget-card"><div class="budget-grid"><div class="budget-stat"><span>Available budget</span><strong>${money(totals.budget)}</strong></div><div class="budget-stat ${good?'good':'bad'}"><span>${good?'Remaining':'Over budget'}</span><strong>${money(good?totals.remaining:totals.over)}</strong></div><div class="budget-stat"><span>Works inc GST</span><strong>${money(totals.worksInc)}</strong></div><div class="budget-stat"><span>Contingency</span><strong>${money(totals.contingency)}</strong></div></div></section></div>
       <div class="result-banner ${good?'good':'bad'}"><strong>${good?'The selected renovation fits within the entered budget.':'The selected renovation is currently over budget.'}</strong>${good?`The planner leaves approximately ${money(totals.remaining)} after the selected work and contingency.`:`You would need approximately ${money(totals.over)} more, or you can move lower-priority work to a later stage.`}${alternative}</div>
       <div class="recommend-grid"><section class="recommend now"><h3>Do Now</h3><div class="recommend-list">${recHtml(recommendation.now,'No non-optional items fit within the entered budget yet.')}</div></section><section class="recommend later"><h3>Do Later</h3><div class="recommend-list">${recHtml(recommendation.later,'All selected Must Have and Important work fits within the budget.')}</div></section><section class="recommend optional"><h3>Optional Upgrades</h3><div class="recommend-list">${recHtml(recommendation.optional,'No areas were marked Optional.')}</div></section></div>
       <section class="breakdown"><div class="breakdown-head"><h3>Itemised Cost Breakdown</h3><div class="legend"><span class="chip ac">Verified AC rate</span><span class="chip allowance">Planning allowance</span></div></div>${groupHtml}<div class="cost-footer"><span>Builder catalogue / allowance subtotal ex GST</span><strong>${money(totals.builderEx)}</strong><span>Customer margin (20%)</span><strong>${money(totals.margin)}</strong><span>GST (10%)</span><strong>${money(totals.gst)}</strong><span>Contingency (${state.project.contingency}%)</span><strong>${money(totals.contingency)}</strong><span class="final">Estimated total</span><strong class="final">${money(totals.grand)}</strong></div></section>
@@ -310,12 +327,12 @@
   document.querySelectorAll('[data-next]').forEach(button=>button.addEventListener('click',()=>goTo(Number(button.dataset.next))));
   document.querySelectorAll('[data-back]').forEach(button=>button.addEventListener('click',()=>goTo(Number(button.dataset.back),true)));
   ['projectName','clientName','budget','propertyType','quality','contingency','goal'].forEach(id=>$(id).addEventListener('change',()=>saveDraft(false)));
-  $('saveDraftBtn').addEventListener('click',()=>saveDraft(true));$('calculateBtn').addEventListener('click',calculate);$('printBtn').addEventListener('click',()=>window.print());$('newPlanBtn').addEventListener('click',reset);
+  $('saveDraftBtn').addEventListener('click',()=>saveDraft(true));$('calculateBtn').addEventListener('click',calculate);$('printBtn').addEventListener('click',()=>window.ACPermissions?.print?.());$('newPlanBtn').addEventListener('click',reset);
 
   window.ACProjectCapture=async function(){
     if(!state.result)throw new Error('Calculate the renovation estimate before saving it.');
     const total=state.result.totals.grand,category=categories.find(item=>item.id===state.category)?.name||'Renovation';
-    return{module:'renovation-budget',title:`${state.project.name} — Renovation Budget Plan`,summary:`${category} • ${money(total)} estimated total`,recordRef,data:{version:1,state:{...state,result:null},result:{createdAt:state.result.createdAt,lines:state.result.lines,totals:state.result.totals,essentialTotal:state.result.essentialTotal}}};
+    return{module:'renovation-budget',title:`${state.project.name} — Renovation Budget Plan`,summary:`${category} • ${money(total)} estimated total`,recordRef,data:{version:2,state:{...state,result:null},result:{createdAt:state.result.createdAt,lines:state.result.lines,totals:state.result.totals,essentialTotal:state.result.essentialTotal,catalogueAudit:state.result.catalogueAudit||null}}};
   };
 
   window.ACProjectSaved=function(detail){if(detail&&detail.module==='renovation-budget')recordRef={projectId:detail.projectId,recordId:detail.recordId}};

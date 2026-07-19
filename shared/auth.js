@@ -2,6 +2,7 @@
   'use strict';
   const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1',AUTH_SCRIPT_SRC=document.currentScript?.src||'';
   let session=readSession(),profile=null,profileError='',readyResolve;
+  const SAVE_ROLES=new Set(['owner','estimator','admin','builder']);
   const ready=new Promise(resolve=>readyResolve=resolve);
 
   function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
@@ -22,11 +23,14 @@
   }
   async function fetchUser(accessToken){return request('/auth/v1/user',{headers:{Authorization:`Bearer ${accessToken}`}})}
   async function consumeAuthRedirect(){
-    const params=new URLSearchParams(String(location.hash||'').replace(/^#/,'')),accessToken=params.get('access_token');
+    const hashParams=new URLSearchParams(String(location.hash||'').replace(/^#/,'')),queryParams=new URLSearchParams(location.search),params=hashParams.has('access_token')?hashParams:queryParams;
+    const redirectError=params.get('error_description')||params.get('error');
+    if(redirectError){history.replaceState(null,'',location.pathname);throw new Error(String(redirectError).replace(/\+/g,' '))}
+    const accessToken=params.get('access_token');
     if(!accessToken)return'';
     const user=await fetchUser(accessToken),expiresIn=Number(params.get('expires_in')||3600);
     saveSession({access_token:accessToken,refresh_token:params.get('refresh_token')||'',token_type:params.get('token_type')||'bearer',expires_in:expiresIn,expires_at:Math.floor(Date.now()/1000)+expiresIn,user});
-    const type=params.get('type')||'';if(type)sessionStorage.setItem('ac_auth_redirect_type',type);history.replaceState(null,'',location.pathname+location.search);return type;
+    const type=params.get('type')||'';if(type)sessionStorage.setItem('ac_auth_redirect_type',type);history.replaceState(null,'',location.pathname);return type;
   }
   async function signIn(email,password){const data=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});saveSession(data);await loadProfile();return data}
   async function signUp(email,password,companyName,teamCode=''){const redirect=authRedirect(),data=await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email,password,data:{organisation_name:companyName||'Alert Construction',team_code:String(teamCode||'').trim().toUpperCase()}})});if(data.access_token)saveSession(data);await loadProfile();return data}
@@ -48,12 +52,23 @@
   function role(){return profile?.role||''}
   function hasAccess(){return !!session&&!!profile&&profile.active!==false}
   function can(...roles){return hasAccess()&&(!roles.length||roles.includes(role())||role()==='owner')}
+  function canSave(){return hasAccess()&&SAVE_ROLES.has(role())}
+  function roleLabel(value=role()){return({owner:'Owner / Admin',estimator:'Builder / Estimator',site_supervisor:'Site Supervisor',admin:'Admin',builder:'Builder'})[value]||String(value||'Member').replace(/_/g,' ')}
   async function requestPasswordReset(email){
     const redirect=authRedirect();
     return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email})});
   }
   async function resendVerification(email){const redirect=authRedirect();return request(`/auth/v1/resend?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({type:'signup',email})})}
   async function updatePassword(password){const current=await ensure();if(!current?.access_token)throw new Error('Open the password reset email again or sign in first.');const updated=await request('/auth/v1/user',{method:'PUT',headers:{Authorization:`Bearer ${current.access_token}`},body:JSON.stringify({password})});if(updated?.id){session.user=updated;saveSession(session)}return updated}
+  async function deleteAccount(){
+    const current=await ensure();if(!current?.access_token)throw new Error('Sign in again before deleting your account.');
+    const response=await fetch(`${base()}/functions/v1/account-delete`,{method:'POST',headers:publicHeaders({Authorization:`Bearer ${current.access_token}`}),body:JSON.stringify({confirmation:'DELETE'})}),data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||data.message||`Account deletion failed (${response.status}).`);
+    profile=null;profileError='';saveSession(null);
+    ['ac_project_workspace_v1','ac_active_project_v1','ac_cloud_sync_checkpoint_v1','ac_price_catalogue_cache_v1'].forEach(key=>localStorage.removeItem(key));
+    try{indexedDB.deleteDatabase('ac_project_files_v1')}catch(_){}
+    return data;
+  }
   async function audit(action,payload={}){
     if(!hasAccess()||!profile?.organisation_id)return false;
     try{
@@ -63,6 +78,6 @@
   }
   async function init(){let redirectType='';try{redirectType=await consumeAuthRedirect()}catch(error){profileError=error.message||'The secure email link could not be opened.'}await ensure();if(session)await loadProfile();readyResolve(session);global.dispatchEvent(new CustomEvent('ac-auth-ready',{detail:{session,profile,profileError,redirectType}}));if(redirectType)global.dispatchEvent(new CustomEvent('ac-auth-redirect',{detail:{type:redirectType}}))}
 
-  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,role,can,hasAccess,loadProfile,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,audit,config};
+  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,role,roleLabel,can,canSave,hasAccess,loadProfile,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,deleteAccount,audit,config};
   init();
 })(window);

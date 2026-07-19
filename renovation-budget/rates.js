@@ -2,79 +2,77 @@
   'use strict';
 
   /*
-    Verified AC prices below are copied in the same order/value from the
-    existing Electrical, Plumbing and Cladding calculators. They are builder
-    prices ex GST. The planner applies the app-wide 20% customer margin and
-    then 10% GST.
-
-    Other rates are editable planning allowances, not verified AC trade rates.
-    They are deliberately labelled as allowances everywhere in the result.
+    Public rate schema only. Verified Electrical, Plumbing and Cladding values
+    are loaded after Supabase Auth + RLS approval. No Builder rate is shipped
+    in the GitHub Pages bundle. Other values remain clearly labelled planning
+    allowances and never receive the "Verified AC rate" trust label.
   */
+  const protectedRate=(trade,index,name,unit='each')=>({name,rate:null,unit,catalogueKey:`${trade}:${index}`});
   const verified={
     electrical:{
-      downlightSupply:{name:'LED Downlight — supply, wiring & install',rate:65,unit:'each'},
-      downlightInstall:{name:'LED Downlight — install only',rate:45,unit:'each'},
-      bathroomWallLight:{name:'Bathroom Wall Light — install on tiles',rate:160,unit:'each'},
-      entranceLight:{name:'Outdoor Entrance Light',rate:180,unit:'each'},
-      shavingLight:{name:'Shaving Cabinet Light',rate:240,unit:'each'},
-      powerPointNew:{name:'Power Point — new wiring & install',rate:65,unit:'each'},
-      powerPointReplace:{name:'Power Point — replacement / fit-off',rate:35,unit:'each'},
-      doublePowerPoint:{name:'Double Power Point with extra switch',rate:75,unit:'each'},
-      weatherproofPower:{name:'Weatherproof Power Point',rate:150,unit:'each'},
-      switch1Replace:{name:'1 Gang Light Switch — replacement',rate:35,unit:'each'},
-      switch1New:{name:'1 Gang Light Switch — new wiring',rate:65,unit:'each'},
-      switch2Replace:{name:'2 Gang Light Switch — replacement',rate:40,unit:'each'},
-      switch2New:{name:'2 Gang Light Switch — new wiring',rate:75,unit:'each'},
-      switch3Replace:{name:'3 Gang Light Switch — replacement',rate:45,unit:'each'},
-      switch3New:{name:'3 Gang Light Switch — new wiring',rate:85,unit:'each'},
-      switch4New:{name:'4 Gang Light Switch — new wiring',rate:65,unit:'each'},
-      dimmer:{name:'Rotary LED Dimmer',rate:90,unit:'each'},
-      towelHeater:{name:'Electric Towel Heater',rate:220,unit:'each'},
-      towelRack:{name:'Non-Electric Towel Rack',rate:85,unit:'each'},
-      fanHeatLight:{name:'3-in-1 Fan / Heat / Light Combo',rate:250,unit:'each'},
-      rangehoodDuct:{name:'Rangehood Duct',rate:320,unit:'each'},
-      tvPoint:{name:'TV Antenna Point',rate:55,unit:'each'},
-      dataPoint:{name:'Data Point',rate:55,unit:'each'}
+      downlightSupply:protectedRate('electrical',0,'LED Downlight — supply, wiring & install'),
+      downlightInstall:protectedRate('electrical',1,'LED Downlight — install only'),
+      bathroomWallLight:protectedRate('electrical',2,'Bathroom Wall Light — install on tiles'),
+      entranceLight:protectedRate('electrical',3,'Outdoor Entrance Light'),
+      shavingLight:protectedRate('electrical',4,'Shaving Cabinet Light'),
+      powerPointNew:protectedRate('electrical',5,'Power Point — new wiring & install'),
+      powerPointReplace:protectedRate('electrical',6,'Power Point — replacement / fit-off'),
+      doublePowerPoint:protectedRate('electrical',7,'Double Power Point with extra switch'),
+      weatherproofPower:protectedRate('electrical',8,'Weatherproof Power Point'),
+      switch1Replace:protectedRate('electrical',9,'1 Gang Light Switch — replacement'),
+      switch1New:protectedRate('electrical',10,'1 Gang Light Switch — new wiring'),
+      switch2Replace:protectedRate('electrical',11,'2 Gang Light Switch — replacement'),
+      switch2New:protectedRate('electrical',12,'2 Gang Light Switch — new wiring'),
+      switch3Replace:protectedRate('electrical',13,'3 Gang Light Switch — replacement'),
+      switch3New:protectedRate('electrical',14,'3 Gang Light Switch — new wiring'),
+      switch4New:protectedRate('electrical',15,'4 Gang Light Switch — replacement'),
+      dimmer:protectedRate('electrical',16,'Rotary LED Dimmer'),
+      towelHeater:protectedRate('electrical',17,'Electric Towel Heater'),
+      towelRack:protectedRate('electrical',18,'Non-Electric Towel Rack'),
+      fanHeatLight:protectedRate('electrical',19,'3-in-1 Fan / Heat / Light Combo'),
+      rangehoodDuct:protectedRate('electrical',20,'Rangehood Duct'),
+      tvPoint:protectedRate('electrical',21,'TV Antenna Point'),
+      dataPoint:protectedRate('electrical',22,'Data Point')
     },
     plumbing:{
-      bathroomRoughIn:{name:'Bathroom Rough-In Package',rate:3200,unit:'bathroom'},
-      ensuiteRoughIn:{name:'Ensuite Rough-In Package',rate:3700,unit:'ensuite'},
-      groundBathroomRoughIn:{name:'Ground Floor Bathroom Rough-In',rate:2500,unit:'bathroom'},
-      laundryRoughIn:{name:'Laundry Rough-In',rate:800,unit:'laundry'},
-      kitchenRoughIn:{name:'Kitchen Rough-In',rate:1100,unit:'kitchen'},
-      retreatSinkRoughIn:{name:'Retreat Sink Rough-In',rate:700,unit:'sink'},
-      waterPoint:{name:'New Water Point Rough-In',rate:220,unit:'point'},
-      wastePoint:{name:'Waste Point Rough-In',rate:180,unit:'point'},
-      wallMixer:{name:'Wall Mixer Rough-In',rate:160,unit:'each'},
-      smartToilet:{name:'Smart Toilet Setup',rate:190,unit:'each'},
-      rainShowerNogging:{name:'Rain Shower Nogging',rate:150,unit:'each'},
-      toiletFitOff:{name:'Toilet Fit-Off',rate:320,unit:'each'},
-      vanityFitOff:{name:'Vanity Basin Fit-Off',rate:300,unit:'each'},
-      showerFitOff:{name:'Shower Fit-Off',rate:380,unit:'each'},
-      bathFitOff:{name:'Bath Fit-Off',rate:420,unit:'each'},
-      kitchenSinkFitOff:{name:'Kitchen Sink Fit-Off',rate:330,unit:'each'},
-      laundryTroughFitOff:{name:'Laundry Trough Fit-Off',rate:260,unit:'each'},
-      fridgeWater:{name:'Water to Fridge Fit-Off',rate:190,unit:'each'},
-      dishwasher:{name:'Dishwasher Connection',rate:260,unit:'each'},
-      gasAlteration:{name:'Gas Line Alteration',rate:410,unit:'each'},
-      gasCooktop:{name:'Gas Hot Plate Fit-Off',rate:330,unit:'each'},
-      concreteCut:{name:'Concrete Saw Cut / Jackhammer Allowance',rate:650,unit:'allowance'},
-      drainAlteration:{name:'Sanitary Drain Alteration',rate:480,unit:'each'},
-      bathWaste:{name:'Coloured Bath Waste + Flexible Connection',rate:250,unit:'each'},
-      minorItem:{name:'Call-Out / Minor Plumbing Item',rate:165,unit:'each'}
+      bathroomRoughIn:protectedRate('plumbing',0,'Bathroom Rough-In Package','bathroom'),
+      ensuiteRoughIn:protectedRate('plumbing',1,'Ensuite Rough-In Package','ensuite'),
+      groundBathroomRoughIn:protectedRate('plumbing',2,'Ground Floor Bathroom Rough-In','bathroom'),
+      laundryRoughIn:protectedRate('plumbing',3,'Laundry Rough-In','laundry'),
+      kitchenRoughIn:protectedRate('plumbing',4,'Kitchen Rough-In','kitchen'),
+      retreatSinkRoughIn:protectedRate('plumbing',5,'Retreat Sink Rough-In','sink'),
+      waterPoint:protectedRate('plumbing',6,'New Water Point Rough-In','point'),
+      wastePoint:protectedRate('plumbing',7,'Waste Point Rough-In','point'),
+      wallMixer:protectedRate('plumbing',8,'Wall Mixer Rough-In'),
+      smartToilet:protectedRate('plumbing',9,'Smart Toilet Setup'),
+      rainShowerNogging:protectedRate('plumbing',10,'Rain Shower Nogging'),
+      toiletFitOff:protectedRate('plumbing',11,'Toilet Fit-Off'),
+      vanityFitOff:protectedRate('plumbing',12,'Vanity Basin Fit-Off'),
+      showerFitOff:protectedRate('plumbing',13,'Shower Fit-Off'),
+      bathFitOff:protectedRate('plumbing',14,'Bath Fit-Off'),
+      kitchenSinkFitOff:protectedRate('plumbing',15,'Kitchen Sink Fit-Off'),
+      laundryTroughFitOff:protectedRate('plumbing',16,'Laundry Trough Fit-Off'),
+      fridgeWater:protectedRate('plumbing',17,'Water to Fridge Fit-Off'),
+      dishwasher:protectedRate('plumbing',18,'Dishwasher Connection'),
+      gasAlteration:protectedRate('plumbing',19,'Gas Line Alteration'),
+      gasCooktop:protectedRate('plumbing',20,'Gas Hot Plate Fit-Off'),
+      concreteCut:protectedRate('plumbing',21,'Concrete Saw Cut / Jackhammer Allowance','allowance'),
+      drainAlteration:protectedRate('plumbing',22,'Sanitary Drain Alteration'),
+      bathWaste:protectedRate('plumbing',23,'Coloured Bath Waste + Flexible Connection'),
+      minorItem:protectedRate('plumbing',24,'Call-Out / Minor Plumbing Item')
     },
     cladding:{
-      linealMetre:{name:'Thermory Pine Trax Natural C32 Cladding',rate:15.71,unit:'LM'},
-      length54:{name:'Thermory C32 Cladding — 5.4m Length',rate:84.97,unit:'length'},
-      coverage:{name:'Thermory C32 Cladding — material coverage',rate:112.25,unit:'m²'},
-      package28:{name:'Thermory C32 — 28 Lengths / 151.40 LM',rate:2379.24,unit:'package'},
-      corner42:{name:'42 x 42 Thermolit Corner Mould @ 4200mm',rate:46.42,unit:'each'},
-      cornerLm:{name:'42 x 42 Thermolit Corner Mould',rate:11.05,unit:'LM'},
-      cornerPack:{name:'Corner Moulding Pack — 6 pieces',rate:278.50,unit:'pack'},
-      delivery:{name:'Cladding Delivery',rate:86.36,unit:'delivery'},
-      originalPackage:{name:'Original Invoice Package',rate:2651.24,unit:'package'},
-      revisedPackage:{name:'Revised Invoice Package',rate:2744.10,unit:'package'},
-      orderPackage:{name:'Order Confirmation Package',rate:2465.60,unit:'package'}
+      linealMetre:protectedRate('cladding',0,'Thermory Pine Trax Natural C32 Cladding','LM'),
+      length54:protectedRate('cladding',1,'Thermory C32 Cladding — 5.4m Length','length'),
+      coverage:protectedRate('cladding',2,'Thermory C32 Cladding — material coverage','m²'),
+      package28:protectedRate('cladding',3,'Thermory C32 — 28 Lengths / 151.40 LM','package'),
+      corner42:protectedRate('cladding',4,'42 x 42 Thermolit Corner Mould @ 4200mm'),
+      cornerLm:protectedRate('cladding',5,'42 x 42 Thermolit Corner Mould','LM'),
+      cornerPack:protectedRate('cladding',6,'Corner Moulding Pack — 6 pieces','pack'),
+      delivery:protectedRate('cladding',7,'Cladding Delivery','delivery'),
+      originalPackage:protectedRate('cladding',8,'Original Invoice Package','package'),
+      revisedPackage:protectedRate('cladding',9,'Revised Invoice Package','package'),
+      orderPackage:protectedRate('cladding',10,'Order Confirmation Package','package')
     }
   };
 

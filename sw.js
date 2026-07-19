@@ -1,7 +1,7 @@
-const CACHE='ac-action-pricing-v24';
+const CACHE='ac-trusted-catalogue-v27';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
-  './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg',
+  './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',
   './assets/luxury-builder-hero.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
@@ -11,7 +11,7 @@ const ASSETS=[
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
-  './legal/privacy.html','./legal/terms.html',
+  './legal/privacy.html','./legal/terms.html','./legal/support.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
   './shared/product-shell.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'

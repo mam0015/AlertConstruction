@@ -152,7 +152,7 @@
 
   document.querySelectorAll('[data-next]').forEach(button=>button.addEventListener('click',()=>{try{if(Number(button.dataset.next)>1)validate(readState());showStep(Number(button.dataset.next))}catch(error){alert(error.message)}}));
   document.querySelectorAll('[data-back]').forEach(button=>button.addEventListener('click',()=>showStep(Number(button.dataset.back))));
-  $('addComparable').addEventListener('click',()=>addComparable());$('propertyFiles').addEventListener('change',fileList);$('saveDraft').addEventListener('click',saveDraft);$('print').addEventListener('click',()=>print());$('newEstimate').addEventListener('click',clearEstimate);
+  $('addComparable').addEventListener('click',()=>addComparable());$('propertyFiles').addEventListener('change',fileList);$('saveDraft').addEventListener('click',saveDraft);$('print').addEventListener('click',()=>window.ACPermissions?.print?.());$('newEstimate').addEventListener('click',clearEstimate);
   $('calculate').addEventListener('click',()=>{try{const state=readState();lastResult=calculateValue(state);renderResult(lastResult,state);document.body.classList.add('result-ready');showStep(4);localStorage.setItem(DRAFT_KEY,JSON.stringify({state,result:lastResult,savedAt:new Date().toISOString()}))}catch(error){alert(error.message)}});
 
   window.ACProjectCapture=async()=>{

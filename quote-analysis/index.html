@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,8 +55,8 @@
           </div>
         </div>
         <div class="panel">
-          <h2>2. Upload the quote</h2><p class="lead">PDF, scanned image, Word, TXT or CSV · maximum 15 MB.</p>
-          <label class="dropzone" id="dropzone"><input id="quoteFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,image/png,image/jpeg,image/webp"><span class="file-icon">＋</span><span class="file-copy"><strong id="fileTitle">Choose the tradie's quote</strong><small id="fileMeta">Tap here or drag the file into this box</small></span></label>
+          <h2>2. Upload the quote</h2><p class="lead">PDF, scanned image, Word, TXT or CSV · maximum 12 MB for reliable iPhone upload.</p>
+          <label class="dropzone" id="dropzone"><input id="quoteFile" type="file" accept=".pdf,.doc,.docx,.txt,.csv,application/pdf,image/*"><span class="file-icon">＋</span><span class="file-copy"><strong id="fileTitle">Choose the tradie's quote</strong><small id="fileMeta">Tap here or choose from iPhone Files / Photos</small></span></label>
           <button class="remove" id="removeFile" type="button" hidden>Remove file</button>
         </div>
       </div>

@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <title>AI Plan Estimator | Alert Construction</title>
@@ -77,12 +79,12 @@
     </section>
 
     <section class="file-card">
-      <div class="file-head"><div><strong>Plan Comparison</strong><small>Upload the matching trade sheets • PDF recommended for detailed symbols • Maximum 15 MB per file</small></div></div>
+      <div class="file-head"><div><strong>Plan Comparison</strong><small>Upload matching trade sheets • PDF recommended • Maximum 7 MB per file for reliable iPhone upload</small></div></div>
       <div class="plan-pair">
         <div class="plan-slot existing-slot">
           <div class="plan-slot-head"><div><span class="plan-step">01</span><strong>Existing / Before</strong><small>The plan showing what is there now</small></div><button class="remove-file" id="removeExistingFileBtn" type="button" hidden>Remove</button></div>
           <label class="dropzone" id="existingDropzone">
-            <input id="existingPlanFile" type="file" accept=".pdf,image/png,image/jpeg,image/webp">
+            <input id="existingPlanFile" type="file" accept=".pdf,application/pdf,image/*">
             <span class="file-icon">E</span>
             <span class="file-copy"><strong id="existingFileTitle">Upload existing plan</strong><small id="existingFileMeta">PDF, PNG, JPG or WEBP</small></span>
           </label>
@@ -91,7 +93,7 @@
         <div class="plan-slot proposed-slot">
           <div class="plan-slot-head"><div><span class="plan-step">02</span><strong>Proposed / Future</strong><small>The plan showing the intended work</small></div><button class="remove-file" id="removeProposedFileBtn" type="button" hidden>Remove</button></div>
           <label class="dropzone" id="proposedDropzone">
-            <input id="proposedPlanFile" type="file" accept=".pdf,image/png,image/jpeg,image/webp">
+            <input id="proposedPlanFile" type="file" accept=".pdf,application/pdf,image/*">
             <span class="file-icon">P</span>
             <span class="file-copy"><strong id="proposedFileTitle">Upload proposed plan</strong><small id="proposedFileMeta">PDF, PNG, JPG or WEBP</small></span>
           </label>

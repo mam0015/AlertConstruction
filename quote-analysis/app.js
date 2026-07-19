@@ -4,13 +4,13 @@
   const THRESHOLD=100;
   const CATALOGS={
     electrical:{label:'Electrical',decimal:false,items:[
-      ['LED Downlight - Supply, wiring & install',65],['LED Downlight - Install only',45],['Bathroom Wall Light - Install on tiles',160],['Outdoor Entrance Light',180],['Shaving Cabinet Light',240],['Power Point - New wiring & install',65],['Power Point - Replacement / fit off',35],['Double Power Point with extra switch',75],['Weatherproof Power Point',150],['1 Gang Light Switch - Replacement',35],['1 Gang Light Switch - New wiring',65],['2 Gang Light Switch - Replacement',40],['2 Gang Light Switch - New wiring',75],['3 Gang Light Switch - Replacement',45],['3 Gang Light Switch - New wiring',85],['4 Gang Light Switch - Replacement',65],['Rotary LED Dimmer',90],['Electric Towel Heater',220],['Non-Electric Towel Rack',85],['3-in-1 Fan / Heat / Light Combo',250],['Rangehood Duct',320],['TV Antenna Point',55],['Data Point',55]
+      ['LED Downlight - Supply, wiring & install',null],['LED Downlight - Install only',null],['Bathroom Wall Light - Install on tiles',null],['Outdoor Entrance Light',null],['Shaving Cabinet Light',null],['Power Point - New wiring & install',null],['Power Point - Replacement / fit off',null],['Double Power Point with extra switch',null],['Weatherproof Power Point',null],['1 Gang Light Switch - Replacement',null],['1 Gang Light Switch - New wiring',null],['2 Gang Light Switch - Replacement',null],['2 Gang Light Switch - New wiring',null],['3 Gang Light Switch - Replacement',null],['3 Gang Light Switch - New wiring',null],['4 Gang Light Switch - Replacement',null],['Rotary LED Dimmer',null],['Electric Towel Heater',null],['Non-Electric Towel Rack',null],['3-in-1 Fan / Heat / Light Combo',null],['Rangehood Duct',null],['TV Antenna Point',null],['Data Point',null]
     ]},
     plumbing:{label:'Plumbing',decimal:false,items:[
-      ['Bathroom Rough-In Package',3200],['Ensuite Rough-In Package',3700],['Ground Floor Bathroom Rough-In',2500],['Laundry Rough-In',800],['Kitchen Rough-In',1100],['Retreat Sink Rough-In',700],['New Water Point Rough-In',220],['Waste Point Rough-In',180],['Wall Mixer Rough-In',160],['Smart Toilet Setup',190],['Rain Shower Nogging',150],['Toilet Fit-Off',320],['Vanity Basin Fit-Off',300],['Shower Fit-Off',380],['Bath Fit-Off',420],['Kitchen Sink Fit-Off',330],['Laundry Trough Fit-Off',260],['Water to Fridge Fit-Off',190],['Dishwasher Connection',260],['Gas Line Alteration',410],['Gas Hot Plate Fit-Off',330],['Concrete Saw Cut / Jackhammer Allowance',650],['Sanitary Drain Alteration',480],['Coloured Bath Waste + Flexible Connection',250],['Call-Out / Minor Plumbing Item',165]
+      ['Bathroom Rough-In Package',null],['Ensuite Rough-In Package',null],['Ground Floor Bathroom Rough-In',null],['Laundry Rough-In',null],['Kitchen Rough-In',null],['Retreat Sink Rough-In',null],['New Water Point Rough-In',null],['Waste Point Rough-In',null],['Wall Mixer Rough-In',null],['Smart Toilet Setup',null],['Rain Shower Nogging',null],['Toilet Fit-Off',null],['Vanity Basin Fit-Off',null],['Shower Fit-Off',null],['Bath Fit-Off',null],['Kitchen Sink Fit-Off',null],['Laundry Trough Fit-Off',null],['Water to Fridge Fit-Off',null],['Dishwasher Connection',null],['Gas Line Alteration',null],['Gas Hot Plate Fit-Off',null],['Concrete Saw Cut / Jackhammer Allowance',null],['Sanitary Drain Alteration',null],['Coloured Bath Waste + Flexible Connection',null],['Call-Out / Minor Plumbing Item',null]
     ]},
     cladding:{label:'Cladding',decimal:true,items:[
-      ['Thermory Pine Trax Natural C32 Cladding - 140 x 20 LM',15.71],['Thermory C32 Cladding - 5.4m Length',84.97],['Thermory C32 Cladding - estimated material coverage m²',112.25],['Thermory C32 Cladding - 28 Lengths / 151.40 LM',2379.24],['42 x 42 THERMOLIT SPR Corner Mould CP3 @ 4200mm',46.42],['42 x 42 THERMOLIT SPR Corner Mould CP3 LM',11.05],['Corner Moulding Pack - 6 Pieces',278.50],['Delivery Charge / Express Delivery UTE',86.36],['Original Invoice Package - 28 Lengths + 4 Corners + Delivery',2651.24],['Revised Invoice Package - 28 Lengths + 6 Corners + Delivery',2744.10],['Order Confirmation Package - 28 Lengths + Delivery, no corners',2465.60]
+      ['Thermory Pine Trax Natural C32 Cladding - 140 x 20 LM',null],['Thermory C32 Cladding - 5.4m Length',null],['Thermory C32 Cladding - estimated material coverage m²',null],['Thermory C32 Cladding - 28 Lengths / 151.40 LM',null],['42 x 42 THERMOLIT SPR Corner Mould CP3 @ 4200mm',null],['42 x 42 THERMOLIT SPR Corner Mould CP3 LM',null],['Corner Moulding Pack - 6 Pieces',null],['Delivery Charge / Express Delivery UTE',null],['Original Invoice Package - 28 Lengths + 4 Corners + Delivery',null],['Revised Invoice Package - 28 Lengths + 6 Corners + Delivery',null],['Order Confirmation Package - 28 Lengths + Delivery, no corners',null]
     ]}
   };
 
@@ -41,15 +41,16 @@
   $('removeFile').addEventListener('click',clearFile);
   $('analyseBtn').addEventListener('click',analyseQuote);
   $('resetBtn').addEventListener('click',resetAll);
-  $('printBtn').addEventListener('click',()=>window.print());
+  $('printBtn').addEventListener('click',()=>window.ACPermissions?.print?.());
 
-  function selectFile(file){
+  async function selectFile(file){
     if(!file)return;
+    if(/\.(heic|heif)$/i.test(file.name)||/image\/(heic|heif)/i.test(file.type||'')){try{file=await normaliseIPhonePhoto(file)}catch(error){$('quoteFile').value='';return showError(error.message)}}
     const allowed=['application/pdf','image/png','image/jpeg','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','text/csv'];
     const extension=/\.(pdf|png|jpe?g|webp|docx?|txt|csv)$/i.test(file.name);
     if(!allowed.includes(file.type)&&!extension)return showError('Please upload a PDF, image, Word, TXT or CSV quote.');
-    const max=(Number(config.maxFileMb)||15)*1024*1024;
-    if(file.size>max)return showError(`The quote must be smaller than ${config.maxFileMb||15} MB.`);
+    const maxMb=Number(config.maxQuoteFileMb)||12,max=maxMb*1024*1024;
+    if(file.size>max)return showError(`For reliable iPhone upload, the quote must be smaller than ${maxMb} MB. Export a reduced-size PDF and try again.`);
     state.file=file;state.fileData=null;dropzone.classList.add('has-file');
     $('fileTitle').textContent=file.name;$('fileMeta').textContent=`${(file.size/1024/1024).toFixed(2)} MB • Ready for review`;$('removeFile').hidden=false;$('analyseBtn').disabled=false;
   }
@@ -60,23 +61,29 @@
     const ext=(String(file.name||'').match(/\.([^.]+)$/)||[])[1]?.toLowerCase();
     return{pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',csv:'text/csv'}[ext]||'';
   }
+  function normaliseIPhonePhoto(file){
+    const heic=/\.(heic|heif)$/i.test(file.name)||/image\/(heic|heif)/i.test(file.type||'');if(!heic)return Promise.resolve(file);
+    return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),image=new Image();image.onload=()=>{try{const limit=3200,scale=Math.min(1,limit/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);canvas.toBlob(blob=>{URL.revokeObjectURL(url);if(!blob)return reject(new Error('This iPhone photo could not be converted. Upload the quote as PDF or JPG.'));resolve(new File([blob],file.name.replace(/\.(heic|heif)$/i,'')+'.jpg',{type:'image/jpeg',lastModified:file.lastModified}))},'image/jpeg',.9)}catch(_){URL.revokeObjectURL(url);reject(new Error('This iPhone photo could not be converted. Upload the quote as PDF or JPG.'))}};image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('HEIC/HEIF could not be read. On iPhone use Camera Formats → Most Compatible, or upload a PDF/JPG.'))};image.src=url})
+  }
 
   function clearFile(){
     if(state.busy)return;
     state.file=null;state.fileData=null;$('quoteFile').value='';dropzone.classList.remove('has-file');$('fileTitle').textContent="Choose the tradie's quote";$('fileMeta').textContent='Tap here or drag the file into this box';$('removeFile').hidden=true;$('analyseBtn').disabled=true;
   }
 
-  function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The selected quote could not be read.'));reader.readAsDataURL(file)})}
+  function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{if(typeof reader.result!=='string')return reject(new Error('The selected quote returned no readable data.'));const type=inferFileType(file);resolve(type?reader.result.replace(/^data:[^;]*;base64,/,`data:${type};base64,`):reader.result)};reader.onerror=()=>reject(new Error('The selected quote could not be read. Try saving it to Files and uploading again.'));reader.onabort=()=>reject(new Error('The quote upload was cancelled.'));reader.readAsDataURL(file)})}
+
+  function aiError(data,status){const code=String(data?.code||'');const messages={AI_QUOTA:'AI capacity is unavailable because the service quota or billing limit was reached. No chargeable result was created. Please contact Support.',AI_BUSY:'The AI service is busy. Your quote is still selected—wait a moment and try again.',AI_CONFIG:'The secure AI service is not configured correctly. Please contact Support.',CATALOGUE_UNAVAILABLE:'The approved company catalogue is unavailable or incomplete. The quote was not compared and no fallback rate was used. Open Catalogue or contact the Owner.',AI_RESPONSE_INVALID:'The AI returned an incomplete result. Keep the quote selected and try again.',SESSION_EXPIRED:'Your secure session expired. Sign in again, then return to this page.',FILE_TOO_LARGE:'The uploaded quote is too large for secure analysis.'};return new Error(messages[code]||data?.error||`Review service error (${status}).`)}
 
   async function callFunction(body){
     if(!config.functionUrl)throw new Error('The quote review connection has not been configured.');
     const platform=window.AC_PLATFORM_CONFIG||{};
-    if(window.ACPriceCatalogue){await window.ACPriceCatalogue.ready;window.ACPriceCatalogue.applyToCatalogues(CATALOGS)}
+    if(window.ACPriceCatalogue){await window.ACPriceCatalogue.ready;window.ACPriceCatalogue.requireVerified(state.trade);window.ACPriceCatalogue.applyToCatalogues(CATALOGS)}
     if(platform.requireLoginForAI&&window.ACAuth){await window.ACAuth.ready;if(!window.ACAuth.isSignedIn())throw new Error('Sign in from the Account button before using AI quote analysis.')}
     const authHeaders=window.ACAuth?await window.ACAuth.headers():{};
-    const response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||'',...authHeaders},body:JSON.stringify(body)});
+    let response;try{response=await fetch(config.functionUrl,{method:'POST',headers:{'Content-Type':'application/json','apikey':config.publishableKey||'',...authHeaders},body:JSON.stringify(body)})}catch(_){throw new Error('The secure AI service could not be reached. Check the connection and try again; the quote remains selected.')}
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||`Review service error (${response.status}).`);
+    if(!response.ok)throw aiError(data,response.status);
     return data;
   }
 
@@ -179,7 +186,7 @@
   window.ACProjectCapture=async function(){
     if(!state.result||!state.items.length)throw new Error('Complete a quote analysis before saving it.');
     const name=state.file?state.file.name.replace(/\.[^.]+$/,''):'Trade Quote',verdict=$('verdictBadge').textContent||'Price review',savedAt=new Date().toISOString(),actor=window.ACAuth?.user()?.email||'Local user',changes=state.items.map((item,index)=>{const original=state.originalItems[index]||{};const changed={line:index,quoted_name:item.quoted_name,fields:{},correctedAt:savedAt,correctedBy:actor};['catalog_index','quantity','quoted_line_total_ex_gst'].forEach(field=>{if(item[field]!==original[field])changed.fields[field]={from:original[field],to:item[field]}});return changed}).filter(change=>Object.keys(change.fields).length);
-    return{module:'quote-analysis',title:name+' — '+catalog().label+' Quote Analysis',summary:verdict+' • '+$('quotedTotal').textContent,attachment:state.file,data:{trade:state.trade,result:state.result,items:state.items,audit:{generatedAt:state.generatedAt,responseId:state.responseId,generatedBy:actor,originalItems:state.originalItems,humanChanges:changes,savedAt,savedBy:actor}}};
+    return{module:'quote-analysis',title:name+' — '+catalog().label+' Quote Analysis',summary:verdict+' • '+$('quotedTotal').textContent,attachment:state.file,data:{trade:state.trade,result:state.result,items:state.items,catalogueAudit:window.ACPriceCatalogue?.security?.()||null,audit:{generatedAt:state.generatedAt,responseId:state.responseId,generatedBy:actor,originalItems:state.originalItems,humanChanges:changes,savedAt,savedBy:actor}}};
   };
   (function restoreSavedAnalysis(){
     try{const raw=localStorage.getItem('ac_project_quote_restore_v1');if(!raw)return;const saved=JSON.parse(raw);localStorage.removeItem('ac_project_quote_restore_v1');if(!CATALOGS[saved.trade]||!saved.result||!Array.isArray(saved.items))return;state.trade=saved.trade;state.result=saved.result;state.items=saved.items;state.originalItems=JSON.parse(JSON.stringify(saved.audit?.originalItems||saved.items));state.generatedAt=saved.audit?.generatedAt||null;state.responseId=saved.audit?.responseId||null;document.querySelectorAll('.trade').forEach(button=>button.classList.toggle('active',button.dataset.trade===state.trade));renderResults()}catch(_){}

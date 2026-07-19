@@ -5,14 +5,18 @@
   const fab=document.createElement('button');fab.className='acp-fab';fab.type='button';fab.textContent='Save to Project';document.body.appendChild(fab);
   const modal=document.createElement('div');modal.className='acp-modal';modal.innerHTML='<div class="acp-box"><h2>Save to Project</h2><p>Keep this result with the project estimates, site records and schedule.</p><label>Existing project</label><select id="acpProject"></select><label>Or create a new project</label><input id="acpNewName" placeholder="e.g. Rowville Project"><div class="acp-actions"><button class="acp-cancel" type="button">Cancel</button><button class="acp-save" type="button">Save</button></div><a class="acp-projects" href="../projects/index.html">Open Projects & Schedule</a></div>';document.body.appendChild(modal);
   const select=modal.querySelector('#acpProject'),newName=modal.querySelector('#acpNewName'),save=modal.querySelector('.acp-save');
+  function canSave(){return window.ACAuth?.canSave?.()===true}
+  function denied(){alert('Saving projects, estimates and quote records is available only to an Owner / Admin or Builder / Estimator. A Site Supervisor can use and review the tools without saving.')}
+  async function updatePermission(){await window.ACAuth?.ready;const allowed=canSave();fab.disabled=!allowed;fab.textContent=allowed?'Save to Project':'Save Locked • View Only';fab.title=allowed?'Save this result to a project':'Owner/Admin or Builder/Estimator role required'}
   function refresh(){const projects=ACProjects.list(),active=ACProjects.active();select.innerHTML='<option value="">Select project</option>'+projects.map(project=>'<option value="'+project.id+'" '+(project.id===active?'selected':'')+'>'+escapeHtml(project.name)+'</option>').join('')}
   function escapeHtml(value){return String(value).replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]))}
   function close(){modal.classList.remove('show');newName.value=''}
   function toast(message){const el=document.createElement('div');el.className='acp-toast';el.textContent=message;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
-  fab.addEventListener('click',()=>{refresh();modal.classList.add('show')});modal.querySelector('.acp-cancel').addEventListener('click',close);modal.addEventListener('click',event=>{if(event.target===modal)close()});
+  fab.addEventListener('click',async()=>{await window.ACAuth?.ready;if(!canSave())return denied();refresh();modal.classList.add('show')});modal.querySelector('.acp-cancel').addEventListener('click',close);modal.addEventListener('click',event=>{if(event.target===modal)close()});
   save.addEventListener('click',async()=>{
     save.disabled=true;save.textContent='Saving…';
     try{
+      await window.ACAuth?.ready;if(!canSave())throw new Error('Owner/Admin or Builder/Estimator permission is required to save project records.');
       let projectId=select.value;const name=newName.value.trim();if(name)projectId=ACProjects.create({name}).id;if(!projectId)throw new Error('Select a project or enter a new project name.');
       const capture=await window.ACProjectCapture(),sourceFiles=Array.isArray(capture.attachments)?capture.attachments.filter(Boolean):(capture.attachment?[capture.attachment]:[]),attachments=[];for(const file of sourceFiles){const saved=await ACProjects.saveAttachment(projectId,file);if(saved)attachments.push(saved)}
       let entry=null,updated=false;
@@ -26,4 +30,5 @@
     }catch(error){alert(error.message||'The record could not be saved.')}
     finally{save.disabled=false;save.textContent='Save'}
   });
+  window.addEventListener('ac-auth-ready',updatePermission);window.addEventListener('ac-auth-changed',updatePermission);updatePermission();
 })();
