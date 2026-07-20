@@ -6,8 +6,9 @@
   const modal=document.createElement('div');modal.className='acp-modal';modal.innerHTML='<div class="acp-box"><h2>Save to Project</h2><p>Keep this result with the project estimates, site records and schedule.</p><label>Existing project</label><select id="acpProject"></select><label>Or create a new project</label><input id="acpNewName" placeholder="e.g. Rowville Project"><div class="acp-actions"><button class="acp-cancel" type="button">Cancel</button><button class="acp-save" type="button">Save</button></div><a class="acp-projects" href="../projects/index.html">Open Projects & Schedule</a></div>';document.body.appendChild(modal);
   const select=modal.querySelector('#acpProject'),newName=modal.querySelector('#acpNewName'),save=modal.querySelector('.acp-save');
   function canSave(){return window.ACAuth?.canSave?.()===true}
-  function denied(){alert('Saving projects, estimates and quote records is available only to an Owner / Admin or Builder / Estimator. A Site Supervisor can use and review the tools without saving.')}
-  async function updatePermission(){await window.ACAuth?.ready;const allowed=canSave();fab.disabled=!allowed;fab.textContent=allowed?'Save to Project':'Save Locked • View Only';fab.title=allowed?'Save this result to a project':'Owner/Admin or Builder/Estimator role required'}
+  function requiredRole(){return /\/(permit-checklist|checklist)\//.test(location.pathname)?'Owner, Estimator or Project Manager':'Owner or Estimator'}
+  function denied(){alert(`Saving this record requires an ${requiredRole()} role. Site Supervisors have field access without saving company records.`)}
+  async function updatePermission(){await window.ACAuth?.ready;const allowed=canSave();fab.disabled=!allowed;fab.textContent=allowed?'Save to Project':'Save Locked • View Only';fab.title=allowed?'Save this result to a project':`${requiredRole()} role required`}
   function refresh(){const projects=ACProjects.list(),active=ACProjects.active();select.innerHTML='<option value="">Select project</option>'+projects.map(project=>'<option value="'+project.id+'" '+(project.id===active?'selected':'')+'>'+escapeHtml(project.name)+'</option>').join('')}
   function escapeHtml(value){return String(value).replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]))}
   function close(){modal.classList.remove('show');newName.value=''}
@@ -16,7 +17,7 @@
   save.addEventListener('click',async()=>{
     save.disabled=true;save.textContent='Saving…';
     try{
-      await window.ACAuth?.ready;if(!canSave())throw new Error('Owner/Admin or Builder/Estimator permission is required to save project records.');
+      await window.ACAuth?.ready;if(!canSave())throw new Error(`${requiredRole()} permission is required to save this record.`);
       let projectId=select.value;const name=newName.value.trim();if(name)projectId=ACProjects.create({name}).id;if(!projectId)throw new Error('Select a project or enter a new project name.');
       const capture=await window.ACProjectCapture(),sourceFiles=Array.isArray(capture.attachments)?capture.attachments.filter(Boolean):(capture.attachment?[capture.attachment]:[]),attachments=[];for(const file of sourceFiles){const saved=await ACProjects.saveAttachment(projectId,file);if(saved)attachments.push(saved)}
       let entry=null,updated=false;

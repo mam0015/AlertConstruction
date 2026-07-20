@@ -1,4 +1,4 @@
-const CACHE='ac-trusted-catalogue-v27';
+const CACHE='ac-role-workspaces-v28';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',

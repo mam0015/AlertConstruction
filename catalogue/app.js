@@ -12,7 +12,7 @@
     await ACPriceCatalogue.ready;
     const security=ACPriceCatalogue.security();
     if(!security.verified){$('lock').classList.add('show');$('lock').querySelector('h2').textContent='Secure catalogue check failed';$('lock').querySelector('p').textContent=security.error||'The server did not authorise this catalogue request. Run the included security migration and try again.';$('status').textContent='Server authorization was not verified. No price catalogue has been displayed.';return}
-    editable=security.can_edit===true&&ACAuth.can('owner','estimator');$('workspace').hidden=false;$('addBtn').disabled=!editable;const statusMeta=`${ACPriceCatalogue.list().length} approved rates • ${security.rate_version||'recorded versions'} • effective ${date(security.effective_from||security.verified_at)}`;$('status').textContent=editable?`Server authorization verified • RLS protected • ${statusMeta} • Changes create an account audit record.`:`Server authorization verified • Read-only Site Supervisor access • ${statusMeta}.`;draft=ACPriceCatalogue.list().map(item=>({...item}));render()
+    editable=security.can_edit===true&&ACAuth.can('owner');$('workspace').hidden=false;$('addBtn').disabled=!editable;const statusMeta=`${ACPriceCatalogue.list().length} approved rates • ${security.rate_version||'recorded versions'} • effective ${date(security.effective_from||security.verified_at)}`;$('status').textContent=editable?`Owner authorization verified • RLS protected • ${statusMeta} • Changes create an account audit record.`:`Server authorization verified • Read-only approved pricing • ${statusMeta}.`;draft=ACPriceCatalogue.list().map(item=>({...item}));render()
   }
   init();
 })();

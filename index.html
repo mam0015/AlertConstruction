@@ -66,20 +66,23 @@
     .tools-title svg{width:25px;height:25px;stroke:var(--yellow)}
     .today-alert{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:36px;padding:16px 18px;border:1px solid rgba(245,180,0,.55);border-radius:17px;background:rgba(245,180,0,.08)}
     .today-alert.show{display:flex}.today-alert strong,.today-alert span{display:block}.today-alert span{color:#cfcfcf;font-size:13px;margin-top:3px}.today-alert a{flex:none;padding:10px 13px;border-radius:12px;background:var(--yellow);color:#050505;font-weight:900}
-    .tool-filter{display:grid;grid-template-columns:1fr 220px;gap:10px;margin-top:22px;padding:12px;border:1px solid var(--line);border-radius:16px;background:rgba(17,17,17,.92)}
-    .tool-filter input,.tool-filter select{min-height:48px;padding:10px 12px;border:1px solid #353535;border-radius:11px;background:#202020;color:#fff}.tool-filter input:focus,.tool-filter select:focus{outline:2px solid rgba(245,180,0,.5);border-color:var(--yellow)}
+    .tool-filter{display:grid;gap:11px;margin-top:22px;padding:12px;border:1px solid var(--line);border-radius:16px;background:rgba(17,17,17,.92)}
+    .tool-filter input{min-height:48px;padding:10px 12px;border:1px solid #353535;border-radius:11px;background:#202020;color:#fff}.tool-filter input:focus{outline:2px solid rgba(245,180,0,.5);border-color:var(--yellow)}
+    .category-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}.category-tab{flex:1;min-width:max-content;min-height:42px;padding:8px 14px;border:1px solid #343434;border-radius:99px;background:#1b1b1b;color:#bbb;font-weight:850;cursor:pointer}.category-tab.active{border-color:var(--yellow);background:var(--yellow);color:#090909}.category-tab[hidden]{display:none}
+    .role-workspace{display:none;margin-top:14px;padding:15px 17px;border:1px solid rgba(245,180,0,.36);border-radius:14px;background:rgba(245,180,0,.07);color:#e8d6a4}.role-workspace.show{display:block}.role-workspace strong,.role-workspace span{display:block}.role-workspace span{margin-top:5px;color:#bdb6a5;font-size:12px}.role-workspace a{color:var(--yellow);font-weight:900}
+    .tool-group{margin-top:24px}.tool-group[hidden]{display:none}.tool-group-head{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:0 3px 11px;border-bottom:1px solid rgba(245,180,0,.2)}.tool-group-head h2{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(23px,2.5vw,31px);font-weight:500}.tool-group-head p{margin:0;color:var(--muted);font-size:12px;text-align:right;max-width:430px}
     .tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:14px}.tools-grid .tool[hidden]{display:none}
     .tool{
-      min-height:310px;border:1px solid rgba(255,255,255,.17);border-radius:3px;padding:27px;
+      min-height:255px;border:1px solid rgba(255,255,255,.17);border-radius:3px;padding:23px;
       background:linear-gradient(145deg,rgba(25,25,24,.98),rgba(9,9,9,.99));
       box-shadow:0 16px 45px rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:flex-start;text-align:left;
       position:relative;overflow:hidden;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
     }
     .tool:before{content:"";position:absolute;right:-45px;top:-62px;width:150px;height:150px;border:1px solid rgba(245,180,0,.17);transform:rotate(45deg);pointer-events:none}
     .tool:hover,.tool:focus-visible{transform:translateY(-5px);border-color:rgba(245,180,0,.65);box-shadow:0 25px 65px rgba(0,0,0,.44)}
-    .tool-icon{position:relative;z-index:2;width:58px;height:58px;display:grid;place-items:center;color:var(--yellow);margin:0 0 24px;border:1px solid rgba(245,180,0,.26);border-radius:50%;background:#151514}
-    .tool-icon svg{width:38px;height:38px;stroke:currentColor;stroke-width:1.55;fill:none;stroke-linecap:round;stroke-linejoin:round}
-    .tool h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(22px,1.8vw,28px);font-weight:500;line-height:1.1;letter-spacing:-.035em;margin:0}
+    .tool-icon{position:relative;z-index:2;width:50px;height:50px;display:grid;place-items:center;color:var(--yellow);margin:0 0 18px;border:1px solid rgba(245,180,0,.26);border-radius:50%;background:#151514}
+    .tool-icon svg{width:32px;height:32px;stroke:currentColor;stroke-width:1.55;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .tool h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(21px,1.65vw,26px);font-weight:500;line-height:1.1;letter-spacing:-.035em;margin:0}
     .tool p{color:var(--muted);font-size:14px;line-height:1.52;margin:13px 0 14px;max-width:290px}.trust{display:inline-flex;align-items:center;min-height:25px;margin-bottom:17px;padding:5px 8px;border:1px solid rgba(245,180,0,.3);border-radius:99px;background:rgba(245,180,0,.06);color:#e7c889;font-size:9px;font-weight:900;letter-spacing:.035em}
     .go{margin-top:auto;align-self:flex-end;width:43px;height:43px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(245,180,0,.45);background:transparent;color:var(--yellow);box-shadow:none}
     .go svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none}
@@ -95,7 +98,7 @@
       .topbar{height:82px;padding:0 10px}.brand img{width:170px;height:56px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
       .hero:before{height:650px;background-position:61% center}.hero:after{height:710px}.hero-inner{padding:58px 14px 40px}.intro{max-width:94%}
       .editorial-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:84%;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 2px 12px;margin-top:92px}.story{min-height:245px;scroll-snap-align:start}
-      .tools-title{margin-top:52px}.tool-filter{grid-template-columns:1fr}.tools-grid{grid-template-columns:1fr;gap:12px}.tool{min-height:290px;border-radius:2px;padding:24px}
+      .tools-title{margin-top:52px}.tools-grid{grid-template-columns:1fr;gap:12px}.tool{min-height:245px;border-radius:2px;padding:22px}.tool-group-head{display:block}.tool-group-head p{margin-top:5px;text-align:left}.category-tab{flex:none}
       .footer{align-items:flex-start;flex-direction:column}
     }
     html[data-ac-theme="light"] .shell>.hero{background:#f3f0ea!important;background-image:none!important}
@@ -141,16 +144,16 @@
         <div class="today-alert" id="todayAlert"><div><strong id="todayAlertTitle">Today’s project tasks</strong><span id="todayAlertText"></span></div><a href="./projects/index.html">Open Schedule</a></div>
 
         <section class="editorial-grid" aria-label="Featured workflows">
-          <a class="story" href="./renovation-budget/index.html" style="--story:url('./assets/luxury-renovation.webp')">
+          <a class="story" href="./renovation-budget/index.html" data-tool="renovation-budget" style="--story:url('./assets/luxury-renovation.webp')">
             <span class="story-copy"><span class="story-kicker">Plan & budget</span><h2>Shape the renovation before work begins.</h2><span class="story-link">Open planner</span></span>
           </a>
-          <a class="story" href="./plan-ai/index.html" style="--story:url('./assets/luxury-plans.webp')">
+          <a class="story" href="./plan-ai/index.html" data-tool="plan-ai" style="--story:url('./assets/luxury-plans.webp')">
             <span class="story-copy"><span class="story-kicker">Review the detail</span><h2>Turn plans into a reviewed estimate.</h2><span class="story-link">Analyse plans</span></span>
           </a>
-          <a class="story" href="./projects/index.html" style="--story:url('./assets/luxury-site.webp')">
+          <a class="story" href="./projects/index.html" data-tool="projects" style="--story:url('./assets/luxury-site.webp')">
             <span class="story-copy"><span class="story-kicker">Deliver with control</span><h2>Keep projects, tasks and notes together.</h2><span class="story-link">View projects</span></span>
           </a>
-          <a class="story" href="./property-estimate/index.html" style="--story:url('./assets/luxury-property.webp')">
+          <a class="story" href="./property-estimate/index.html" data-tool="property-estimate" style="--story:url('./assets/luxury-property.webp')">
             <span class="story-copy"><span class="story-kicker">Property evidence</span><h2>Guide value with local sales evidence.</h2><span class="story-link">Open guide</span></span>
           </a>
         </section>
@@ -162,10 +165,18 @@
 
         <div class="tool-filter" aria-label="Find a tool">
           <input id="toolSearch" type="search" placeholder="Search electrical, renovation, quote, project…" aria-label="Search tools">
-          <select id="toolCategory" aria-label="Filter tools by category"><option value="">All categories</option><option value="estimate">Estimating</option><option value="ai">AI assisted</option><option value="operations">Projects & site</option><option value="admin">Administration</option></select>
+          <div class="category-tabs" id="toolCategories" role="tablist" aria-label="Tool workspaces">
+            <button class="category-tab" type="button" role="tab" data-category="estimate">Trade Estimating</button>
+            <button class="category-tab" type="button" role="tab" data-category="analysis">Analysis & AI</button>
+            <button class="category-tab" type="button" role="tab" data-category="management">Project Management</button>
+            <button class="category-tab" type="button" role="tab" data-category="site">Site Operations</button>
+            <button class="category-tab" type="button" role="tab" data-category="admin">Administration</button>
+          </div>
         </div>
+        <div class="role-workspace" id="roleWorkspace"><strong id="roleWorkspaceTitle"></strong><span id="roleWorkspaceText"></span></div>
 
-        <section class="tools-grid" aria-label="Alert Construction tools">
+        <div class="tool-groups">
+        <section class="tool-group" data-category-group="estimate" aria-labelledby="estimateToolsTitle"><div class="tool-group-head"><h2 id="estimateToolsTitle">Trade Estimating</h2><p>Approved company rates and guided budgets for office estimating.</p></div><div class="tools-grid">
           <a class="tool" href="./electrical/index.html" data-tool="electrical" data-category="estimate">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M36 3 15 35h16l-4 26 22-34H34z"></path></svg></div>
             <h2>Electrical<br>Estimate</h2>
@@ -198,7 +209,10 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./property-estimate/index.html" data-tool="property-value-estimate home value victoria comparable sales" data-category="estimate">
+        </div></section>
+
+        <section class="tool-group" data-category-group="analysis" aria-labelledby="analysisToolsTitle"><div class="tool-group-head"><h2 id="analysisToolsTitle">Analysis & AI</h2><p>Property evidence and human-reviewed document analysis in a separate workspace.</p></div><div class="tools-grid">
+          <a class="tool" href="./property-estimate/index.html" data-tool="property-estimate" data-search="home value victoria comparable sales" data-category="analysis">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 29 32 9l24 20"></path><path d="M14 26v30h36V26"></path><path d="M24 56V41h16v15"></path><path d="M20 33h24"></path><path d="M43 13h9v14"></path><path d="M49 44c0-4-3-6-7-6s-7 2-7 5 3 4 7 5 7 2 7 5-3 6-7 6-7-2-7-6"></path><path d="M42 35v27"></path></svg></div>
             <h2>Property Value<br>Guide</h2>
             <p>Estimate a Victorian residential property using comparable sales, suburb evidence and property features.</p>
@@ -206,7 +220,7 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./plan-ai/index.html" data-tool="plan-ai" data-category="ai">
+          <a class="tool" href="./plan-ai/index.html" data-tool="plan-ai" data-category="analysis">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 8h31l9 9v39H12z"></path><path d="M43 8v10h9"></path><path d="M20 27h16M20 35h12M44 31v12M38 37h12"></path></svg></div>
             <h2>AI Plan<br>Estimator</h2>
             <p>Upload a plan, ask questions and estimate electrical, plumbing or cladding.</p>
@@ -214,7 +228,7 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./quote-analysis/index.html" data-tool="quote-analysis" data-category="ai">
+          <a class="tool" href="./quote-analysis/index.html" data-tool="quote-analysis" data-category="analysis">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 8h40v48H12z"></path><path d="M20 20h24"></path><path d="M20 29h14"></path><path d="M20 45l8-8 7 6 10-13"></path></svg></div>
             <h2>Quote Price<br>Analysis</h2>
             <p>Upload a trade quote and check every item against our rates.</p>
@@ -222,7 +236,10 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./permit-checklist/index.html" data-tool="permit checklist victoria planning building approval documents" data-category="operations">
+        </div></section>
+
+        <section class="tool-group" data-category-group="management" aria-labelledby="managementToolsTitle"><div class="tool-group-head"><h2 id="managementToolsTitle">Project Management</h2><p>Coordinate records, schedules and likely Victorian permit requirements.</p></div><div class="tools-grid">
+          <a class="tool" href="./permit-checklist/index.html" data-tool="permit-checklist" data-search="victoria planning building approval documents" data-category="management">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 7h32v50H16z"></path><path d="M24 19h16M24 29h16M24 39h10"></path><path d="m22 48 4 4 9-10"></path><path d="M42 43h10v14H38"></path></svg></div>
             <h2>Permit Checklist<br>(Victoria)</h2>
             <p>Screen possible permits and build a project-specific document checklist.</p>
@@ -230,7 +247,7 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./projects/index.html" data-tool="projects" data-category="operations">
+          <a class="tool" href="./projects/index.html" data-tool="projects" data-category="management">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 16h19l5 6h24v32H8z"></path><path d="M18 34h28M18 43h20"></path></svg></div>
             <h2>Projects &<br>Schedule</h2>
             <p>Save every estimate and see today’s project tasks.</p>
@@ -238,6 +255,9 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
+        </div></section>
+
+        <section class="tool-group" data-category-group="admin" aria-labelledby="adminToolsTitle"><div class="tool-group-head"><h2 id="adminToolsTitle">Administration</h2><p>Owner-only company pricing controls and version history.</p></div><div class="tools-grid">
           <a class="tool" href="./catalogue/index.html" data-tool="catalogue" data-category="admin">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 10h40v44H12z"></path><path d="M20 21h24M20 31h24M20 41h13"></path><path d="M43 38v12M37 44h12"></path></svg></div>
             <h2>Live Price<br>Catalogue</h2>
@@ -246,14 +266,18 @@
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
 
-          <a class="tool" href="./checklist/index.html" data-tool="checklist" data-category="operations">
+        </div></section>
+
+        <section class="tool-group" data-category-group="site" aria-labelledby="siteToolsTitle"><div class="tool-group-head"><h2 id="siteToolsTitle">Site Operations</h2><p>Focused field tools for daily checks and project visibility.</p></div><div class="tools-grid">
+          <a class="tool" href="./checklist/index.html" data-tool="checklist" data-category="site">
             <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24l8 8v38H12V10z"></path><path d="M24 10c0-5 3-7 8-7s8 2 8 7"></path><path d="m20 28 4 4 7-8"></path><path d="M35 28h10"></path><path d="m20 41 4 4 7-8"></path><path d="M35 41h10"></path></svg></div>
             <h2>Site Supervisor<br>Checklist</h2>
             <p>Manage site inspection tasks and visit notes.</p>
             <span class="trust">Field-ready • Offline</span>
             <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
           </a>
-        </section>
+        </div></section>
+        </div>
       </div>
     </main>
 
@@ -273,9 +297,29 @@
       }
     }
     (function(){
-      var search=document.getElementById('toolSearch'),category=document.getElementById('toolCategory'),tools=Array.prototype.slice.call(document.querySelectorAll('.tools-grid .tool'));
-      function filter(){var q=(search.value||'').toLowerCase().trim(),group=category.value;tools.forEach(function(tool){var matchText=!q||tool.textContent.toLowerCase().indexOf(q)>-1||tool.dataset.tool.indexOf(q)>-1,matchGroup=!group||tool.dataset.category===group;tool.hidden=!(matchText&&matchGroup)})}
-      search.addEventListener('input',filter);category.addEventListener('change',filter);
+      var search=document.getElementById('toolSearch'),buttons=Array.prototype.slice.call(document.querySelectorAll('.category-tab')),groups=Array.prototype.slice.call(document.querySelectorAll('.tool-group')),tools=Array.prototype.slice.call(document.querySelectorAll('.tools-grid .tool')),stories=Array.prototype.slice.call(document.querySelectorAll('.story[data-tool]')),notice=document.getElementById('roleWorkspace'),activeCategory='';
+      function groupTools(group){return Array.prototype.slice.call(group.querySelectorAll('.tool'))}
+      function showNotice(title,copy){document.getElementById('roleWorkspaceTitle').textContent=title;document.getElementById('roleWorkspaceText').innerHTML=copy;notice.classList.add('show')}
+      function selectCategory(value){activeCategory=value;buttons.forEach(function(button){var active=button.dataset.category===value;button.classList.toggle('active',active);button.setAttribute('aria-selected',active?'true':'false')});filter()}
+      function filter(){
+        var q=(search.value||'').toLowerCase().trim();
+        tools.forEach(function(tool){var haystack=(tool.textContent+' '+tool.dataset.tool+' '+(tool.dataset.search||'')).toLowerCase(),matches=!q||haystack.indexOf(q)>-1,selected=!activeCategory||tool.dataset.category===activeCategory;tool.hidden=tool.dataset.roleAllowed!=='true'||!matches||(!q&&!selected)});
+        groups.forEach(function(group){var allowed=groupTools(group).some(function(tool){return tool.dataset.roleAllowed==='true'}),visible=groupTools(group).some(function(tool){return !tool.hidden});group.hidden=!allowed||!visible});
+        if(q)buttons.forEach(function(button){button.classList.remove('active');button.setAttribute('aria-selected','false')});
+      }
+      buttons.forEach(function(button){button.addEventListener('click',function(){search.value='';selectCategory(button.dataset.category)})});search.addEventListener('input',filter);
+      window.ACAuth.ready.then(function(){
+        var profile=window.ACAuth.profile(),signedIn=window.ACAuth.isSignedIn(),active=window.ACAuth.hasAccess(),role=profile&&profile.role,preferred={owner:'estimate',estimator:'estimate',manager:'management',site_supervisor:'site'}[role]||'';
+        tools.forEach(function(tool){tool.dataset.roleAllowed=window.ACAuth.canUseTool(tool.dataset.tool)?'true':'false'});
+        stories.forEach(function(story){story.hidden=!window.ACAuth.canUseTool(story.dataset.tool)});
+        buttons.forEach(function(button){button.hidden=!groups.some(function(group){return group.dataset.categoryGroup===button.dataset.category&&groupTools(group).some(function(tool){return tool.dataset.roleAllowed==='true'})})});
+        if(document.getElementById('todayAlert'))document.getElementById('todayAlert').hidden=!window.ACAuth.canUseTool('projects');
+        if(!signedIn)showNotice('Sign in to open your workspace','Each role receives a focused dashboard. <a href="./login/index.html">Sign in or create an individual workspace</a>.');
+        else if(window.ACAuth.isPending())showNotice('Waiting for Owner approval','Your Team Code was accepted. The Owner must approve the request and choose your role before tools open. <a href="./login/index.html">Check Account & Team</a>.');
+        else if(!active)showNotice(role==='rejected'?'Team request declined':'Workspace access inactive','You can create an individual workspace or request access with another Team Code in <a href="./login/index.html">Account & Team</a>.');
+        else showNotice((window.ACAuth.roleLabel?window.ACAuth.roleLabel(role):role)+' workspace',role==='owner'?'Choose one workspace below. All tools remain available without showing every card at once.':role==='estimator'?'Estimating, approved price data and project records assigned to your role.':role==='manager'?'Project records, permits and site coordination—pricing tools stay separated.':'Project visibility and daily site checks assigned to your field role.');
+        var first=preferred&&buttons.find(function(button){return button.dataset.category===preferred&&!button.hidden})||buttons.find(function(button){return !button.hidden});selectCategory(first?first.dataset.category:'');
+      });
     })();
   </script>
   <script src="./shared/product-shell.js"></script>

@@ -2,7 +2,20 @@
   'use strict';
   const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1',AUTH_SCRIPT_SRC=document.currentScript?.src||'';
   let session=readSession(),profile=null,profileError='',readyResolve;
-  const SAVE_ROLES=new Set(['owner','estimator','admin','builder']);
+  const SAVE_ROLES=new Set(['owner','estimator','manager','admin','builder']);
+  const TOOL_ROLES={
+    electrical:['owner','estimator'],
+    plumbing:['owner','estimator'],
+    cladding:['owner','estimator'],
+    'renovation-budget':['owner','estimator'],
+    'property-estimate':['owner','estimator'],
+    'plan-ai':['owner','estimator'],
+    'quote-analysis':['owner','estimator'],
+    'permit-checklist':['owner','estimator','manager'],
+    projects:['owner','estimator','manager','site_supervisor'],
+    checklist:['owner','manager','site_supervisor'],
+    catalogue:['owner']
+  };
   const ready=new Promise(resolve=>readyResolve=resolve);
 
   function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
@@ -53,7 +66,10 @@
   function hasAccess(){return !!session&&!!profile&&profile.active!==false}
   function can(...roles){return hasAccess()&&(!roles.length||roles.includes(role())||role()==='owner')}
   function canSave(){return hasAccess()&&SAVE_ROLES.has(role())}
-  function roleLabel(value=role()){return({owner:'Owner / Admin',estimator:'Builder / Estimator',site_supervisor:'Site Supervisor',admin:'Admin',builder:'Builder'})[value]||String(value||'Member').replace(/_/g,' ')}
+  function canUseTool(tool){const allowed=TOOL_ROLES[String(tool||'')]||[];return hasAccess()&&allowed.includes(role())}
+  function allowedTools(){return Object.keys(TOOL_ROLES).filter(canUseTool)}
+  function isPending(){return !!session&&!!profile&&profile.active===false&&profile.role==='pending'}
+  function roleLabel(value=role()){return({owner:'Owner / Admin',estimator:'Estimator',manager:'Project Manager',site_supervisor:'Site Supervisor',pending:'Pending Owner Approval',rejected:'Join Request Declined',admin:'Admin',builder:'Builder'})[value]||String(value||'Member').replace(/_/g,' ')}
   async function requestPasswordReset(email){
     const redirect=authRedirect();
     return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email})});
@@ -78,6 +94,6 @@
   }
   async function init(){let redirectType='';try{redirectType=await consumeAuthRedirect()}catch(error){profileError=error.message||'The secure email link could not be opened.'}await ensure();if(session)await loadProfile();readyResolve(session);global.dispatchEvent(new CustomEvent('ac-auth-ready',{detail:{session,profile,profileError,redirectType}}));if(redirectType)global.dispatchEvent(new CustomEvent('ac-auth-redirect',{detail:{type:redirectType}}))}
 
-  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,role,roleLabel,can,canSave,hasAccess,loadProfile,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,deleteAccount,audit,config};
+  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,role,roleLabel,can,canSave,canUseTool,allowedTools,isPending,hasAccess,loadProfile,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,deleteAccount,audit,config,toolRoles:TOOL_ROLES};
   init();
 })(window);
