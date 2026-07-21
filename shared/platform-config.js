@@ -14,6 +14,6 @@
     analyticsRetentionDays:180,
     supportEmail:'info@alertconstruction.com.au',
     privacyPolicyVersion:'2026-07-19',
-    schemaVersion:28
+    schemaVersion:31
   };
 })(window);

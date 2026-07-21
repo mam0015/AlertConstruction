@@ -8,6 +8,7 @@
   "theme_color": "#050505",
   "shortcuts": [
     { "name": "Projects", "short_name": "Projects", "url": "./projects/" },
+    { "name": "Builder Control", "short_name": "Builder", "url": "./builder/" },
     { "name": "Property Value Guide", "short_name": "Property Value", "url": "./property-estimate/" },
     { "name": "Renovation Budget", "short_name": "Renovation", "url": "./renovation-budget/" }
   ],

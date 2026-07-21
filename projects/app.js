@@ -13,7 +13,7 @@
   $('projectModal').addEventListener('click',event=>{if(event.target===$('projectModal'))closeModal()});
   $('projectModal').querySelector('.modal-save').addEventListener('click',()=>{
     const name=$('newName').value.trim();if(!name)return alert('Enter the project name.');
-    const project=store.create({name,address:$('newAddress').value,client:$('newClient').value});currentId=project.id;closeModal();render();toast('Project created');
+    try{const project=store.create({name,address:$('newAddress').value,client:$('newClient').value});currentId=project.id;closeModal();render();toast('Project created')}catch(error){alert(error.message||'The project could not be created.')}
   });
   function closeModal(){$('projectModal').classList.remove('show');['newName','newAddress','newClient'].forEach(id=>$(id).value='')}
   $('addRecordBtn').addEventListener('click',()=>{if(!currentId)return;$('recordModal').classList.add('show')});
@@ -30,7 +30,7 @@
   document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>showTab(button.dataset.tab)));
   function showTab(name){document.querySelectorAll('.tab').forEach(button=>button.classList.toggle('active',button.dataset.tab===name));document.querySelectorAll('.tab-panel').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===name))}
 
-  $('saveDetailsBtn').addEventListener('click',()=>{if(!currentId)return;store.update(currentId,{name:$('editName').value,address:$('editAddress').value,client:$('editClient').value,status:$('editStatus').value,notes:$('editNotes').value});render();showTab('details');toast('Project details saved')});
+  $('saveDetailsBtn').addEventListener('click',()=>{if(!currentId)return;try{store.update(currentId,{name:$('editName').value,address:$('editAddress').value,client:$('editClient').value,status:$('editStatus').value,notes:$('editNotes').value});render();showTab('details');toast('Project details saved')}catch(error){alert(error.message||'Project details could not be saved.')}});
   $('deleteProjectBtn').addEventListener('click',async()=>{const project=current();if(!project||!confirm(`Delete "${project.name}" and all of its saved records, tasks and attachments from this device?`))return;await store.remove(project.id);await window.ACAuth?.audit?.('project_deleted',{projectId:project.id,module:'projects',details:{name:project.name,deleted_at:new Date().toISOString()}});currentId=store.list()[0]?.id||'';render()});
   $('taskForm').addEventListener('submit',event=>{event.preventDefault();if(!currentId)return;store.addTask(currentId,{title:$('taskTitle').value,dueDate:$('taskDate').value,dueTime:$('taskTime').value,priority:$('taskPriority').value});$('taskTitle').value='';$('taskTime').value='';render();showTab('schedule');toast('Task added')});
   $('exportBtn').addEventListener('click',async()=>{try{const text=await store.exportAll(),blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='AC_Project_Backup_'+store.today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(error){alert(error.message||'Backup could not be created.')}});
@@ -80,5 +80,6 @@
     $('taskList').querySelectorAll('[data-task]').forEach(row=>row.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>{const id=row.dataset.task;if(button.dataset.action==='toggle'){const task=project.tasks.find(item=>item.id===id);store.updateTask(project.id,id,{done:!task.done})}else if(confirm('Delete this task?'))store.deleteTask(project.id,id);render();showTab('schedule')})));
   }
   window.addEventListener('ac-projects-changed',()=>{if(currentId&&!store.get(currentId))currentId=store.list()[0]?.id||''});
+  window.ACAuth?.ready?.then(()=>document.querySelectorAll('.quick-links a').forEach(link=>{const tool=link.getAttribute('href')?.match(/\.\.\/([^/]+)\//)?.[1];if(tool)link.hidden=!window.ACAuth.canUseTool(tool)}));
   render();
 })();

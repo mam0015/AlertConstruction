@@ -5,6 +5,11 @@
   const uid=prefix=>prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);
   const clean=value=>JSON.parse(JSON.stringify(value==null?null:value));
   const today=()=>{const d=new Date(),offset=d.getTimezoneOffset();return new Date(d.getTime()-offset*60000).toISOString().slice(0,10)};
+  const isActiveStatus=value=>!['completed','complete','closed','cancelled','canceled','archived'].includes(String(value||'Active').toLowerCase());
+  // V33 is role-only: approved team members are not commercially capped by
+  // project count. Keep this hook as a validation boundary for future project
+  // lifecycle rules without reintroducing a plan gate.
+  function assertProjectCapacity(){return true}
 
   function read(){
     try{const parsed=JSON.parse(localStorage.getItem(DATA_KEY)||'{}');return{version:1,projects:Array.isArray(parsed.projects)?parsed.projects:[]}}
@@ -14,11 +19,12 @@
   function list(){return read().projects.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))}
   function get(id){return list().find(project=>project.id===id)||null}
   function create(fields){
-    const data=read(),project={id:uid('project'),name:String(fields?.name||'New Project').trim()||'New Project',address:String(fields?.address||'').trim(),client:String(fields?.client||'').trim(),status:String(fields?.status||'Active'),notes:String(fields?.notes||''),createdAt:now(),updatedAt:now(),records:[],tasks:[]};
+    const data=read();if(isActiveStatus(fields?.status))assertProjectCapacity();const project={id:uid('project'),name:String(fields?.name||'New Project').trim()||'New Project',address:String(fields?.address||'').trim(),client:String(fields?.client||'').trim(),status:String(fields?.status||'Active'),notes:String(fields?.notes||''),createdAt:now(),updatedAt:now(),records:[],tasks:[]};
     data.projects.unshift(project);write(data);setActive(project.id);return clean(project);
   }
   function update(id,patch){
     const data=read(),project=data.projects.find(item=>item.id===id);if(!project)return null;
+    if(patch?.status!==undefined&&isActiveStatus(patch.status)&&!isActiveStatus(project.status))assertProjectCapacity();
     ['name','address','client','status','notes'].forEach(key=>{if(patch&&patch[key]!==undefined)project[key]=String(patch[key])});project.updatedAt=now();write(data);return clean(project);
   }
   async function remove(id){

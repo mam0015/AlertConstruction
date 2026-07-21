@@ -1,4 +1,4 @@
-const CACHE='ac-role-workspaces-v28';
+const CACHE='ac-builder-control-v33';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',
@@ -11,10 +11,11 @@ const ASSETS=[
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
+  './builder/','./builder/index.html','./builder/app.js',
   './legal/privacy.html','./legal/terms.html','./legal/support.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
-  './shared/product-shell.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
+  './shared/product-shell.js','./shared/team-chat.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
 ];
 
 self.addEventListener('install',event=>{
