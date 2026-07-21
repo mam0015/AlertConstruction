@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
   const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1',PRESENCE_ID_KEY='ac_presence_session_id_v1',PRESENCE_SENT_KEY='ac_presence_started_v1',AUTH_SCRIPT_SRC=document.currentScript?.src||'';
-  let session=readSession(),profile=null,profileError='',pendingJoinCount=0,readyResolve,presenceTimer=null,pendingTimer=null;
+  let session=readSession(),profile=null,workspace=null,profileError='',pendingJoinCount=0,readyResolve,presenceTimer=null,pendingTimer=null;
   const SAVE_ROLES=new Set(['owner','estimator','manager','admin','builder']);
   const TOOL_ROLES={
     electrical:['owner','estimator'],
@@ -20,7 +20,7 @@
   const ready=new Promise(resolve=>readyResolve=resolve);
 
   function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
-  function eventDetail(){return{session,profile,profileError,pendingJoinCount}}
+  function eventDetail(){return{session,profile,workspace,profileError,pendingJoinCount}}
   function saveSession(value){session=value||null;if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY);global.dispatchEvent(new CustomEvent('ac-auth-changed',{detail:eventDetail()}))}
   function base(){return String(config.supabaseUrl||'').replace(/\/$/,'')}
   function appRoot(){
@@ -48,16 +48,17 @@
   }
   async function signIn(email,password){const data=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});saveSession(data);sessionStorage.removeItem(PRESENCE_SENT_KEY);await loadProfile();return data}
   async function signUp(email,password,companyName,teamCode=''){const redirect=authRedirect(),data=await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email,password,data:{organisation_name:companyName||'Alert Construction',team_code:String(teamCode||'').trim().toUpperCase()}})});if(data.access_token){saveSession(data);sessionStorage.removeItem(PRESENCE_SENT_KEY)}await loadProfile();return data}
-  async function refresh(){if(!session?.refresh_token)return null;try{const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});saveSession(data);return data}catch(_){profile=null;saveSession(null);return null}}
-  async function signOut(){try{await recordPresence('sign_out')}catch(_){}try{if(session?.access_token)await request('/auth/v1/logout',{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})}catch(_){}profile=null;profileError='';pendingJoinCount=0;clearInterval(presenceTimer);clearInterval(pendingTimer);presenceTimer=null;pendingTimer=null;sessionStorage.removeItem(PRESENCE_SENT_KEY);sessionStorage.removeItem(PRESENCE_ID_KEY);saveSession(null)}
+  async function refresh(){if(!session?.refresh_token)return null;try{const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});saveSession(data);return data}catch(_){profile=null;workspace=null;saveSession(null);return null}}
+  async function signOut(){try{await recordPresence('sign_out')}catch(_){}try{if(session?.access_token)await request('/auth/v1/logout',{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})}catch(_){}profile=null;workspace=null;profileError='';pendingJoinCount=0;clearInterval(presenceTimer);clearInterval(pendingTimer);presenceTimer=null;pendingTimer=null;sessionStorage.removeItem(PRESENCE_SENT_KEY);sessionStorage.removeItem(PRESENCE_ID_KEY);saveSession(null)}
   async function ensure(){if(!session)return null;const expires=Number(session.expires_at||0)*1000;if(expires&&expires<Date.now()+60000)await refresh();return session}
   async function headers(){const current=await ensure();return current?.access_token?{Authorization:`Bearer ${current.access_token}`}:{}}
   async function loadProfile(){
-    profile=null;profileError='';pendingJoinCount=0;const current=await ensure();if(!current?.user?.id)return null;
+    profile=null;workspace=null;profileError='';pendingJoinCount=0;const current=await ensure();if(!current?.user?.id)return null;
     try{
       const response=await fetch(`${base()}/rest/v1/profiles?id=eq.${encodeURIComponent(current.user.id)}&select=id,organisation_id,role,full_name,email,active,created_at,updated_at`,{headers:publicHeaders({Authorization:`Bearer ${current.access_token}`})});
       if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.message||`Profile check failed (${response.status}).`)}
       const rows=await response.json();profile=rows[0]||null;if(!profile)profileError='No authorised team profile was found.';
+      if(profile?.organisation_id)await loadWorkspace(current);
       if(profile?.role==='owner'&&profile.active!==false)await refreshPendingCount(false);
       if(hasAccess()){startPresence();startPendingMonitor()}
     }catch(error){profileError=error.message||'The secure team profile could not be checked.'}
@@ -65,6 +66,12 @@
   }
   function user(){return session?.user||null}
   function currentProfile(){return profile}
+  function currentWorkspace(){return workspace}
+  async function loadWorkspace(current=session){
+    workspace=null;if(!profile?.organisation_id||!current?.access_token)return null;
+    try{const response=await fetch(`${base()}/rest/v1/organisations?id=eq.${encodeURIComponent(profile.organisation_id)}&select=id,name,join_code,join_code_rotated_at`,{headers:publicHeaders({Authorization:`Bearer ${current.access_token}`})});if(response.ok)workspace=(await response.json())[0]||null}catch(_){}
+    return workspace;
+  }
   function role(){return profile?.role||''}
   function hasAccess(){return !!session&&!!profile&&profile.active!==false&&!['pending','rejected'].includes(profile.role)}
   function can(...roles){return hasAccess()&&(!roles.length||roles.includes(role())||role()==='owner')}
@@ -80,7 +87,7 @@
     const current=await ensure();if(!current?.access_token)throw new Error('Sign in again before deleting your account.');
     const response=await fetch(`${base()}/functions/v1/account-delete`,{method:'POST',headers:publicHeaders({Authorization:`Bearer ${current.access_token}`}),body:JSON.stringify({confirmation:'DELETE'})}),data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||data.message||`Account deletion failed (${response.status}).`);
-    profile=null;profileError='';saveSession(null);
+    profile=null;workspace=null;profileError='';saveSession(null);
     ['ac_project_workspace_v1','ac_active_project_v1','ac_cloud_sync_checkpoint_v1','ac_price_catalogue_cache_v1'].forEach(key=>localStorage.removeItem(key));
     try{indexedDB.deleteDatabase('ac_project_files_v1')}catch(_){}
     return data;
@@ -111,6 +118,6 @@
   async function init(){let redirectType='';try{redirectType=await consumeAuthRedirect()}catch(error){profileError=error.message||'The secure email link could not be opened.'}await ensure();if(session)await loadProfile();readyResolve(session);global.dispatchEvent(new CustomEvent('ac-auth-ready',{detail:{...eventDetail(),redirectType}}));if(redirectType)global.dispatchEvent(new CustomEvent('ac-auth-redirect',{detail:{type:redirectType}}))}
 
   global.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')recordPresence('heartbeat').catch(()=>{})});
-  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,role,roleLabel,can,canSave,canUseTool,allowedTools,isPending,hasAccess,loadProfile,refreshPendingCount,pendingJoinCount:()=>pendingJoinCount,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,deleteAccount,audit,recordPresence,config,toolRoles:TOOL_ROLES};
+  global.ACAuth={ready,signIn,signUp,signOut,refresh,headers,user,profile:currentProfile,workspace:currentWorkspace,role,roleLabel,can,canSave,canUseTool,allowedTools,isPending,hasAccess,loadProfile,loadWorkspace,refreshPendingCount,pendingJoinCount:()=>pendingJoinCount,isSignedIn:()=>!!session,profileError:()=>profileError,requestPasswordReset,resendVerification,updatePassword,deleteAccount,audit,recordPresence,config,toolRoles:TOOL_ROLES};
   init();
 })(window);

@@ -1,16 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 160" role="img" aria-labelledby="title desc">
-  <title id="title">Alert Construction</title>
-  <desc id="desc">AC roof monogram with Alert Construction wordmark.</desc>
-  <g transform="translate(8 10)">
-    <path d="M4 108 54 20l51 88H79L54 64l-25 44Z" fill="#fff"/>
-    <g fill="#fff">
-      <rect x="45" y="82" width="8" height="8" rx="1"/>
-      <rect x="57" y="82" width="8" height="8" rx="1"/>
-      <rect x="45" y="94" width="8" height="8" rx="1"/>
-      <rect x="57" y="94" width="8" height="8" rx="1"/>
-    </g>
-    <path d="M151 45a40 40 0 1 0 0 56" fill="none" stroke="#f5b400" stroke-width="18" stroke-linecap="square"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 160" role="img" aria-label="Alert Construction">
+  <g transform="translate(5.217 16) scale(.171929825)" fill="#ffffff">
+    <path d="M 640.500 18.995 C 540.347 24.628, 460.478 74.122, 418.617 156.494 L 413.439 166.683 382.394 97.592 L 351.348 28.500 297.924 28.272 L 244.500 28.044 129.500 284.584 C 66.250 425.681, 14.355 541.771, 14.177 542.562 C 13.896 543.809, 38.741 544, 200.927 544 L 388 544 388 500.504 L 388 457.008 273.163 456.754 L 158.325 456.500 196.712 369 C 217.824 320.875, 249.216 249.144, 266.472 209.597 L 297.845 137.694 299.503 141.597 C 300.414 143.744, 303.383 151.042, 306.099 157.815 C 374.734 328.938, 414.958 420.628, 433.887 449.113 C 479.963 518.446, 559.447 555.995, 660.144 555.999 C 734.430 556.002, 793.783 534.922, 846.750 489.721 C 852.090 485.165, 856 481.064, 856 480.021 C 856 478.993, 842.058 464.058, 823.657 445.375 L 791.314 412.535 784.407 418.872 C 765.601 436.125, 733.620 452.395, 705.500 459.016 C 684.768 463.896, 653.963 465.571, 633 462.957 C 590.886 457.706, 559.094 443.118, 532.923 417.037 C 501.248 385.470, 484.151 340.277, 484.031 287.801 C 483.911 234.961, 505.096 184.684, 540.500 153.789 C 573.850 124.686, 618.444 110.311, 669.024 112.359 C 712.098 114.103, 748.777 128.057, 779.264 154.296 L 786.142 160.216 788.782 157.858 C 790.233 156.561, 803.589 143.840, 818.461 129.588 C 833.332 115.337, 846.836 102.405, 848.469 100.850 L 851.439 98.023 846.969 93.438 C 830.455 76.495, 799.276 55.066, 773.331 42.828 C 760.237 36.652, 734.468 28.009, 719 24.605 C 695.580 19.451, 667.747 17.462, 640.500 18.995"/>
   </g>
-  <text x="183" y="74" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" letter-spacing="2">ALERT</text>
-  <text x="183" y="127" fill="#f5b400" font-family="Arial,Helvetica,sans-serif" font-size="39" font-weight="700" letter-spacing="7">CONSTRUCTION</text>
+  <text x="170" y="75" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800" letter-spacing="2">ALERT</text>
+  <text x="170" y="128" fill="#f5b400" font-family="Arial,Helvetica,sans-serif" font-size="39" font-weight="700" letter-spacing="7">CONSTRUCTION</text>
 </svg>

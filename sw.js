@@ -1,4 +1,4 @@
-const CACHE='ac-builder-control-v33';
+const CACHE='ac-profile-menu-logo-v35';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',

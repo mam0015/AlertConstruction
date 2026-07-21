@@ -34,13 +34,13 @@
     button,input,select,textarea{font:inherit}
     .shell{min-height:100vh;background:#050505}
     .topbar{
-      height:98px;display:flex;align-items:center;justify-content:space-between;gap:20px;
+      height:98px;display:flex;align-items:center;gap:20px;
       padding:0 clamp(20px,4vw,64px);border-bottom:1px solid var(--line);background:rgba(3,3,3,.96);
       position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)
     }
-    .brand{display:flex;align-items:center;min-width:0}
-    .brand img{width:clamp(190px,21vw,325px);height:68px;object-fit:contain;object-position:left center;display:block}.brand-logo-light{display:none!important}
-    .nav{display:flex;align-items:center;gap:16px}
+    .brand{display:flex;align-items:center;min-width:0;flex:none}
+    .brand img{width:clamp(190px,21vw,325px);height:68px;object-fit:contain;object-position:left center;display:block;background:transparent}.brand-logo-light{display:none!important}
+    .nav{display:flex;align-items:center;gap:16px;margin-right:auto}
     .nav a{display:flex;align-items:center;gap:10px;padding:18px 8px 15px;border-bottom:3px solid var(--yellow);font-weight:750}
     .nav svg{width:22px;height:22px;stroke:var(--yellow)}
 
@@ -97,7 +97,7 @@
       .hero{min-height:auto}
     }
     @media(max-width:680px){
-      .topbar{height:82px;padding:0 10px}.brand img{width:170px;height:56px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
+      .topbar{height:82px;padding:0 12px}.brand img{width:170px;height:56px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
       .hero:before{height:650px;background-position:61% center}.hero:after{height:710px}.hero-inner{padding:58px 14px 40px}.intro{max-width:94%}
       .editorial-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:84%;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 2px 12px;margin-top:92px}.story{min-height:245px;scroll-snap-align:start}
       .tools-title{margin-top:44px}.category-tabs,.tools-grid{grid-template-columns:1fr;gap:10px}.category-tab{min-height:138px}.tool{min-height:245px;border-radius:2px;padding:22px}.tool-group-head{display:block}.tool-group-head p{margin-top:5px;text-align:left}.tool-view-bar{align-items:flex-start;flex-direction:column}
@@ -120,8 +120,8 @@
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Alert Construction home">
-        <img class="brand-logo-dark" src="./assets/alert-construction-logo-ac.svg?v=19" alt="Alert Construction">
-        <img class="brand-logo-light" src="./assets/alert-construction-logo-ac-light.svg?v=19" alt="Alert Construction">
+        <img class="brand-logo-dark" src="./assets/alert-construction-logo-ac.svg?v=35" alt="Alert Construction">
+        <img class="brand-logo-light" src="./assets/alert-construction-logo-ac-light.svg?v=35" alt="Alert Construction">
       </a>
       <nav class="nav" aria-label="Primary navigation">
         <a href="./projects/index.html">
