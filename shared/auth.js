@@ -2,20 +2,20 @@
   'use strict';
   const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_auth_session_v1',PRESENCE_ID_KEY='ac_presence_session_id_v1',PRESENCE_SENT_KEY='ac_presence_started_v1',AUTH_SCRIPT_SRC=document.currentScript?.src||'';
   let session=readSession(),profile=null,workspace=null,profileError='',pendingJoinCount=0,readyResolve,presenceTimer=null,pendingTimer=null;
-  const SAVE_ROLES=new Set(['owner','estimator','manager','admin','builder']);
+  const SAVE_ROLES=new Set(['owner','admin','estimator','manager','builder']);
   const TOOL_ROLES={
-    electrical:['owner','estimator'],
-    plumbing:['owner','estimator'],
-    cladding:['owner','estimator'],
-    'renovation-budget':['owner','estimator'],
-    'property-estimate':['owner','estimator'],
-    'plan-ai':['owner','estimator'],
-    'quote-analysis':['owner','estimator'],
-    'permit-checklist':['owner','estimator','manager'],
-    projects:['owner','estimator','manager','site_supervisor'],
-    checklist:['owner','manager','site_supervisor'],
-    catalogue:['owner'],
-    builder:['owner']
+    electrical:['owner','admin','estimator'],
+    plumbing:['owner','admin','estimator'],
+    cladding:['owner','admin','estimator'],
+    'renovation-budget':['owner','admin','estimator'],
+    'property-estimate':['owner','admin','estimator'],
+    'plan-ai':['owner','admin','estimator'],
+    'quote-analysis':['owner','admin','estimator'],
+    'permit-checklist':['owner','admin','estimator','manager'],
+    projects:['owner','admin','estimator','manager','site_supervisor'],
+    checklist:['owner','admin','manager','site_supervisor'],
+    catalogue:['owner','admin'],
+    builder:['owner','admin','manager','site_supervisor','estimator','worker']
   };
   const ready=new Promise(resolve=>readyResolve=resolve);
 
@@ -59,7 +59,7 @@
       if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.message||`Profile check failed (${response.status}).`)}
       const rows=await response.json();profile=rows[0]||null;if(!profile)profileError='No authorised team profile was found.';
       if(profile?.organisation_id)await loadWorkspace(current);
-      if(profile?.role==='owner'&&profile.active!==false)await refreshPendingCount(false);
+      if(['owner','admin'].includes(profile?.role)&&profile.active!==false)await refreshPendingCount(false);
       if(hasAccess()){startPresence();startPendingMonitor()}
     }catch(error){profileError=error.message||'The secure team profile could not be checked.'}
     global.dispatchEvent(new CustomEvent('ac-auth-changed',{detail:eventDetail()}));return profile;
@@ -79,7 +79,7 @@
   function canUseTool(tool){const allowed=TOOL_ROLES[String(tool||'')]||[];return hasAccess()&&allowed.includes(role())}
   function allowedTools(){return Object.keys(TOOL_ROLES).filter(canUseTool)}
   function isPending(){return !!session&&!!profile&&profile.active===false&&profile.role==='pending'}
-  function roleLabel(value=role()){return({owner:'Owner / Admin',estimator:'Estimator',manager:'Project Manager',site_supervisor:'Site Supervisor',pending:'Pending Owner Approval',rejected:'Join Request Declined',admin:'Admin',builder:'Builder'})[value]||String(value||'Member').replace(/_/g,' ')}
+  function roleLabel(value=role()){return({owner:'Owner',admin:'Admin',estimator:'Estimator',manager:'Project Manager',site_supervisor:'Site Supervisor',worker:'Worker',pending:'Pending Owner Approval',rejected:'Join Request Declined',builder:'Builder'})[value]||String(value||'Member').replace(/_/g,' ')}
   async function requestPasswordReset(email){const redirect=authRedirect();return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email})})}
   async function resendVerification(email){const redirect=authRedirect();return request(`/auth/v1/resend?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({type:'signup',email})})}
   async function updatePassword(password){const current=await ensure();if(!current?.access_token)throw new Error('Open the password reset email again or sign in first.');const updated=await request('/auth/v1/user',{method:'PUT',headers:{Authorization:`Bearer ${current.access_token}`},body:JSON.stringify({password})});if(updated?.id){session.user=updated;saveSession(session)}return updated}
@@ -104,14 +104,14 @@
     if(!presenceTimer)presenceTimer=setInterval(()=>recordPresence('heartbeat').catch(()=>{}),180000);
   }
   async function refreshPendingCount(notify=true){
-    if(profile?.role!=='owner'||profile.active===false||!session?.access_token)return 0;
+    if(!['owner','admin'].includes(profile?.role)||profile.active===false||!session?.access_token)return 0;
     const previous=pendingJoinCount,response=await fetch(`${base()}/rest/v1/profiles?organisation_id=eq.${encodeURIComponent(profile.organisation_id)}&role=eq.pending&active=eq.false&select=id`,{headers:publicHeaders({Authorization:`Bearer ${session.access_token}`})});
     if(response.ok)pendingJoinCount=(await response.json()).length;
     if(notify&&pendingJoinCount!==previous)global.dispatchEvent(new CustomEvent('ac-auth-changed',{detail:eventDetail()}));
     return pendingJoinCount;
   }
   function startPendingMonitor(){
-    if(profile?.role!=='owner'||pendingTimer)return;
+    if(!['owner','admin'].includes(profile?.role)||pendingTimer)return;
     pendingTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshPendingCount().catch(()=>{})},60000);
   }
   async function audit(action,payload={}){if(!hasAccess()||!profile?.organisation_id)return false;try{await rpc('log_ac_project_action',{p_action:action,p_project_id:payload.projectId||null,p_record_id:payload.recordId||null,p_module:payload.module||null,p_details:payload.details||{}});return true}catch(_){return false}}

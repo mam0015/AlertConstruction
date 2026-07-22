@@ -33,9 +33,9 @@
     $('cloudState').textContent=active?'Connected with RLS':pending?'Locked until approval':rejected?'Request declined':'Ready to create workspace';
     $('catalogueState').textContent=active&&profile.role==='owner'?'Owner edit access':active&&profile.role==='estimator'?'Approved rates • read only':active?'Not included in this role':pending?'Locked until role approval':'Available after workspace setup';
     $('pendingRequests').textContent=String(ACAuth.pendingJoinCount?.()||0);$('pendingRequests').className=(ACAuth.pendingJoinCount?.()||0)>0?'status-bad':'';
-    $('teamArea').hidden=false;$('personalChoice').hidden=profileActive||pending;$('joinChoice').hidden=profileActive||pending;$('builderControlLink').hidden=!(active&&profile.role==='owner');
+    $('teamArea').hidden=false;$('personalChoice').hidden=profileActive||pending;$('joinChoice').hidden=profileActive||pending;$('builderControlLink').hidden=!(active&&ACAuth.canUseTool?.('builder'));
     if(active&&profile.role==='owner'&&org?.join_code){$('ownerCode').hidden=false;$('teamCode').textContent=org.join_code;$('codeAge').textContent=org.join_code_rotated_at?`Rotated ${new Date(org.join_code_rotated_at).toLocaleString('en-AU')}`:''}else $('ownerCode').hidden=true;
-    $('teamMembers').innerHTML=active&&profile.role==='owner'?'<div class="activity-row"><strong>Manage staff in Builder Control</strong><span>Approve requests, assign roles, review attendance and send messages from the Owner-only control centre.</span></div>':'';
+    $('teamMembers').innerHTML=active&&profile.role==='owner'?'<div class="activity-row"><strong>Manage staff in Operations Hub</strong><span>Approve requests, assign roles, review attendance and send messages from the secure operations workspace.</span></div>':'';
   }
   let shownRedirect='';function showRedirect(type){if(!type||type===shownRedirect)return;shownRedirect=type;sessionStorage.removeItem('ac_auth_redirect_type');setTimeout(()=>message(type==='recovery'?'Secure recovery link accepted. Enter a new password below.':'Email verified successfully. Your secure account is now active.','good'),0)}
   window.addEventListener('ac-auth-redirect',event=>showRedirect(event.detail?.type));ACAuth.ready.then(()=>showRedirect(sessionStorage.getItem('ac_auth_redirect_type')));render();

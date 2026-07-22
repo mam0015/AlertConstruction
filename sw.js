@@ -1,4 +1,4 @@
-const CACHE='ac-profile-menu-logo-v35';
+const CACHE='ac-operations-hub-v37';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',
@@ -11,7 +11,7 @@ const ASSETS=[
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
-  './builder/','./builder/index.html','./builder/app.js',
+  './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js',
   './legal/privacy.html','./legal/terms.html','./legal/support.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
