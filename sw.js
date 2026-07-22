@@ -1,4 +1,4 @@
-const CACHE='ac-operations-hub-v37';
+const CACHE='ac-invoice-generator-v38';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',
@@ -9,6 +9,8 @@ const ASSETS=[
   './permit-checklist/','./permit-checklist/index.html','./permit-checklist/app.js',
   './plan-ai/','./plan-ai/index.html','./plan-ai/styles.css','./plan-ai/config.js','./plan-ai/app.js',
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
+  './invoice/','./invoice/index.html','./invoice/styles.css','./invoice/calculations.js','./invoice/api.js','./invoice/pdf.js',
+  './vendor/jspdf.umd.min.js','./vendor/jspdf.plugin.autotable.min.js','./assets/invoice-logo.png',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
   './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js',

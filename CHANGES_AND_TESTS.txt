@@ -1,6 +1,30 @@
 PRODUCT FOUNDATION & CLIENT ROADMAP — 14 JULY 2026
 ==================================================
 
+INVOICE GENERATOR — V38 — 22 JULY 2026
+========================================
+
+- Added a team-isolated Invoice Generator with automatic backend invoice numbers,
+  live base-cost/profit/GST calculations, discounts, payment tracking and balances.
+- Added exact role enforcement: Owner full access, Estimator create/edit/PDF,
+  Manager customer-safe read only, Site Supervisor and Worker no access.
+- Manager invoice responses omit profit, base cost, private notes and creator IDs;
+  direct table access is revoked and all reads use role-shaped Supabase RPCs.
+- Added private Supabase buckets for saved invoice PDFs and Owner-managed logos.
+- Added A4 TAX INVOICE PDF generation based on the supplied Alert Construction
+  reference, with repeated table headers, protected rows, page footers and no
+  unnecessary balance-only final page.
+- Added project linking, filters, duplicate, preview, print, saved PDF download,
+  owner-only company settings and invoice audit events.
+- Added responsive Dark/Light UI, dashboard/Projects links and PWA V38 caching.
+
+Validation completed:
+- JavaScript syntax and invoice calculation tests: pass.
+- Owner, Estimator and Manager role UI tests: pass.
+- PostgreSQL and PL/pgSQL parser validation: pass.
+- A4 one-page and multi-page PDF render/text inspection: pass.
+- Customer PDF internal-cost/profit/private-note leak scan: pass.
+
 ICON ACTION PRICING + BUILDER/CUSTOMER MODES — 17 JULY 2026
 ===========================================================
 

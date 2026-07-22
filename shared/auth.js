@@ -11,6 +11,7 @@
     'property-estimate':['owner','admin','estimator'],
     'plan-ai':['owner','admin','estimator'],
     'quote-analysis':['owner','admin','estimator'],
+    invoice:['owner','estimator','manager'],
     'permit-checklist':['owner','admin','estimator','manager'],
     projects:['owner','admin','estimator','manager','site_supervisor'],
     checklist:['owner','admin','manager','site_supervisor'],

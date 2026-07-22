@@ -43,7 +43,7 @@ for(const [trade,count] of Object.entries(expected)){
 const base=1000,customer=base*1.2*1.1;
 if(Math.abs(customer-1320)>0.001)fail('Pricing formula must apply 20% before 10% GST');
 
-const required=['index.html','.nojekyll','plan-ai/index.html','quote-analysis/index.html','projects/index.html','supabase/functions/analyse-plan/index.ts','assets/app-icon.svg','assets/alert-construction-logo-white.svg'];
+const required=['index.html','.nojekyll','plan-ai/index.html','quote-analysis/index.html','projects/index.html','invoice/index.html','invoice/app.js','invoice/pdf.js','supabase/migrations/20260722_invoice_generator_v38.sql','supabase/functions/analyse-plan/index.ts','assets/app-icon.svg','assets/alert-construction-logo-white.svg','assets/invoice-logo.png'];
 for(const file of required)if(!fs.existsSync(path.join(root,file)))fail(`Missing ${file}`);
 
 const allFiles=[];

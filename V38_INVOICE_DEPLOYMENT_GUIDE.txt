@@ -1,0 +1,36 @@
+ALERT CONSTRUCTION V38 — INVOICE GENERATOR
+===========================================
+
+IMPORTANT
+---------
+Do not publish the V38 frontend to the live main branch before the V38 SQL
+migration has completed successfully in Supabase. The Invoice page deliberately
+stops with a clear error if its protected database functions are unavailable.
+
+TEST DEPLOYMENT
+---------------
+1. Back up the current V37 website and Supabase database.
+2. In Supabase > SQL Editor, run this file once:
+   supabase/migrations/20260722_invoice_generator_v38.sql
+3. Upload the complete V38 package to the existing test environment/branch.
+   Keep index.html and all folders at the repository root.
+4. Hard refresh the test app or remove/reinstall the PWA so cache V38 loads.
+5. Test with separate accounts:
+   - Owner: create/edit/delete, payments/status, company settings, PDF.
+   - Estimator: create/edit/duplicate/print/PDF; no settings/delete/payment edits.
+   - Manager: list/filter/detail/preview/print/saved PDF only.
+   - Site Supervisor and Worker: no dashboard card, direct URL or API access.
+6. Create a one-item invoice and a long multi-page invoice. Confirm totals,
+   GST-free items, discount, payment balance, logo ratio and A4 page breaks.
+7. Open the PDF and confirm Base Cost, Profit, Private Notes and creator details
+   do not appear.
+
+LIVE RELEASE
+------------
+After the test checks pass, publish the same tested files to the live main branch.
+No analyse-plan Edge Function redeploy or new secret is required for V38.
+
+ROLLBACK
+--------
+If the frontend must be rolled back, restore the V37 web files. The new invoice
+tables can remain safely in Supabase because V37 does not reference them.

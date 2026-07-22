@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <title>Invoice Generator | Alert Construction</title>
+  <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="Alert Construction dashboard">
+        <img class="brand-logo-dark" src="../assets/alert-construction-logo-ac.svg" alt="Alert Construction">
+        <img class="brand-logo-light" src="../assets/alert-construction-logo-ac-light.svg" alt="Alert Construction">
+      </a>
+      <div class="page-id"><span>FINANCE & BILLING</span><strong>Invoice Generator</strong></div>
+      <a class="dashboard-link" href="../index.html">Dashboard</a>
+    </header>
+
+    <main>
+      <section id="listView" class="view show">
+        <div class="hero">
+          <div><span class="eyebrow">Professional tax invoices</span><h1>Invoice control,<br><em>without hidden costs.</em></h1><p>Create, track and export A4 invoices while internal base costs and profit stay private.</p></div>
+          <div class="hero-actions"><button id="settingsBtn" class="secondary owner-only" type="button">Company Settings</button><button id="newInvoiceBtn" class="primary edit-only" type="button">＋ New Invoice</button></div>
+        </div>
+        <aside id="roleNotice" class="role-notice"></aside>
+        <div class="filters">
+          <label><span>Search</span><input id="filterSearch" type="search" placeholder="Invoice, project or customer"></label>
+          <label><span>Status</span><select id="filterStatus"><option value="">All statuses</option><option>Draft</option><option>Issued</option><option>Sent</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Cancelled</option></select></label>
+          <label><span>Project</span><select id="filterProject"><option value="">All projects</option></select></label>
+          <label><span>From</span><input id="filterFrom" type="date"></label>
+          <label><span>To</span><input id="filterTo" type="date"></label>
+          <button id="clearFilters" class="ghost" type="button">Clear</button>
+        </div>
+        <div class="invoice-table-wrap">
+          <table class="invoice-table">
+            <thead><tr><th>Invoice</th><th>Customer / Project</th><th>Issued</th><th>Status</th><th>Total</th><th>Balance</th><th></th></tr></thead>
+            <tbody id="invoiceRows"></tbody>
+          </table>
+          <div id="listState" class="list-state">Loading invoices…</div>
+        </div>
+      </section>
+
+      <section id="editorView" class="view">
+        <div class="editor-bar">
+          <button id="backBtn" class="back-btn" type="button">← Invoices</button>
+          <div><span id="editorKicker">DRAFT INVOICE</span><h1 id="editorTitle">New invoice</h1></div>
+          <div class="editor-actions">
+            <button id="downloadSavedBtn" class="secondary" type="button" hidden>Download Saved PDF</button>
+            <button id="saveBtn" class="secondary edit-only" type="button">Save Draft</button>
+            <button id="previewBtn" class="secondary" type="button">Preview PDF</button>
+            <button id="generateBtn" class="primary edit-only" type="button">Generate PDF</button>
+            <button id="duplicateBtn" class="ghost edit-only" type="button">Duplicate</button>
+            <button id="printBtn" class="ghost" type="button">Print</button>
+            <button id="deleteBtn" class="danger owner-only" type="button">Delete</button>
+          </div>
+        </div>
+
+        <div class="editor-grid">
+          <form id="invoiceForm" class="form-panel" autocomplete="off">
+            <section class="form-section">
+              <div class="section-title"><div><span>01</span><h2>Invoice details</h2></div><p>Invoice numbers are assigned securely when the first draft is saved.</p></div>
+              <div class="form-grid">
+                <label><span>Invoice number</span><input id="invoiceNumber" readonly placeholder="Assigned on save"></label>
+                <label><span>Issue date</span><input id="issueDate" type="date" required></label>
+                <label><span>Due date</span><input id="dueDate" type="date" required></label>
+                <label class="owner-only"><span>Status</span><select id="invoiceStatus"><option>Draft</option><option>Issued</option><option>Sent</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Cancelled</option></select></label>
+                <label><span>Linked project</span><select id="projectId"><option value="">No linked project</option></select></label>
+                <label><span>Project name</span><input id="projectName" placeholder="e.g. Rowville Renovation"></label>
+                <label class="wide"><span>Project address</span><input id="projectAddress" placeholder="Site address"></label>
+                <label><span>Linked quote / project record</span><select id="quoteId"><option value="">No linked quote</option></select></label>
+                <label><span>Quote / reference</span><input id="referenceNo" placeholder="e.g. Q-2026-014"></label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="section-title"><div><span>02</span><h2>Customer</h2></div><p>These details appear on the customer PDF.</p></div>
+              <div class="form-grid">
+                <label><span>Customer name</span><input id="customerName" required placeholder="Full name"></label>
+                <label><span>Customer company</span><input id="customerCompany" placeholder="Optional company"></label>
+                <label class="wide"><span>Customer address</span><textarea id="customerAddress" rows="2" placeholder="Billing address"></textarea></label>
+                <label><span>Email</span><input id="customerEmail" type="email"></label>
+                <label><span>Phone</span><input id="customerPhone" type="tel"></label>
+                <label><span>Customer ABN</span><input id="customerAbn" placeholder="Optional"></label>
+              </div>
+            </section>
+
+            <section class="form-section items-section">
+              <div class="section-title"><div><span>03</span><h2>Invoice items</h2></div><button id="addItemBtn" class="small primary edit-only" type="button">＋ Add Item</button></div>
+              <div class="internal-note edit-only"><strong>Internal pricing:</strong> Base cost and profit are visible only to Owner and Estimator. The customer PDF shows selling prices only.</div>
+              <div class="profit-controls edit-only">
+                <label><span>Default profit</span><select id="defaultProfitType"><option value="percent">Percentage</option><option value="fixed">Fixed per unit</option></select></label>
+                <label><span>Default value</span><input id="defaultProfitValue" type="number" min="0" step="0.01" value="20"></label>
+                <label class="switch"><input id="gstEnabled" type="checkbox" checked><span>Apply GST</span></label>
+                <label><span>GST rate %</span><input id="gstRate" type="number" min="0" max="100" step="0.01" value="10"></label>
+              </div>
+              <div id="items" class="items"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="section-title"><div><span>04</span><h2>Payment & notes</h2></div></div>
+              <div class="form-grid">
+                <label><span>Discount (AUD)</span><input id="discountAmount" type="number" min="0" step="0.01" value="0"></label>
+                <label class="owner-only"><span>Amount paid (AUD)</span><input id="amountPaid" type="number" min="0" step="0.01" value="0"></label>
+                <label class="wide"><span>Payment terms</span><textarea id="paymentTerms" rows="2"></textarea></label>
+                <label class="wide"><span>Customer notes</span><textarea id="notes" rows="3" placeholder="Shown on the customer PDF"></textarea></label>
+                <label class="wide edit-only internal-field"><span>Private internal notes</span><textarea id="privateNotes" rows="3" placeholder="Never included in the customer PDF"></textarea></label>
+              </div>
+            </section>
+          </form>
+
+          <aside class="summary-panel">
+            <div class="summary-card">
+              <span class="summary-kicker">LIVE TOTAL</span><strong id="summaryTotal">$0.00</strong><small>AUD including GST</small>
+              <dl><div><dt>Subtotal excluding GST</dt><dd id="summarySubtotal">$0.00</dd></div><div id="discountRow"><dt>Discount</dt><dd id="summaryDiscount">$0.00</dd></div><div><dt id="gstLabel">GST 10%</dt><dd id="summaryGst">$0.00</dd></div><div><dt>Amount Paid</dt><dd id="summaryPaid">$0.00</dd></div><div class="balance"><dt>Balance Due</dt><dd id="summaryBalance">$0.00</dd></div></dl>
+              <div class="internal-profit edit-only"><span>Internal profit</span><strong id="summaryProfit">$0.00</strong></div>
+            </div>
+            <div class="security-card"><strong>Customer-safe PDF</strong><p>Base costs, profit settings, private notes and creator details are excluded automatically.</p></div>
+          </aside>
+        </div>
+
+        <section id="previewSection" class="preview-section" hidden>
+          <div class="preview-head"><div><span>PDF PREVIEW</span><h2>A4 customer invoice</h2></div><button id="closePreviewBtn" class="ghost" type="button">Close Preview</button></div>
+          <div class="paper-stage"><article id="invoicePreview" class="invoice-paper"></article></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="settingsModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head"><div><span>OWNER SETTINGS</span><h2>Company invoice details</h2></div><button id="closeSettingsBtn" type="button" aria-label="Close">×</button></div>
+      <form id="settingsForm" class="settings-grid">
+        <label class="logo-field"><span>Company logo</span><img id="settingsLogo" src="../assets/invoice-logo.png" alt="Invoice logo"><input id="logoFile" type="file" accept="image/png,image/jpeg"><small>PNG or JPEG, maximum 2 MB. Aspect ratio is preserved.</small></label>
+        <label><span>Company name</span><input id="companyName" required></label><label><span>ABN</span><input id="companyAbn"></label>
+        <label class="wide"><span>Address</span><textarea id="companyAddress" rows="3"></textarea></label>
+        <label><span>Phone</span><input id="companyPhone"></label><label><span>Email</span><input id="companyEmail" type="email"></label><label><span>Website</span><input id="companyWebsite"></label>
+        <label><span>Account name</span><input id="bankAccountName"></label><label><span>BSB</span><input id="bankBsb"></label><label><span>Account number</span><input id="bankAccountNumber"></label>
+        <label class="wide"><span>Default payment terms</span><textarea id="defaultPaymentTerms" rows="3"></textarea></label>
+        <label><span>Default profit type</span><select id="settingsProfitType"><option value="percent">Percentage</option><option value="fixed">Fixed per unit</option></select></label><label><span>Default profit value</span><input id="settingsProfitValue" type="number" min="0" step="0.01"></label><label><span>Default GST rate %</span><input id="settingsGstRate" type="number" min="0" max="100" step="0.01"></label>
+        <div class="modal-actions wide"><button id="cancelSettingsBtn" class="ghost" type="button">Cancel</button><button class="primary" type="submit">Save Company Settings</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="../shared/platform-config.js"></script>
+  <script src="../shared/auth.js"></script>
+  <script src="../shared/project-store.js"></script>
+  <script src="../vendor/jspdf.umd.min.js"></script>
+  <script src="../vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="./calculations.js"></script>
+  <script src="./api.js"></script>
+  <script src="./pdf.js"></script>
+  <script src="./app.js"></script>
+  <script src="../shared/product-shell.js"></script>
+</body>
+</html>

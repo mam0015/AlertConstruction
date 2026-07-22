@@ -115,7 +115,7 @@
   function addLegalFooter(){if(document.querySelector('.ac-legal-footer'))return;const footer=document.createElement('footer');footer.className='ac-legal-footer';footer.setAttribute('aria-label','Legal information');footer.innerHTML='<a href="'+new URL('legal/privacy.html',base).href+'">Privacy Policy</a><span>•</span><a href="'+new URL('legal/terms.html',base).href+'">Terms of Use</a><span>•</span><a href="'+new URL('legal/support.html',base).href+'">Support</a><span>•</span><span>Indicative estimates • Human verification required</span>';document.body.appendChild(footer)}
   function loadAnalytics(){if(window.ACAnalytics||document.querySelector('script[data-ac-analytics]'))return;const analytics=document.createElement('script');analytics.src=new URL('shared/analytics.js',base).href;analytics.dataset.acAnalytics='1';analytics.defer=true;document.head.appendChild(analytics)}
   async function loginGate(){
-    const config=window.AC_PLATFORM_CONFIG||{},match=location.pathname.match(/\/(electrical|plumbing|cladding|renovation-budget|property-estimate|permit-checklist|plan-ai|quote-analysis|projects|checklist|catalogue|builder)\//),tool=match?.[1];
+    const config=window.AC_PLATFORM_CONFIG||{},match=location.pathname.match(/\/(electrical|plumbing|cladding|renovation-budget|property-estimate|permit-checklist|plan-ai|quote-analysis|invoice|projects|checklist|catalogue|builder)\//),tool=match?.[1];
     if(tool==='builder'&&new URLSearchParams(location.search).get('preview')==='1')return;
     if(!config.enforceInternalLogin||!tool||!window.ACAuth)return;
     await window.ACAuth.ready;
