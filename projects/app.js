@@ -39,7 +39,7 @@
 
   function render(){
     renderToday();renderProjectList();const project=current();$('emptyDetail').style.display=project?'none':'grid';$('detail').classList.toggle('show',!!project);if(!project)return;
-    store.setActive(project.id);$('projectTitle').textContent=project.name;$('projectSubtitle').textContent=[project.address,project.client,project.status].filter(Boolean).join(' • ')||'Project workspace';
+    store.setActive(project.id);$('projectTitle').textContent=project.name;$('projectSubtitle').textContent=[project.address,project.client,project.status].filter(Boolean).join(' • ')||'Project workspace';$('photoTimelineLink').href=`../builder/index.html?view=photo-timeline&project=${encodeURIComponent(project.id)}`;
     $('editName').value=project.name||'';$('editAddress').value=project.address||'';$('editClient').value=project.client||'';$('editStatus').value=project.status||'Active';$('editNotes').value=project.notes||'';
     const open=(project.tasks||[]).filter(task=>!task.done),done=(project.tasks||[]).filter(task=>task.done),today=open.filter(task=>task.dueDate===store.today());
     $('recordStat').textContent=(project.records||[]).length;$('taskStat').textContent=open.length;$('todayStat').textContent=today.length;$('doneStat').textContent=done.length;
@@ -80,6 +80,6 @@
     $('taskList').querySelectorAll('[data-task]').forEach(row=>row.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>{const id=row.dataset.task;if(button.dataset.action==='toggle'){const task=project.tasks.find(item=>item.id===id);store.updateTask(project.id,id,{done:!task.done})}else if(confirm('Delete this task?'))store.deleteTask(project.id,id);render();showTab('schedule')})));
   }
   window.addEventListener('ac-projects-changed',()=>{if(currentId&&!store.get(currentId))currentId=store.list()[0]?.id||''});
-  window.ACAuth?.ready?.then(()=>document.querySelectorAll('.quick-links a').forEach(link=>{const tool=link.getAttribute('href')?.match(/\.\.\/([^/]+)\//)?.[1];if(tool)link.hidden=!window.ACAuth.canUseTool(tool)}));
+  window.ACAuth?.ready?.then(()=>document.querySelectorAll('.quick-links a').forEach(link=>{const tool=link.getAttribute('href')?.match(/\.\.\/([^/]+)\//)?.[1];if(tool)link.hidden=!window.ACAuth.canUseTool(tool);if(link.id==='photoTimelineLink')link.hidden=!['owner','admin','manager','site_supervisor','estimator'].includes(window.ACAuth.role?.())}));
   render();
 })();
