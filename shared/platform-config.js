@@ -16,6 +16,6 @@
     supportEmail:'info@alertconstruction.com.au',
     privacyPolicyVersion:'2026-07-19',
     schemaVersion:40,
-    releaseVersion:41
+    releaseVersion:43
   };
 })(window);

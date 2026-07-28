@@ -1,8 +1,8 @@
-const CACHE='alert-tradie-pro-v42';
+const CACHE='alert-tradie-pro-v43';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
-  './assets/luxury-builder-hero.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
+  './assets/luxury-builder-hero.webp','./assets/hero-house-construction.webp','./assets/hero-house-complete.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
   './property-estimate/','./property-estimate/index.html','./property-estimate/victoria-sales-data.js','./property-estimate/app.js',
@@ -17,7 +17,7 @@ const ASSETS=[
   './legal/privacy.html','./legal/terms.html','./legal/support.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
-  './shared/product-shell.js','./shared/team-chat.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
+  './shared/product-shell.js','./shared/product-shell-v43.js','./shared/global-shell-v43.js','./shared/global-shell-v43.css','./shared/dashboard-v43.js','./shared/dashboard-v43.css','./shared/team-chat.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
 ];
 
 self.addEventListener('install',event=>{

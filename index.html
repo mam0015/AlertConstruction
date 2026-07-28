@@ -1,350 +1,178 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-ac-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#050505">
-  <meta name="description" content="Alert Tradie Pro — secure estimating, renovation budgeting, project tracking, price catalogues and site tools in one connected workspace. Powered by Alert Construction.">
+  <meta name="theme-color" content="#070807">
+  <meta name="description" content="Alert Tradie Pro — estimating, projects, operations and reporting for Australian construction teams. Powered by Alert Construction.">
   <meta property="og:title" content="Alert Tradie Pro | Powered by Alert Construction">
-  <meta property="og:description" content="Estimating, projects, schedules, price catalogues and site tools for builders and tradies.">
+  <meta property="og:description" content="Estimating, projects, site operations and reporting in one connected workspace.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mam0015.github.io/AlertConstruction/">
   <meta property="og:image" content="https://mam0015.github.io/AlertConstruction/assets/social-preview.svg">
-  <meta property="og:image:alt" content="Alert Tradie Pro logo">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Alert Tradie Pro | Powered by Alert Construction</title>
   <link rel="canonical" href="https://mam0015.github.io/AlertConstruction/">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
+  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=43">
   <style>
-    :root{
-      --bg:#050505; --panel:#111; --panel-2:#171717; --text:#f7f7f7;
-      --muted:#b8b8b8; --yellow:#f5b400; --yellow-soft:#ffd15a;
-      --line:rgba(255,255,255,.14); --line-yellow:rgba(245,180,0,.65);
-      --shadow:0 28px 80px rgba(0,0,0,.5);
-    }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;background:var(--bg)}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+    html{scroll-behavior:smooth;background:#070807}
+    body{margin:0;min-height:100vh;background:var(--app-bg);color:var(--app-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
     a{color:inherit;text-decoration:none}
-    button,input,select,textarea{font:inherit}
-    .shell{min-height:100vh;background:#050505}
-    .topbar{
-      height:98px;display:flex;align-items:center;gap:20px;
-      padding:0 clamp(20px,4vw,64px);border-bottom:1px solid var(--line);background:rgba(3,3,3,.96);
-      position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)
-    }
-    .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:none}
-    .brand-mark{width:60px;height:60px;display:grid;place-items:center;padding:8px;border:1px solid rgba(255,255,255,.16);border-radius:13px;background:#111414;overflow:hidden}.brand-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
-    .brand-wordmark{display:grid;gap:3px;line-height:1}.brand-wordmark strong{color:#fff;font-size:clamp(17px,1.7vw,24px);font-weight:900;letter-spacing:-.035em}.brand-wordmark small{color:#aaa;font-size:9px;font-weight:750;letter-spacing:.04em}
-    .nav{display:flex;align-items:center;gap:16px;margin-right:auto}
-    .nav a{display:flex;align-items:center;gap:10px;padding:18px 8px 15px;border-bottom:3px solid var(--yellow);font-weight:750}
-    .nav svg{width:22px;height:22px;stroke:var(--yellow)}
-
-    .hero{position:relative;min-height:calc(100vh - 98px);overflow:hidden;background:#050505}
-    .hero:before{content:"";position:absolute;inset:0 0 auto;height:min(760px,82vh);pointer-events:none;background-image:linear-gradient(90deg,rgba(5,5,5,.96) 0%,rgba(5,5,5,.88) 30%,rgba(5,5,5,.43) 57%,rgba(5,5,5,.08) 82%),url('./assets/luxury-builder-hero.webp');background-size:cover;background-position:center}
-    .hero:after{content:"";position:absolute;inset:0 0 auto;height:min(840px,92vh);pointer-events:none;background:linear-gradient(180deg,transparent 54%,rgba(5,5,5,.76) 78%,#050505 100%)}
-    .hero-inner{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:clamp(76px,10vh,138px) clamp(20px,5vw,84px) 56px}
-    .intro{max-width:660px}
-    .eyebrow{color:var(--yellow);font-weight:900;letter-spacing:.17em;text-transform:uppercase;font-size:clamp(13px,1.2vw,18px);margin-bottom:18px}
-    h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(50px,6.2vw,96px);font-weight:500;line-height:.94;letter-spacing:-.055em;max-width:780px}
-    .accent-line{width:86px;height:2px;background:var(--yellow);margin:30px 0 26px}
-    .intro p{margin:0;color:#c9c9c9;font-size:clamp(17px,1.6vw,24px);line-height:1.55;max-width:610px}
-
-    .editorial-grid{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:14px;margin-top:clamp(72px,12vh,132px)}
-    .story{position:relative;min-height:270px;overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:3px;background-image:var(--story);background-size:cover;background-position:center;box-shadow:0 22px 60px rgba(0,0,0,.35);transition:transform .25s ease,border-color .25s ease}
-    .story:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,5,5,.04) 24%,rgba(5,5,5,.82) 100%)}
-    .story:hover,.story:focus-visible{transform:translateY(-5px);border-color:rgba(245,180,0,.72)}
-    .story-copy{position:absolute;z-index:2;inset:auto 22px 20px}
-    .story-kicker{display:block;margin-bottom:9px;color:#e7c889;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
-    .story h2{margin:0;color:#fff;font-family:Georgia,"Times New Roman",serif;font-size:clamp(20px,1.75vw,27px);font-weight:500;line-height:1.08;letter-spacing:-.035em}
-    .story-link{display:inline-flex;align-items:center;gap:8px;margin-top:14px;color:#fff;font-size:11px;font-weight:850}.story-link:after{content:"→";color:var(--yellow);font-size:17px}
-    .tools-title{display:flex;align-items:center;gap:13px;margin-top:54px;color:var(--yellow);font-weight:900;letter-spacing:.1em;text-transform:uppercase;font-size:18px}
-    .tools-title svg{width:25px;height:25px;stroke:var(--yellow)}
-    .today-alert{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:36px;padding:16px 18px;border:1px solid rgba(245,180,0,.55);border-radius:17px;background:rgba(245,180,0,.08)}
-    .today-alert.show{display:flex}.today-alert strong,.today-alert span{display:block}.today-alert span{color:#cfcfcf;font-size:13px;margin-top:3px}.today-alert a{flex:none;padding:10px 13px;border-radius:12px;background:var(--yellow);color:#050505;font-weight:900}
-    .tool-filter{display:grid;gap:14px;margin-top:22px;padding:14px;border:1px solid var(--line);border-radius:18px;background:rgba(17,17,17,.92)}.tool-filter[hidden]{display:none}
-    .tool-filter input{min-height:48px;padding:10px 12px;border:1px solid #353535;border-radius:11px;background:#202020;color:#fff}.tool-filter input:focus{outline:2px solid rgba(245,180,0,.5);border-color:var(--yellow)}
-    .category-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.category-tab{position:relative;min-height:154px;padding:20px;border:1px solid #343434;border-radius:14px;background:linear-gradient(145deg,#1b1b1b,#0e0e0e);color:#eee;text-align:left;cursor:pointer;overflow:hidden;transition:transform .2s ease,border-color .2s ease,background .2s ease}.category-tab:before{content:"";position:absolute;right:-48px;top:-58px;width:135px;height:135px;border:1px solid rgba(245,180,0,.14);transform:rotate(45deg)}.category-tab:hover,.category-tab:focus-visible{transform:translateY(-3px);border-color:rgba(245,180,0,.72);outline:none}.category-tab[hidden]{display:none}.category-symbol{width:45px;height:45px;display:grid;place-items:center;margin-bottom:19px;border:1px solid rgba(245,180,0,.34);border-radius:50%;color:var(--yellow);background:#151515}.category-symbol svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.category-copy strong,.category-copy small{display:block}.category-copy strong{font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:500;letter-spacing:-.025em}.category-copy small{margin-top:6px;color:#aaa;font-size:11px;line-height:1.4}.category-count{display:block;margin-top:15px;color:#d8bd7a;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.category-arrow{position:absolute;right:17px;bottom:14px;color:var(--yellow);font-size:22px}.category-empty{padding:24px;border:1px dashed #3b3b3b;border-radius:13px;color:#aaa;text-align:center;font-size:13px}.category-empty[hidden]{display:none}
-    .role-workspace{display:none;margin-top:14px;padding:15px 17px;border:1px solid rgba(245,180,0,.36);border-radius:14px;background:rgba(245,180,0,.07);color:#e8d6a4}.role-workspace.show{display:block}.role-workspace strong,.role-workspace span{display:block}.role-workspace span{margin-top:5px;color:#bdb6a5;font-size:12px}.role-workspace a{color:var(--yellow);font-weight:900}
-    .tool-view-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:22px;padding:12px 0;border-bottom:1px solid rgba(245,180,0,.24)}.tool-view-bar[hidden]{display:none}.category-back{min-height:43px;padding:0 15px;border:1px solid #3b3b3b;border-radius:11px;background:#1c1c1c;color:#fff;font-weight:850;cursor:pointer}.category-back:hover,.category-back:focus-visible{border-color:var(--yellow);color:var(--yellow)}.tool-view-bar span{color:#aaa;font-size:11px}
-    .tool-group{margin-top:18px}.tool-group[hidden]{display:none}.tool-group-head{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:0 3px 11px;border-bottom:1px solid rgba(245,180,0,.2)}.tool-group-head h2{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(23px,2.5vw,31px);font-weight:500}.tool-group-head p{margin:0;color:var(--muted);font-size:12px;text-align:right;max-width:430px}
-    .tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:14px}.tools-grid .tool[hidden]{display:none}
-    .tool{
-      min-height:255px;border:1px solid rgba(255,255,255,.17);border-radius:3px;padding:23px;
-      background:linear-gradient(145deg,rgba(25,25,24,.98),rgba(9,9,9,.99));
-      box-shadow:0 16px 45px rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:flex-start;text-align:left;
-      position:relative;overflow:hidden;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
-    }
-    .tool:before{content:"";position:absolute;right:-45px;top:-62px;width:150px;height:150px;border:1px solid rgba(245,180,0,.17);transform:rotate(45deg);pointer-events:none}
-    .tool:hover,.tool:focus-visible{transform:translateY(-5px);border-color:rgba(245,180,0,.65);box-shadow:0 25px 65px rgba(0,0,0,.44)}
-    .tool-icon{position:relative;z-index:2;width:50px;height:50px;display:grid;place-items:center;color:var(--yellow);margin:0 0 18px;border:1px solid rgba(245,180,0,.26);border-radius:50%;background:#151514}
-    .tool-icon svg{width:32px;height:32px;stroke:currentColor;stroke-width:1.55;fill:none;stroke-linecap:round;stroke-linejoin:round}
-    .tool h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(21px,1.65vw,26px);font-weight:500;line-height:1.1;letter-spacing:-.035em;margin:0}
-    .tool p{color:var(--muted);font-size:14px;line-height:1.52;margin:13px 0 14px;max-width:290px}.trust{display:inline-flex;align-items:center;min-height:25px;margin-bottom:17px;padding:5px 8px;border:1px solid rgba(245,180,0,.3);border-radius:99px;background:rgba(245,180,0,.06);color:#e7c889;font-size:9px;font-weight:900;letter-spacing:.035em}
-    .go{margin-top:auto;align-self:flex-end;width:43px;height:43px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(245,180,0,.45);background:transparent;color:var(--yellow);box-shadow:none}
-    .go svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none}
-    .footer{position:relative;z-index:3;border-top:1px solid rgba(245,180,0,.2);display:flex;justify-content:space-between;gap:20px;align-items:center;padding:24px clamp(20px,4vw,64px);color:#989898;background:#050505;font-size:13px}
-    .footer strong{color:#d8d8d8;font-weight:700}
-
-    @media(max-width:1050px){
-      .tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .category-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .editorial-grid{grid-template-columns:repeat(2,1fr)}
-      .hero{min-height:auto}
-    }
-    @media(max-width:680px){
-      .topbar{height:82px;padding:0 12px}.brand{gap:9px}.brand-mark{width:52px;height:52px;border-radius:11px}.brand-wordmark strong{font-size:17px}.brand-wordmark small{font-size:8px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
-      .hero:before{height:650px;background-position:61% center}.hero:after{height:710px}.hero-inner{padding:58px 14px 40px}.intro{max-width:94%}
-      .editorial-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:84%;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 2px 12px;margin-top:92px}.story{min-height:245px;scroll-snap-align:start}
-      .tools-title{margin-top:44px}.category-tabs,.tools-grid{grid-template-columns:1fr;gap:10px}.category-tab{min-height:138px}.tool{min-height:245px;border-radius:2px;padding:22px}.tool-group-head{display:block}.tool-group-head p{margin-top:5px;text-align:left}.tool-view-bar{align-items:flex-start;flex-direction:column}
-      .footer{align-items:flex-start;flex-direction:column}
-    }
-    html[data-ac-theme="light"] .shell>.hero{background:#f3f0ea!important;background-image:none!important}
-    html[data-ac-theme="light"] .shell>.hero:before{background-image:linear-gradient(90deg,rgba(248,246,241,.97) 0%,rgba(248,246,241,.88) 32%,rgba(248,246,241,.38) 58%,rgba(248,246,241,.04) 82%),url('./assets/luxury-builder-hero.webp')!important;background-size:cover!important;background-position:center!important}
-    html[data-ac-theme="light"] .shell>.hero:after{background:linear-gradient(180deg,transparent 55%,rgba(243,240,234,.70) 78%,#f3f0ea 100%)!important}
-    html[data-ac-theme="light"] .story{border-color:rgba(32,37,39,.18)!important;box-shadow:0 18px 45px rgba(46,42,36,.14)!important}
-    html[data-ac-theme="light"] .story:after{background:linear-gradient(180deg,rgba(10,12,12,.06) 18%,rgba(10,12,12,.90) 100%)!important}
-    html[data-ac-theme="light"] .story h2,html[data-ac-theme="light"] .story-link{color:#fff!important;text-shadow:0 2px 14px rgba(0,0,0,.5)}
-    html[data-ac-theme="light"] .story-kicker{color:#ffe3a1!important}
-    html[data-ac-theme="light"] .tool-icon{background:#faf8f3!important;border-color:#d3b77d!important;color:#9a7439!important;box-shadow:none!important}
-    html[data-ac-theme="light"] .category-tab{background:linear-gradient(145deg,#fff,#eee9e1)!important;color:#202526!important;border-color:#d0c8bc!important;box-shadow:0 10px 30px rgba(54,48,40,.08)!important}html[data-ac-theme="light"] .category-tab:hover{border-color:#a77d3f!important}html[data-ac-theme="light"] .category-symbol{background:#faf8f3!important;color:#8b6836!important;border-color:#ccb17f!important}html[data-ac-theme="light"] .category-copy small{color:#69645b!important}html[data-ac-theme="light"] .category-count{color:#775a31!important}html[data-ac-theme="light"] .category-empty{background:#fff!important;color:#6b655c!important;border-color:#c7bfb4!important}
-    html[data-ac-theme="light"] .go{background:#202527!important;color:#fff!important;border-color:#202527!important;box-shadow:none!important}
-    html[data-ac-theme="light"] .brand-wordmark strong{color:#202526!important}html[data-ac-theme="light"] .brand-wordmark small{color:#67645f!important}html[data-ac-theme="light"] .brand-mark{background:#fff!important;border-color:#d2cbc0!important}html[data-ac-theme="light"] .brand-mark img{filter:none!important}
-    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+    button{font:inherit}
+    .shell{min-height:100vh}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;flex:none}
+    .brand-mark{display:grid;place-items:center;width:46px;height:46px;padding:7px;border:1px solid rgba(255,255,255,.17);border-radius:12px;background:#101211;overflow:hidden}
+    .brand-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
+    .brand-wordmark{display:grid;gap:3px;line-height:1}
+    .brand-wordmark strong{color:var(--app-text);font-size:17px;font-weight:950;letter-spacing:-.035em}
+    .brand-wordmark small{color:var(--app-muted);font-size:8px;font-weight:800;letter-spacing:.045em}
+    html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
+    html[data-ac-theme="light"] .brand-mark img{filter:none}
+    .hero{min-height:0;background:var(--app-bg)}
+    .workspace{position:relative;z-index:5;max-width:1480px;margin:0 auto;padding:86px clamp(20px,5vw,84px) 74px}
+    .workspace-head{display:flex;justify-content:space-between;align-items:end;gap:28px;margin-bottom:26px}
+    .workspace-kicker{color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}
+    .workspace h2{margin:9px 0 0;font-size:clamp(34px,4vw,58px);line-height:.98;letter-spacing:-.05em}
+    .workspace-head p{max-width:540px;margin:0;color:var(--app-muted);font-size:14px;line-height:1.6}
+    .category-strip{display:flex;gap:8px;overflow:auto;padding:2px 0 17px;scrollbar-width:thin}
+    .category-chip{flex:none;min-height:42px;padding:0 14px;border:1px solid var(--app-border);border-radius:999px;background:var(--app-surface);color:var(--app-text);font-size:11px;font-weight:850;cursor:pointer}
+    .category-chip[aria-pressed="true"]{background:var(--app-gold);border-color:var(--app-gold);color:#111}
+    .tool-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .tool-card{position:relative;min-height:210px;display:flex;flex-direction:column;padding:21px;border:1px solid var(--app-border);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb,var(--app-text) 7%,var(--app-bg)),var(--app-surface));overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .2s}
+    .tool-card:before{content:"";position:absolute;right:-50px;top:-72px;width:150px;height:150px;border:1px solid color-mix(in srgb,var(--app-gold) 25%,transparent);transform:rotate(45deg)}
+    .tool-card:hover,.tool-card:focus-visible{outline:none;transform:translateY(-4px);border-color:var(--app-gold);box-shadow:0 24px 60px rgba(0,0,0,.24)}
+    .tool-card[hidden]{display:none}
+    .tool-category{position:relative;color:var(--app-gold);font-size:9px;font-weight:950;letter-spacing:.13em;text-transform:uppercase}
+    .tool-card h3{position:relative;margin:35px 0 9px;font-size:22px;line-height:1.02;letter-spacing:-.035em}
+    .tool-card p{position:relative;margin:0;color:var(--app-muted);font-size:12px;line-height:1.5}
+    .tool-open{position:relative;margin-top:auto;padding-top:18px;color:var(--app-gold);font-size:11px;font-weight:900}
+    .footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:25px clamp(20px,4vw,60px);border-top:1px solid var(--app-border);background:var(--app-bg);color:var(--app-muted);font-size:11px}
+    .footer strong{color:var(--app-text)}
+    .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
+    .footer a:hover{color:var(--app-gold)}
+    @media(max-width:1080px){.tool-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:780px){.workspace-head{display:block}.workspace-head p{margin-top:14px}.tool-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.workspace{padding:64px 14px 52px}.tool-card-grid{grid-template-columns:1fr}.footer-links{margin-left:0}}
   </style>
 </head>
 <body>
   <div class="shell">
-    <header class="topbar">
+    <header class="topbar app-topbar" id="appTopbar">
       <a class="brand" href="./" aria-label="Alert Tradie Pro home">
-        <span class="brand-mark"><img src="./assets/alert-tradie-pro-logo.png?v=42" alt=""></span>
+        <span class="brand-mark"><img src="./assets/alert-tradie-pro-logo.png?v=43" alt=""></span>
         <span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
       </a>
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="./projects/index.html">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v11H4z"></path></svg>
-          <span>Projects</span>
-        </a>
-        <a href="#tools" aria-current="page">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>
-          <span>Dashboard</span>
-        </a>
+      <button class="app-nav-toggle" id="appNavToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+      <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
+        <a href="./" aria-current="page">Dashboard</a>
+        <a href="./builder/index.html">Operation Hub</a>
+        <div class="app-tools">
+          <button class="app-tools-trigger" id="appToolsTrigger" type="button" aria-expanded="false" aria-controls="appToolsMenu">Tools
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+          </button>
+          <div class="app-tools-menu" id="appToolsMenu" hidden>
+            <div class="app-tools-group"><strong>Estimating</strong><a href="./electrical/index.html">Electrical Estimate</a><a href="./plumbing/index.html">Plumbing Estimate</a><a href="./cladding/index.html">Cladding Estimate</a><a href="./renovation-budget/index.html">Renovation Budget</a></div>
+            <div class="app-tools-group"><strong>Analysis &amp; AI</strong><a href="./plan-ai/index.html">AI Plan Estimator</a><a href="./quote-analysis/index.html">Quote Price Analysis</a><a href="./property-estimate/index.html">Property Value Guide</a></div>
+            <div class="app-tools-group"><strong>Projects &amp; Site</strong><a href="./projects/index.html">Projects &amp; Schedule</a><a href="./checklist/index.html">Site Checklist</a><a href="./permit-checklist/index.html">Permit Checklist</a></div>
+            <div class="app-tools-group"><strong>Business</strong><a href="./invoice/index.html">Invoice Generator</a><a href="./builder/index.html?view=photo-timeline">Photo Timeline</a><a href="./catalogue/index.html">Price Catalogue</a></div>
+          </div>
+        </div>
+        <a href="./projects/index.html">Projects</a>
+        <a href="./builder/index.html?view=photo-timeline&amp;tab=reports">Reports</a>
+        <a href="./legal/support.html">Support</a>
       </nav>
     </header>
 
     <main class="hero">
-      <div class="hero-inner">
-        <section class="intro">
-          <div class="eyebrow">Welcome to Alert Tradie Pro</div>
-          <h1>Your Building Clinic</h1>
-          <div class="accent-line" aria-hidden="true"></div>
-          <p>All your estimating and site management tools in one place.</p>
-        </section>
-
-        <div class="today-alert" id="todayAlert"><div><strong id="todayAlertTitle">Today’s project tasks</strong><span id="todayAlertText"></span></div><a href="./projects/index.html">Open Schedule</a></div>
-
-        <section class="editorial-grid" aria-label="Featured workflows" hidden>
-          <a class="story" href="./renovation-budget/index.html" data-tool="renovation-budget" style="--story:url('./assets/luxury-renovation.webp')">
-            <span class="story-copy"><span class="story-kicker">Plan & budget</span><h2>Shape the renovation before work begins.</h2><span class="story-link">Open planner</span></span>
-          </a>
-          <a class="story" href="./plan-ai/index.html" data-tool="plan-ai" style="--story:url('./assets/luxury-plans.webp')">
-            <span class="story-copy"><span class="story-kicker">Review the detail</span><h2>Turn plans into a reviewed estimate.</h2><span class="story-link">Analyse plans</span></span>
-          </a>
-          <a class="story" href="./projects/index.html" data-tool="projects" style="--story:url('./assets/luxury-site.webp')">
-            <span class="story-copy"><span class="story-kicker">Deliver with control</span><h2>Keep projects, tasks and notes together.</h2><span class="story-link">View projects</span></span>
-          </a>
-          <a class="story" href="./property-estimate/index.html" data-tool="property-estimate" style="--story:url('./assets/luxury-property.webp')">
-            <span class="story-copy"><span class="story-kicker">Property evidence</span><h2>Guide value with local sales evidence.</h2><span class="story-link">Open guide</span></span>
-          </a>
-        </section>
-
-        <div class="tools-title" id="tools">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
-          Choose a category
-        </div>
-
-        <div class="tool-filter" id="categoryHome" aria-label="Find a tool category" hidden>
-          <input id="toolSearch" type="search" placeholder="Search categories or tools…" aria-label="Search categories or tools">
-          <div class="category-tabs" id="toolCategories" role="tablist" aria-label="Tool workspaces">
-            <button class="category-tab" type="button" role="tab" data-category="estimate"><span class="category-symbol"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 16 5l10 20M9 19h14"></path></svg></span><span class="category-copy"><strong>Trade Estimating</strong><small>Build trade estimates and renovation budgets.</small></span><span class="category-count">Checking tools…</span><span class="category-arrow" aria-hidden="true">→</span></button>
-            <button class="category-tab" type="button" role="tab" data-category="analysis"><span class="category-symbol"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 4h13l5 5v19H7zM20 4v6h6M11 16h10M11 21h7"></path></svg></span><span class="category-copy"><strong>Analysis & AI</strong><small>Review plans, quotes and property evidence.</small></span><span class="category-count">Checking tools…</span><span class="category-arrow" aria-hidden="true">→</span></button>
-            <button class="category-tab" type="button" role="tab" data-category="management"><span class="category-symbol"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 9h10l3 3h11v16H4zM9 18h14M9 23h9"></path></svg></span><span class="category-copy"><strong>Project Management</strong><small>Projects, schedules and permit preparation.</small></span><span class="category-count">Checking tools…</span><span class="category-arrow" aria-hidden="true">→</span></button>
-            <button class="category-tab" type="button" role="tab" data-category="site"><span class="category-symbol"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 4h16v24H8zM12 11l2 2 4-5M12 20l2 2 4-5M20 12h2M20 21h2"></path></svg></span><span class="category-copy"><strong>Site Operations</strong><small>Focused field checks and site records.</small></span><span class="category-count">Checking tools…</span><span class="category-arrow" aria-hidden="true">→</span></button>
-            <button class="category-tab" type="button" role="tab" data-category="admin"><span class="category-symbol"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 6h22v22H5zM10 12h12M10 17h12M10 22h7"></path></svg></span><span class="category-copy"><strong>Administration</strong><small>Company catalogue and pricing controls.</small></span><span class="category-count">Checking tools…</span><span class="category-arrow" aria-hidden="true">→</span></button>
+      <section class="build-scene" id="buildScene" aria-label="A home transforming from construction to completion as you scroll">
+        <div class="build-sticky">
+          <div class="build-atmosphere" aria-hidden="true"></div>
+          <div class="build-grid" aria-hidden="true"></div>
+          <div class="house-stage" aria-hidden="true">
+            <div class="house-rig" id="houseRig">
+              <div class="house-layer house-under"></div>
+              <div class="house-layer house-complete" id="houseComplete"></div>
+              <div class="blueprint-lines" id="blueprintLines"></div>
+              <div class="build-line" id="buildLine"></div>
+            </div>
           </div>
-          <div class="category-empty" id="categoryEmpty" hidden>No category or tool matches this search.</div>
+          <div class="build-copy" id="buildCopy">
+            <div class="build-kicker">Built for Australian construction teams</div>
+            <h1>From first frame<br>to final handover.</h1>
+            <p>Scroll to complete the build, then manage estimates, projects, site operations and reporting from one connected workspace.</p>
+            <div class="build-actions">
+              <a class="build-button primary" href="./builder/index.html">Open Operation Hub</a>
+              <a class="build-button" href="#tools">Explore Tools</a>
+            </div>
+          </div>
+          <div class="scroll-hint" id="scrollHint"><span>Scroll to build</span><i></i></div>
+          <div class="build-meta">
+            <span class="build-state"><i></i><span id="buildState">Structure in progress</span></span>
+            <span class="build-progress"><i id="buildProgress"></i></span>
+            <span class="build-percent" id="buildPercent">0%</span>
+          </div>
         </div>
-        <div class="role-workspace" id="roleWorkspace"><strong id="roleWorkspaceTitle"></strong><span id="roleWorkspaceText"></span></div>
+      </section>
 
-        <div class="tool-view-bar" id="toolViewBar" hidden><button class="category-back" id="backCategories" type="button">← All categories</button><span>Only tools in the selected category are shown.</span></div>
-
-        <div class="tool-groups">
-        <section class="tool-group" data-category-group="estimate" aria-labelledby="estimateToolsTitle" hidden><div class="tool-group-head"><h2 id="estimateToolsTitle">Trade Estimating</h2><p>Approved company rates and guided budgets for office estimating.</p></div><div class="tools-grid">
-          <a class="tool" href="./electrical/index.html" data-tool="electrical" data-category="estimate">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M36 3 15 35h16l-4 26 22-34H34z"></path></svg></div>
-            <h2>Electrical<br>Estimate</h2>
-            <p>Create electrical quotes quickly and accurately.</p>
-            <span class="trust">Rule-based • No AI</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./plumbing/index.html" data-tool="plumbing" data-category="estimate">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 22h23"></path><path d="M23 22v-8h19"></path><path d="M42 14V9"></path><path d="M37 9h10"></path><path d="M18 22v10"></path><path d="M10 32h24v10H10z"></path><path d="M34 37h10c7 0 10 5 10 10"></path><path d="M54 47c0 4-3 7-7 7s-7-3-7-7"></path></svg></div>
-            <h2>Plumbing<br>Estimate</h2>
-            <p>Build plumbing quotes with live totals and clear items.</p>
-            <span class="trust">Rule-based • No AI</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./cladding/index.html" data-tool="cladding" data-category="estimate">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 18 30 7l26 13v31L34 61 8 49z"></path><path d="M30 7v41"></path><path d="m8 18 22 10 26-8"></path><path d="m30 48 26-11"></path></svg></div>
-            <h2>Cladding<br>Estimate</h2>
-            <p>Quote cladding materials, trims and delivery.</p>
-            <span class="trust">Rule-based • No AI</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./renovation-budget/index.html" data-tool="renovation-budget" data-category="estimate">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 29 32 9l23 20"></path><path d="M15 26v29h34V26"></path><path d="M24 55V39h16v16"></path><path d="M21 31h22"></path><path d="M28 25h8"></path></svg></div>
-            <h2>Renovation Budget<br>Planner</h2>
-            <p>Choose renovation areas, answer guided questions and compare the estimate with your budget.</p>
-            <span class="trust">Rule-based • No AI</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-        </div></section>
-
-        <section class="tool-group" data-category-group="analysis" aria-labelledby="analysisToolsTitle" hidden><div class="tool-group-head"><h2 id="analysisToolsTitle">Analysis & AI</h2><p>Property evidence and human-reviewed document analysis in a separate workspace.</p></div><div class="tools-grid">
-          <a class="tool" href="./property-estimate/index.html" data-tool="property-estimate" data-search="home value victoria comparable sales" data-category="analysis">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 29 32 9l24 20"></path><path d="M14 26v30h36V26"></path><path d="M24 56V41h16v15"></path><path d="M20 33h24"></path><path d="M43 13h9v14"></path><path d="M49 44c0-4-3-6-7-6s-7 2-7 5 3 4 7 5 7 2 7 5-3 6-7 6-7-2-7-6"></path><path d="M42 35v27"></path></svg></div>
-            <h2>Property Value<br>Guide</h2>
-            <p>Estimate a Victorian residential property using comparable sales, suburb evidence and property features.</p>
-            <span class="trust">Comparable sales • No AI</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./plan-ai/index.html" data-tool="plan-ai" data-category="analysis">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 8h31l9 9v39H12z"></path><path d="M43 8v10h9"></path><path d="M20 27h16M20 35h12M44 31v12M38 37h12"></path></svg></div>
-            <h2>AI Plan<br>Estimator</h2>
-            <p>Upload a plan, ask questions and estimate electrical, plumbing or cladding.</p>
-            <span class="trust">AI-assisted • Human verification required</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./quote-analysis/index.html" data-tool="quote-analysis" data-category="analysis">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 8h40v48H12z"></path><path d="M20 20h24"></path><path d="M20 29h14"></path><path d="M20 45l8-8 7 6 10-13"></path></svg></div>
-            <h2>Quote Price<br>Analysis</h2>
-            <p>Upload a trade quote and check every item against our rates.</p>
-            <span class="trust">AI-assisted • Human verification required</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-        </div></section>
-
-        <section class="tool-group" data-category-group="management" aria-labelledby="managementToolsTitle" hidden><div class="tool-group-head"><h2 id="managementToolsTitle">Project Management</h2><p>Coordinate records, schedules and likely Victorian permit requirements.</p></div><div class="tools-grid">
-          <a class="tool" href="./permit-checklist/index.html" data-tool="permit-checklist" data-search="victoria planning building approval documents" data-category="management">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 7h32v50H16z"></path><path d="M24 19h16M24 29h16M24 39h10"></path><path d="m22 48 4 4 9-10"></path><path d="M42 43h10v14H38"></path></svg></div>
-            <h2>Permit Checklist<br>(Victoria)</h2>
-            <p>Screen possible permits and build a project-specific document checklist.</p>
-            <span class="trust">Rule-based • Verify with authority</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./projects/index.html" data-tool="projects" data-category="management">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 16h19l5 6h24v32H8z"></path><path d="M18 34h28M18 43h20"></path></svg></div>
-            <h2>Projects &<br>Schedule</h2>
-            <p>Save every estimate and see today’s project tasks.</p>
-            <span class="trust">Team record • Audited</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-          <a class="tool" href="./invoice/index.html" data-tool="invoice" data-search="tax invoice gst profit payment pdf billing customer" data-category="management">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 7h36v50H14z"></path><path d="M22 19h20M22 28h20M22 37h11"></path><path d="M39 43c0-3-2-5-6-5s-6 2-6 4 2 4 6 4 6 2 6 5-2 5-6 5-6-2-6-5"></path><path d="M33 35v24"></path></svg></div>
-            <h2>Invoice<br>Generator</h2>
-            <p>Create professional GST invoices, track balances and export customer-safe PDFs.</p>
-            <span class="trust">RLS protected • A4 PDF</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-        </div></section>
-
-        <section class="tool-group" data-category-group="admin" aria-labelledby="adminToolsTitle" hidden><div class="tool-group-head"><h2 id="adminToolsTitle">Administration</h2><p>Company pricing controls and version history.</p></div><div class="tools-grid">
-          <a class="tool" href="./catalogue/index.html" data-tool="catalogue" data-category="admin">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 10h40v44H12z"></path><path d="M20 21h24M20 31h24M20 41h13"></path><path d="M43 38v12M37 44h12"></path></svg></div>
-            <h2>Live Price<br>Catalogue</h2>
-            <p>Update company rates and add new trade items without changing the code.</p>
-            <span class="trust">RLS protected • Versioned</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-
-        </div></section>
-
-        <section class="tool-group" data-category-group="site" aria-labelledby="siteToolsTitle" hidden><div class="tool-group-head"><h2 id="siteToolsTitle">Site Operations</h2><p>Focused field tools for daily checks and project visibility.</p></div><div class="tools-grid">
-          <a class="tool" href="./checklist/index.html" data-tool="checklist" data-category="site">
-            <div class="tool-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10h24l8 8v38H12V10z"></path><path d="M24 10c0-5 3-7 8-7s8 2 8 7"></path><path d="m20 28 4 4 7-8"></path><path d="M35 28h10"></path><path d="m20 41 4 4 7-8"></path><path d="M35 41h10"></path></svg></div>
-            <h2>Site Supervisor<br>Checklist</h2>
-            <p>Manage site inspection tasks and visit notes.</p>
-            <span class="trust">Field-ready • Offline</span>
-            <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-          </a>
-        </div></section>
+      <section class="workspace" id="tools">
+        <div class="workspace-head">
+          <div><div class="workspace-kicker">Your building clinic</div><h2>Everything in its place.</h2></div>
+          <p>Open the job you need without digging through the app. The same categories appear in the Tools menu at the top of every screen.</p>
         </div>
-      </div>
+        <div class="category-strip" aria-label="Filter tools">
+          <button class="category-chip" type="button" data-filter="all" aria-pressed="true">All tools</button>
+          <button class="category-chip" type="button" data-filter="estimating" aria-pressed="false">Estimating</button>
+          <button class="category-chip" type="button" data-filter="analysis" aria-pressed="false">Analysis &amp; AI</button>
+          <button class="category-chip" type="button" data-filter="site" aria-pressed="false">Projects &amp; Site</button>
+          <button class="category-chip" type="button" data-filter="business" aria-pressed="false">Business</button>
+        </div>
+        <div class="tool-card-grid">
+          <a class="tool-card" data-category="estimating" href="./electrical/index.html"><span class="tool-category">Estimating</span><h3>Electrical Estimate</h3><p>Build a detailed electrical scope and estimate.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" href="./plumbing/index.html"><span class="tool-category">Estimating</span><h3>Plumbing Estimate</h3><p>Price plumbing work with a clear item breakdown.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" href="./cladding/index.html"><span class="tool-category">Estimating</span><h3>Cladding Estimate</h3><p>Plan quantities, waste and installation costs.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" href="./renovation-budget/index.html"><span class="tool-category">Estimating</span><h3>Renovation Budget</h3><p>Shape a renovation budget before work begins.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" href="./plan-ai/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>AI Plan Estimator</h3><p>Review drawings and prepare a checked estimate.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" href="./quote-analysis/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Quote Price Analysis</h3><p>Compare quote pricing and identify gaps quickly.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" href="./property-estimate/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Property Value Guide</h3><p>Guide property value with local sales evidence.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" href="./projects/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Projects &amp; Schedule</h3><p>Keep projects, tasks, files and dates together.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" href="./checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Site Checklist</h3><p>Complete clear, repeatable site checks.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" href="./permit-checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Permit Checklist</h3><p>Track permit tasks and required documents.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" href="./invoice/index.html"><span class="tool-category">Business</span><h3>Invoice Generator</h3><p>Create a simple professional GST invoice.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" href="./catalogue/index.html"><span class="tool-category">Business</span><h3>Price Catalogue</h3><p>Keep company rates current and versioned.</p><span class="tool-open">Open tool →</span></a>
+        </div>
+      </section>
     </main>
 
-    <footer class="footer"><strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span></footer>
+    <footer class="footer">
+      <strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span>
+      <span class="footer-links"><a href="./legal/terms.html">Terms</a><a href="https://www.instagram.com/alertconstruction/" rel="noopener">Instagram</a><a href="https://www.facebook.com/p/Alert-Construction-61566833507197/" rel="noopener">Facebook</a></span>
+    </footer>
   </div>
-  <script src="./shared/platform-config.js?v=42"></script>
+  <script src="./shared/platform-config.js?v=43"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
   <script>
-    if (window.ACProjects) {
-      var due = window.ACProjects.dueTasks();
-      if (due.length) {
-        var alertBox = document.getElementById('todayAlert');
-        document.getElementById('todayAlertTitle').textContent = due.length + (due.length === 1 ? ' task needs attention' : ' tasks need attention');
-        document.getElementById('todayAlertText').textContent = due.slice(0,3).map(function(task){ return task.projectName + ': ' + task.title; }).join(' • ');
-        alertBox.classList.add('show');
-      }
-    }
     (function(){
-      var search=document.getElementById('toolSearch'),categoryHome=document.getElementById('categoryHome'),categoryEmpty=document.getElementById('categoryEmpty'),viewBar=document.getElementById('toolViewBar'),back=document.getElementById('backCategories'),buttons=Array.prototype.slice.call(document.querySelectorAll('.category-tab')),groups=Array.prototype.slice.call(document.querySelectorAll('.tool-group')),tools=Array.prototype.slice.call(document.querySelectorAll('.tools-grid .tool')),notice=document.getElementById('roleWorkspace'),activeCategory='';
-      function groupTools(group){return Array.prototype.slice.call(group.querySelectorAll('.tool'))}
-      function toolMatches(tool,q){return !q||(tool.textContent+' '+tool.dataset.tool+' '+(tool.dataset.search||'')).toLowerCase().indexOf(q)>-1}
-      function showNotice(title,copy){document.getElementById('roleWorkspaceTitle').textContent=title;document.getElementById('roleWorkspaceText').innerHTML=copy;notice.classList.add('show')}
-      function updateCategories(){
-        var q=(search.value||'').toLowerCase().trim();
-        buttons.forEach(function(button){
-          var available=tools.filter(function(tool){return tool.dataset.category===button.dataset.category&&tool.dataset.roleAllowed==='true'}),categoryMatch=!q||button.textContent.toLowerCase().indexOf(q)>-1,matched=categoryMatch?available:available.filter(function(tool){return toolMatches(tool,q)}),count=matched.length;
-          button.hidden=count===0;button.querySelector('.category-count').textContent=count+(count===1?' tool':' tools');button.setAttribute('aria-selected','false');button.classList.remove('active');
+      var buttons=Array.prototype.slice.call(document.querySelectorAll('.category-chip'));
+      var cards=Array.prototype.slice.call(document.querySelectorAll('.tool-card'));
+      buttons.forEach(function(button){
+        button.addEventListener('click',function(){
+          var filter=button.dataset.filter;
+          buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item===button))});
+          cards.forEach(function(card){card.hidden=filter!=='all'&&card.dataset.category!==filter});
         });
-        categoryEmpty.hidden=buttons.some(function(button){return !button.hidden});
-      }
-      function showCategories(){
-        activeCategory='';search.value='';categoryHome.hidden=false;viewBar.hidden=true;groups.forEach(function(group){group.hidden=true});tools.forEach(function(tool){tool.hidden=tool.dataset.roleAllowed!=='true'});updateCategories();document.getElementById('tools').scrollIntoView?.({block:'start'});
-      }
-      function openCategory(value){
-        activeCategory=value;categoryHome.hidden=true;viewBar.hidden=false;groups.forEach(function(group){group.hidden=group.dataset.categoryGroup!==value});tools.forEach(function(tool){tool.hidden=tool.dataset.roleAllowed!=='true'||tool.dataset.category!==value});var selected=buttons.find(function(button){return button.dataset.category===value});if(selected){selected.classList.add('active');selected.setAttribute('aria-selected','true')}document.getElementById('tools').scrollIntoView?.({block:'start'});
-      }
-      buttons.forEach(function(button){button.addEventListener('click',function(){if(!button.hidden)openCategory(button.dataset.category)})});search.addEventListener('input',updateCategories);back.addEventListener('click',showCategories);
-      window.ACAuth.ready.then(function(){
-        var profile=window.ACAuth.profile(),signedIn=window.ACAuth.isSignedIn(),active=window.ACAuth.hasAccess(),role=profile&&profile.role;
-        tools.forEach(function(tool){tool.dataset.roleAllowed=window.ACAuth.canUseTool(tool.dataset.tool)?'true':'false'});
-        if(document.getElementById('todayAlert'))document.getElementById('todayAlert').hidden=!window.ACAuth.canUseTool('projects');
-        if(!signedIn)showNotice('Sign in to open your workspace','Each role receives a focused dashboard. <a href="./login/index.html">Sign in or create an individual workspace</a>.');
-        else if(window.ACAuth.isPending())showNotice('Waiting for Owner approval','Your Team Code was accepted. The Owner must approve the request and choose your role before tools open. <a href="./login/index.html">Check Account & Team</a>.');
-        else if(!active)showNotice(role==='rejected'?'Team request declined':'Workspace access inactive','You can create an individual workspace or request access with another Team Code in <a href="./login/index.html">Account & Team</a>.');
-        if(active){notice.classList.remove('show');showCategories()}else{categoryHome.hidden=true;viewBar.hidden=true;groups.forEach(function(group){group.hidden=true})}
       });
     })();
   </script>
-  <script src="./shared/product-shell.js?v=42"></script>
+  <script src="./shared/dashboard-v43.js?v=43"></script>
+  <script src="./shared/product-shell-v43.js?v=43"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>
