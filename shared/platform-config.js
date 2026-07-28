@@ -1,8 +1,9 @@
 (function(global){
   'use strict';
   global.AC_PLATFORM_CONFIG={
-    appName:'Alert Construction',
+    appName:'Alert Tradie Pro',
     companyName:'Alert Construction',
+    poweredBy:'Alert Construction',
     supabaseUrl:'https://fkzxwxcbcwggfgilwqez.supabase.co',
     publishableKey:'sb_publishable_9dtMYC3F6F0YqFTbUnIMyw_fVzzhkRz',
     authEnabled:true,
@@ -14,6 +15,7 @@
     analyticsRetentionDays:180,
     supportEmail:'info@alertconstruction.com.au',
     privacyPolicyVersion:'2026-07-19',
-    schemaVersion:40
+    schemaVersion:40,
+    releaseVersion:41
   };
 })(window);

@@ -12,11 +12,12 @@
     try{const props=doc.getImageProperties(data),maxW=40,maxH=34,ratio=props.width/props.height;let w=maxW,h=w/ratio;if(h>maxH){h=maxH;w=h*ratio}doc.addImage(data,props.fileType||'PNG',195-w,13,w,h,undefined,'FAST');return true}catch(_){return false}
   }
   function companyHeader(doc,settings,logoData){
-    doc.setTextColor(25);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(clean(settings.company_name)||'Alert Construction',15,17);
+    const companyName=clean(settings.company_name)||'Company',initials=companyName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'CO';
+    doc.setTextColor(25);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(companyName,15,17);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);let y=23;
     const lines=[...clean(settings.address).split(/\n+/),settings.phone,settings.email,settings.website,settings.abn?`ABN ${settings.abn}`:''].filter(Boolean);
     lines.forEach(line=>{doc.text(clean(line),15,y);y+=4.3});
-    if(!logo(doc,logoData)){doc.setFont('helvetica','bold');doc.setFontSize(25);doc.text('AC',180,22);doc.setFontSize(7);doc.text('ALERT CONSTRUCTION',157,29)}
+    if(!logo(doc,logoData)){doc.setFont('helvetica','bold');doc.setFontSize(25);doc.text(initials,195,22,{align:'right'});doc.setFontSize(7);doc.text(companyName.toUpperCase(),195,29,{align:'right',maxWidth:55})}
   }
   function compactHeader(doc,invoice){doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(35);doc.text('TAX INVOICE',15,14);doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text(clean(invoice.invoice_number),195,14,{align:'right'})}
   function footer(doc,settings,page,total){

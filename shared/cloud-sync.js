@@ -18,7 +18,7 @@
   async function push(fromPull=false){
     if(!config.cloudSyncEnabled||!global.ACProjects)return;const ctx=await context();if(!ctx){status('');return}if(!ctx.canSave){status('online','View only • saving requires Owner, Estimator or Project Manager');return}const data=global.ACProjects.snapshot(),stamp=localStamp(data)||new Date().toISOString();status('syncing');
     try{const response=await fetch(`${String(config.supabaseUrl).replace(/\/$/,'')}/rest/v1/ac_workspaces?on_conflict=organisation_id`,{method:'POST',headers:{...ctx.headers,Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({organisation_id:ctx.profile.organisation_id,workspace:data,updated_by:global.ACAuth.user()?.id||null})});if(!response.ok)throw new Error(`Cloud sync ${response.status}`);const rows=await response.json(),at=new Date();lastRemote=String(rows[0]?.updated_at||stamp);setCheckpoint({remoteTime:lastRemote,revision:rows[0]?.revision,at:at.toISOString()});status('online',`Last synced ${at.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})}`)}
-    catch(error){status('error',error.message);if(!fromPull)console.warn('AC cloud sync unavailable:',error.message)}
+    catch(error){status('error',error.message);if(!fromPull)console.warn('Alert Tradie Pro cloud sync unavailable:',error.message)}
   }
   function queue(){clearTimeout(timer);timer=setTimeout(()=>push(false),900)}
   async function init(){if(!global.ACProjects||!global.ACAuth)return;await global.ACAuth.ready;await pull();if(global.ACAuth.canSave?.())global.addEventListener('ac-projects-changed',queue);setInterval(()=>{if(navigator.onLine)pull()},30000)}

@@ -120,7 +120,7 @@
   function startProgress(){
     $('results').classList.remove('show');$('progress').classList.add('show');state.startTime=Date.now();setProgress(8,'read','Opening every page and reading the quote…');
     state.elapsedTimer=setInterval(()=>{const seconds=Math.floor((Date.now()-state.startTime)/1000);$('elapsed').textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`},1000);
-    let tick=0;state.progressTimer=setInterval(()=>{tick++;if(tick===1)setProgress(25,'extract','Extracting line items, quantities and GST treatment…');else if(tick===2)setProgress(46,'match','Matching each quoted item to the AC catalogue…');else if(tick===3)setProgress(67,'check','Checking scope and current pricing context…');else if(tick>=4)setProgress(Math.min(92,74+tick*3),'check','Cross-checking the result before it is shown…')},9000);
+    let tick=0;state.progressTimer=setInterval(()=>{tick++;if(tick===1)setProgress(25,'extract','Extracting line items, quantities and GST treatment…');else if(tick===2)setProgress(46,'match','Matching each quoted item to the company catalogue…');else if(tick===3)setProgress(67,'check','Checking scope and current pricing context…');else if(tick>=4)setProgress(Math.min(92,74+tick*3),'check','Cross-checking the result before it is shown…')},9000);
   }
   function setProgress(percent,step,message){$('progressBar').style.width=percent+'%';$('progressStage').textContent=message;const order=['read','extract','match','check','result'],index=order.indexOf(step);document.querySelectorAll('.progress-steps span').forEach((item,i)=>item.classList.toggle('done',i<=index))}
   function finishProgress(){setProgress(100,'result','Result ready.');clearInterval(state.elapsedTimer);clearInterval(state.progressTimer);setTimeout(()=>$('progress').classList.remove('show'),500)}
@@ -136,7 +136,7 @@
     const row=document.createElement('tr');row.dataset.index=index;
     const options=['<option value="-1">No reliable match</option>'].concat(catalog().items.map((product,i)=>`<option value="${i}" ${i===item.catalog_index?'selected':''}>${esc(product[0])} — ${money(product[1])}</option>`)).join('');
     const step=catalog().decimal?'0.01':'1';
-    row.innerHTML=`<td class="quoted-name">${esc(item.quoted_name)}<small><b class="confidence-tag ${esc(item.match_confidence)}">${esc(item.match_confidence)} confidence</b>${esc([item.description,item.evidence].filter(Boolean).join(' • '))}</small></td><td><select class="match" aria-label="Matched AC item">${options}</select></td><td style="width:86px"><input class="quantity" type="number" min="0" step="${step}" value="${item.quantity}" aria-label="Quantity"></td><td style="width:145px"><input class="quoted-line" type="number" min="0" step=".01" value="${round(item.quoted_line_total_ex_gst)}" aria-label="Quoted line total ex GST"></td><td class="money-cell ac-line">$0.00</td><td class="money-cell difference">$0.00</td><td><span class="line-status unmatched">NEED REVIEW</span></td>`;
+    row.innerHTML=`<td class="quoted-name">${esc(item.quoted_name)}<small><b class="confidence-tag ${esc(item.match_confidence)}">${esc(item.match_confidence)} confidence</b>${esc([item.description,item.evidence].filter(Boolean).join(' • '))}</small></td><td><select class="match" aria-label="Matched catalogue item">${options}</select></td><td style="width:86px"><input class="quantity" type="number" min="0" step="${step}" value="${item.quantity}" aria-label="Quantity"></td><td style="width:145px"><input class="quoted-line" type="number" min="0" step=".01" value="${round(item.quoted_line_total_ex_gst)}" aria-label="Quoted line total ex GST"></td><td class="money-cell ac-line">$0.00</td><td class="money-cell difference">$0.00</td><td><span class="line-status unmatched">NEED REVIEW</span></td>`;
     row.querySelector('.match').addEventListener('change',event=>{item.catalog_index=Number(event.target.value);recalculate()});
     row.querySelector('.quantity').addEventListener('input',event=>{const value=Math.max(0,Number(event.target.value)||0);item.quantity=catalog().decimal?round(value):Math.round(value);recalculate()});
     row.querySelector('.quoted-line').addEventListener('input',event=>{item.quoted_line_total_ex_gst=Math.max(0,Number(event.target.value)||0);recalculate()});
@@ -165,17 +165,17 @@
 
   function overallVerdict(counts){
     const comparable=counts.expensive+counts.cheap+counts.fair;
-    if(!comparable)return{kind:'needs_review',badge:'NEEDS REVIEW',title:'Not enough matched pricing for a reliable verdict',summary:'The quote was read, but its priced lines could not be matched confidently to the current AC catalogue.'};
+    if(!comparable)return{kind:'needs_review',badge:'NEEDS REVIEW',title:'Not enough matched pricing for a reliable verdict',summary:'The quote was read, but its priced lines could not be matched confidently to the current company catalogue.'};
     if(counts.expensive&&counts.cheap)return{kind:'mixed',badge:'MIXED PRICING',title:'This quote has mixed pricing',summary:'Some individual items are more than $100 above our price while other items are more than $100 below it. Review the flagged lines separately.'};
-    if(counts.expensive)return{kind:'expensive',badge:'EXPENSIVE ITEMS',title:'This quote contains expensive items',summary:`${counts.expensive} individual line item${counts.expensive===1?' is':'s are'} more than $100 above the matching AC price.`};
-    if(counts.cheap)return{kind:'cheap',badge:'CHEAPER ITEMS',title:'This quote contains cheaper items',summary:`${counts.cheap} individual line item${counts.cheap===1?' is':'s are'} more than $100 below the matching AC price.`};
-    return{kind:'fair',badge:'FAIR PRICING',title:'The matched items look fairly priced',summary:'Every comparable line is within $100 of the matching AC price.'};
+    if(counts.expensive)return{kind:'expensive',badge:'EXPENSIVE ITEMS',title:'This quote contains expensive items',summary:`${counts.expensive} individual line item${counts.expensive===1?' is':'s are'} more than $100 above the matching catalogue price.`};
+    if(counts.cheap)return{kind:'cheap',badge:'CHEAPER ITEMS',title:'This quote contains cheaper items',summary:`${counts.cheap} individual line item${counts.cheap===1?' is':'s are'} more than $100 below the matching catalogue price.`};
+    return{kind:'fair',badge:'FAIR PRICING',title:'The matched items look fairly priced',summary:'Every comparable line is within $100 of the matching catalogue price.'};
   }
 
   function renderNotes(){
     const warnings=[...(state.result.warnings||[])];if(state.result.gst_treatment==='unknown')warnings.unshift('GST treatment could not be confirmed. Check whether the quote figures include or exclude GST.');if(!warnings.length)warnings.push('Confirm the extracted scope, quantities and exclusions before relying on the result.');
     $('warningList').innerHTML=warnings.map(item=>`<li>${esc(item)}</li>`).join('');
-    $('marketSummary').textContent='Every line verdict uses the fixed Alert Construction catalogue selected above. A difference greater than $100 is expensive, below −$100 is cheap, and anything within $100 is fair. Unmatched scope stays marked for manual review.';
+    $('marketSummary').textContent='Every line verdict uses the protected company catalogue selected in Alert Tradie Pro. A difference greater than $100 is expensive, below −$100 is cheap, and anything within $100 is fair. Unmatched scope stays marked for manual review.';
     $('sourceList').innerHTML='';
   }
 

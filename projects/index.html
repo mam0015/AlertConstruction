@@ -6,7 +6,8 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050505">
-  <title>Projects & Schedule | Alert Construction</title>
+  <title>Projects & Schedule | Alert Tradie Pro</title>
+  <link rel="icon" href="../assets/alert-tradie-pro-logo.png" type="image/png">
   <style>
     :root{--bg:#050505;--panel:#111;--panel2:#181818;--input:#202020;--line:#303030;--text:#f7f7f7;--muted:#aaa;--yellow:#f5b400;--green:#38d281;--red:#ff6c6c;--orange:#ffad45;--blue:#66adff;--radius:20px;--shadow:0 20px 55px rgba(0,0,0,.4)}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}button,input,select,textarea{font:inherit}button{cursor:pointer}
@@ -27,7 +28,7 @@
 </head>
 <body>
   <main class="app">
-    <header class="topbar"><a class="back" href="../index.html">← Dashboard</a><div class="brand"><div class="logo">AC</div><span>Projects & Schedule</span></div></header>
+    <header class="topbar"><a class="back" href="../index.html">← Dashboard</a><div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=41" alt="Alert Tradie Pro"></div><span>Projects & Schedule</span></div></header>
     <section class="hero"><h1>Your projects,<br><span>kept simple.</span></h1><p>Choose a project, then choose what you want to do: add photos, save a file, make an invoice or schedule work.</p></section>
     <div class="storage-note"><strong>Secure company cloud.</strong> Signed-in team members can open authorised projects and files on another device. Cloud storage is included free for now; Export Backup remains an optional extra copy.</div>
     <section class="today" id="todayPanel"><div class="today-head"><h2>Today & Overdue</h2><span class="today-count" id="todayCount">0 tasks</span></div><div class="today-list" id="todayList"></div></section>
@@ -46,11 +47,11 @@
   </main>
   <div class="modal" id="projectModal"><div class="modal-box"><h2>New Project</h2><div class="field"><label>Project name</label><input id="newName" placeholder="e.g. Rowville Project"></div><div class="field"><label>Project type</label><select id="newCategory"><option>Renovation</option><option>New Build</option><option>Extension</option><option>Maintenance</option><option>Commercial</option><option>Other</option></select></div><div class="field"><label>Address</label><input id="newAddress" placeholder="Site address"></div><div class="field"><label>Client</label><input id="newClient" placeholder="Client name"></div><div class="modal-actions"><button class="modal-cancel" type="button">Cancel</button><button class="modal-save" type="button">Create Project</button></div></div></div>
   <div class="modal" id="recordModal"><div class="modal-box"><h2>Add File or Note</h2><div class="field"><label>Category</label><select id="recordCategory"><option>Renovation Budget</option><option>Electrical</option><option>Plumbing</option><option>Cladding</option><option>Site Supervisor</option><option>General</option></select></div><div class="field"><label>Title</label><input id="recordTitle" placeholder="e.g. Electrician revised quote"></div><div class="field"><label>Note</label><textarea id="recordSummary" placeholder="Short description or follow-up note"></textarea></div><div class="field"><label>Optional file</label><input id="recordFile" type="file"></div><div class="modal-actions"><button class="modal-cancel" type="button">Cancel</button><button class="modal-save" type="button">Save Record</button></div></div></div>
-  <script src="../shared/platform-config.js"></script>
+  <script src="../shared/platform-config.js?v=41"></script>
   <script src="../shared/auth.js"></script>
   <script src="../shared/project-store.js"></script>
   <script src="./app.js"></script>
-  <script src="../shared/product-shell.js"></script>
+  <script src="../shared/product-shell.js?v=41"></script>
   <script src="../shared/cloud-sync.js"></script>
 </body>
 </html>

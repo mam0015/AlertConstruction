@@ -115,7 +115,7 @@
     return JSON.stringify({format:'ac-project-backup',version:1,exportedAt:now(),data,attachments},null,2);
   }
   async function importAll(text){
-    const backup=JSON.parse(text);if(backup?.format!=='ac-project-backup'||!Array.isArray(backup?.data?.projects))throw new Error('This is not a valid AC project backup.');
+    const backup=JSON.parse(text);if(backup?.format!=='ac-project-backup'||!Array.isArray(backup?.data?.projects))throw new Error('This is not a valid Alert Tradie Pro project backup.');
     const clearDb=await db();await new Promise((resolve,reject)=>{const request=clearDb.transaction(STORE,'readwrite').objectStore(STORE).clear();request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error)});clearDb.close();
     write({version:1,projects:backup.data.projects});for(const item of backup.attachments||[]){const database=await db(),entry={...item,bytes:dataUrlToBytes(item.data)};delete entry.data;await new Promise((resolve,reject)=>{const request=database.transaction(STORE,'readwrite').objectStore(STORE).put(entry);request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error)});database.close()}return backup.data.projects.length;
   }

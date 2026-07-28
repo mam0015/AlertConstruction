@@ -28,7 +28,7 @@
     if(banner)return banner;
     const host=document.querySelector('.actions,.hero,.panel-head,main');
     if(!host)return null;
-    banner=document.createElement('aside');banner.className='ac-catalogue-trust checking';banner.setAttribute('role','status');banner.innerHTML='<strong>Checking protected AC rates…</strong><span>Pricing remains locked until the server and catalogue version are verified.</span>';
+    banner=document.createElement('aside');banner.className='ac-catalogue-trust checking';banner.setAttribute('role','status');banner.innerHTML='<strong>Checking protected company rates…</strong><span>Pricing remains locked until the server and catalogue version are verified.</span>';
     host.insertAdjacentElement(host.matches('.actions')?'afterend':'afterend',banner);
     return banner;
   }
@@ -37,7 +37,7 @@
     const status=tradeStatus(trade),date=value=>{if(!value)return'not supplied';const parsed=new Date(value);return Number.isNaN(parsed.getTime())?String(value):parsed.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})};
     banner.className='ac-catalogue-trust '+(status.ready?'verified':'locked');
     if(status.ready){
-      banner.innerHTML=`<strong>✓ Verified AC company catalogue</strong><span>${status.loaded} approved ${trade} rates • Version ${securityState.rate_version||'recorded'} • Effective ${date(securityState.effective_from||securityState.verified_at)} • Server/RLS checked ${date(securityState.checked_at)}</span>`;
+      banner.innerHTML=`<strong>✓ Verified company catalogue</strong><span>${status.loaded} approved ${trade} rates • Version ${securityState.rate_version||'recorded'} • Effective ${date(securityState.effective_from||securityState.verified_at)} • Server/RLS checked ${date(securityState.checked_at)}</span>`;
     }else{
       const reason=securityState.error||(!securityState.verified?'Server authorisation has not been verified.':`${status.loaded} of ${status.expected} approved ${trade} rates are available.`);
       banner.innerHTML=`<strong>Pricing locked — verified catalogue unavailable</strong><span>${reason} No public or stale fallback price has been used. Open Account or Catalogue and complete the v27 Supabase migration.</span>`;

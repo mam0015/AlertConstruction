@@ -7,7 +7,7 @@
   const today=()=>localDate();
   const shiftDate=days=>{const value=new Date();value.setDate(value.getDate()+days);return localDate(value)};
   const roleLabel=value=>({owner:'Owner',admin:'Admin',manager:'Manager',site_supervisor:'Site Supervisor',estimator:'Estimator',worker:'Worker'})[value]||String(value||'Team member').replace(/_/g,' ');
-  const initials=value=>String(value||'AC').split(/[\s@._-]+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')||'AC';
+  const initials=value=>String(value||'AT').split(/[\s@._-]+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')||'AT';
   const dateLabel=value=>value?new Date(`${value}T00:00:00`).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
   const dateTime=value=>value?new Date(value).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}):'—';
   const timeOnly=value=>value?new Date(value).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}):'—';

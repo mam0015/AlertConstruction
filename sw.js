@@ -1,7 +1,7 @@
-const CACHE='ac-reliable-files-chat-v40';
+const CACHE='alert-tradie-pro-v41';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
-  './assets/alert-construction-logo-white.svg','./assets/alert-construction-logo-ac.svg','./assets/alert-construction-logo-ac-light.svg','./assets/ac-monogram-white.png','./assets/app-icon.svg','./assets/social-preview.svg',
+  './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
   './assets/luxury-builder-hero.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',

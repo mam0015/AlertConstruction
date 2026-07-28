@@ -5,7 +5,7 @@
     Public rate schema only. Verified Electrical, Plumbing and Cladding values
     are loaded after Supabase Auth + RLS approval. No Builder rate is shipped
     in the GitHub Pages bundle. Other values remain clearly labelled planning
-    allowances and never receive the "Verified AC rate" trust label.
+    allowances and never receive the "Verified company rate" trust label.
   */
   const protectedRate=(trade,index,name,unit='each')=>({name,rate:null,unit,catalogueKey:`${trade}:${index}`});
   const verified={

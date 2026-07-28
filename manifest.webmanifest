@@ -1,6 +1,6 @@
 {
-  "name": "Alert Construction | Your Building Clinic",
-  "short_name": "Alert Construction",
+  "name": "Alert Tradie Pro | Powered by Alert Construction",
+  "short_name": "Tradie Pro",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -13,6 +13,8 @@
     { "name": "Renovation Budget", "short_name": "Renovation", "url": "./renovation-budget/" }
   ],
   "icons": [
-    { "src": "./assets/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "./assets/alert-tradie-pro-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/alert-tradie-pro-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/alert-tradie-pro-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

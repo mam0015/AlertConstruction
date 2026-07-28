@@ -6,20 +6,21 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
-  <meta name="description" content="Alert Construction — secure estimating, renovation budgeting, project tracking, price catalogues and site tools in one connected workspace.">
-  <meta property="og:title" content="Alert Construction | Your Building Clinic">
-  <meta property="og:description" content="Estimating, projects, schedules, price catalogues and site tools for Alert Construction.">
+  <meta name="description" content="Alert Tradie Pro — secure estimating, renovation budgeting, project tracking, price catalogues and site tools in one connected workspace. Powered by Alert Construction.">
+  <meta property="og:title" content="Alert Tradie Pro | Powered by Alert Construction">
+  <meta property="og:description" content="Estimating, projects, schedules, price catalogues and site tools for builders and tradies.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mam0015.github.io/AlertConstruction/">
-  <meta property="og:image" content="https://mam0015.github.io/AlertConstruction/assets/social-preview.svg">
-  <meta property="og:image:alt" content="Alert Construction — Your Building Clinic">
+  <meta property="og:image" content="https://mam0015.github.io/AlertConstruction/assets/alert-tradie-pro-logo.png">
+  <meta property="og:image:alt" content="Alert Tradie Pro logo">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Alert Construction | Your Building Clinic</title>
+  <title>Alert Tradie Pro | Powered by Alert Construction</title>
   <link rel="canonical" href="https://mam0015.github.io/AlertConstruction/">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
+  <link rel="icon" href="./assets/alert-tradie-pro-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
   <style>
     :root{
       --bg:#050505; --panel:#111; --panel-2:#171717; --text:#f7f7f7;
@@ -38,8 +39,9 @@
       padding:0 clamp(20px,4vw,64px);border-bottom:1px solid var(--line);background:rgba(3,3,3,.96);
       position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)
     }
-    .brand{display:flex;align-items:center;min-width:0;flex:none}
-    .brand img{width:clamp(190px,21vw,325px);height:68px;object-fit:contain;object-position:left center;display:block;background:transparent}.brand-logo-light{display:none!important}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:none}
+    .brand-mark{width:60px;height:60px;object-fit:cover;display:block;border:1px solid rgba(255,255,255,.2);border-radius:13px;background:#fff}
+    .brand-wordmark{display:grid;gap:3px;line-height:1}.brand-wordmark strong{color:#fff;font-size:clamp(17px,1.7vw,24px);font-weight:900;letter-spacing:-.035em}.brand-wordmark small{color:#aaa;font-size:9px;font-weight:750;letter-spacing:.04em}
     .nav{display:flex;align-items:center;gap:16px;margin-right:auto}
     .nav a{display:flex;align-items:center;gap:10px;padding:18px 8px 15px;border-bottom:3px solid var(--yellow);font-weight:750}
     .nav svg{width:22px;height:22px;stroke:var(--yellow)}
@@ -97,7 +99,7 @@
       .hero{min-height:auto}
     }
     @media(max-width:680px){
-      .topbar{height:82px;padding:0 12px}.brand img{width:170px;height:56px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
+      .topbar{height:82px;padding:0 12px}.brand{gap:9px}.brand-mark{width:52px;height:52px;border-radius:11px}.brand-wordmark strong{font-size:17px}.brand-wordmark small{font-size:8px}.nav{display:none}.nav span{display:none}.nav a{padding:15px 4px 12px}
       .hero:before{height:650px;background-position:61% center}.hero:after{height:710px}.hero-inner{padding:58px 14px 40px}.intro{max-width:94%}
       .editorial-grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:84%;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 2px 12px;margin-top:92px}.story{min-height:245px;scroll-snap-align:start}
       .tools-title{margin-top:44px}.category-tabs,.tools-grid{grid-template-columns:1fr;gap:10px}.category-tab{min-height:138px}.tool{min-height:245px;border-radius:2px;padding:22px}.tool-group-head{display:block}.tool-group-head p{margin-top:5px;text-align:left}.tool-view-bar{align-items:flex-start;flex-direction:column}
@@ -113,15 +115,16 @@
     html[data-ac-theme="light"] .tool-icon{background:#faf8f3!important;border-color:#d3b77d!important;color:#9a7439!important;box-shadow:none!important}
     html[data-ac-theme="light"] .category-tab{background:linear-gradient(145deg,#fff,#eee9e1)!important;color:#202526!important;border-color:#d0c8bc!important;box-shadow:0 10px 30px rgba(54,48,40,.08)!important}html[data-ac-theme="light"] .category-tab:hover{border-color:#a77d3f!important}html[data-ac-theme="light"] .category-symbol{background:#faf8f3!important;color:#8b6836!important;border-color:#ccb17f!important}html[data-ac-theme="light"] .category-copy small{color:#69645b!important}html[data-ac-theme="light"] .category-count{color:#775a31!important}html[data-ac-theme="light"] .category-empty{background:#fff!important;color:#6b655c!important;border-color:#c7bfb4!important}
     html[data-ac-theme="light"] .go{background:#202527!important;color:#fff!important;border-color:#202527!important;box-shadow:none!important}
+    html[data-ac-theme="light"] .brand-wordmark strong{color:#202526!important}html[data-ac-theme="light"] .brand-wordmark small{color:#67645f!important}html[data-ac-theme="light"] .brand-mark{border-color:#d2cbc0!important}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Alert Construction home">
-        <img class="brand-logo-dark" src="./assets/alert-construction-logo-ac.svg?v=35" alt="Alert Construction">
-        <img class="brand-logo-light" src="./assets/alert-construction-logo-ac-light.svg?v=35" alt="Alert Construction">
+      <a class="brand" href="./" aria-label="Alert Tradie Pro home">
+        <img class="brand-mark" src="./assets/alert-tradie-pro-logo.png?v=41" alt="Alert Tradie Pro">
+        <span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
       </a>
       <nav class="nav" aria-label="Primary navigation">
         <a href="./projects/index.html">
@@ -138,7 +141,7 @@
     <main class="hero">
       <div class="hero-inner">
         <section class="intro">
-          <div class="eyebrow">Welcome to</div>
+          <div class="eyebrow">Welcome to Alert Tradie Pro</div>
           <h1>Your Building Clinic</h1>
           <div class="accent-line" aria-hidden="true"></div>
           <p>All your estimating and site management tools in one place.</p>
@@ -295,9 +298,9 @@
       </div>
     </main>
 
-    <footer class="footer"><strong>Alert Construction</strong><span>Your Building Clinic</span></footer>
+    <footer class="footer"><strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span></footer>
   </div>
-  <script src="./shared/platform-config.js"></script>
+  <script src="./shared/platform-config.js?v=41"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
   <script>
@@ -341,7 +344,7 @@
       });
     })();
   </script>
-  <script src="./shared/product-shell.js"></script>
+  <script src="./shared/product-shell.js?v=41"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>
