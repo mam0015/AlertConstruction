@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="format-detection" content="telephone=no" />
 <title>Plumbing Estimate | Alert Tradie Pro</title>
-  <link rel="icon" href="../assets/alert-tradie-pro-logo.png" type="image/png">
+  <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
   <style>
     :root{
       --bg:#050505; --panel:#111111; --panel2:#171717; --panel3:#202020;
@@ -70,7 +70,7 @@
   <main class="app">
     <a href="../index.html" style="display:inline-flex;align-items:center;gap:6px;color:#b7b7b7;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px">← Back to dashboard</a>
     <section class="hero">
-      <div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=41" alt="Alert Tradie Pro"></div><div><h1>Plumbing Quote Calculator Pro</h1><p class="subtitle">Built from Odds On Plumbing invoices: rough-in, fit-off, gas, drainage and extras. Builder Quote mode adds the selected building margin before GST; Customer Direct does not.</p></div></div>
+      <div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=42" alt="Alert Tradie Pro"></div><div><h1>Plumbing Quote Calculator Pro</h1><p class="subtitle">Built from Odds On Plumbing invoices: rough-in, fit-off, gas, drainage and extras. Builder Quote mode adds the selected building margin before GST; Customer Direct does not.</p></div></div>
       <div class="grid-top">
         <div><label for="project">Project / Address</label><input id="project" type="text" placeholder="e.g. Point Cook renovation" autocomplete="off" /></div>
         <div><label for="customer">Prepared For</label><input id="customer" type="text" placeholder="Customer name" autocomplete="off" /></div>
@@ -193,13 +193,13 @@ window.ACProjectCapture = async function(){
   return{module:'plumbing',title:(project?project+' — ':'')+'Plumbing Estimate',summary:selected.length+' selected items • '+total.toLocaleString('en-AU',{style:'currency',currency:'AUD'}),data:{project:project,customer:customer,mode:mode,profitMargin:margin,quantities:quantities,items:selected,builderTotalIncGst:builder,customerTotalIncGst:customerTotal,catalogueAudit:window.ACPriceCatalogue.security()}};
 };
 </script>
-<script src="../shared/platform-config.js?v=41"></script>
+<script src="../shared/platform-config.js?v=42"></script>
 <script src="../shared/auth.js"></script>
 <script src="../shared/catalogue-defaults.js"></script>
 <script src="../shared/catalogue-runtime.js"></script>
 <script src="../shared/project-store.js"></script>
 <script src="../shared/project-bridge.js"></script>
-<script src="../shared/product-shell.js?v=41"></script>
+<script src="../shared/product-shell.js?v=42"></script>
 <script src="../shared/cloud-sync.js"></script>
 </body>
 </html>

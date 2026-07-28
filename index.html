@@ -11,7 +11,7 @@
   <meta property="og:description" content="Estimating, projects, schedules, price catalogues and site tools for builders and tradies.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mam0015.github.io/AlertConstruction/">
-  <meta property="og:image" content="https://mam0015.github.io/AlertConstruction/assets/alert-tradie-pro-logo.png">
+  <meta property="og:image" content="https://mam0015.github.io/AlertConstruction/assets/social-preview.svg">
   <meta property="og:image:alt" content="Alert Tradie Pro logo">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <title>Alert Tradie Pro | Powered by Alert Construction</title>
   <link rel="canonical" href="https://mam0015.github.io/AlertConstruction/">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./assets/alert-tradie-pro-logo.png" type="image/png">
+  <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
   <style>
     :root{
@@ -40,7 +40,7 @@
       position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)
     }
     .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:none}
-    .brand-mark{width:60px;height:60px;object-fit:cover;display:block;border:1px solid rgba(255,255,255,.2);border-radius:13px;background:#fff}
+    .brand-mark{width:60px;height:60px;display:grid;place-items:center;padding:8px;border:1px solid rgba(255,255,255,.16);border-radius:13px;background:#111414;overflow:hidden}.brand-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
     .brand-wordmark{display:grid;gap:3px;line-height:1}.brand-wordmark strong{color:#fff;font-size:clamp(17px,1.7vw,24px);font-weight:900;letter-spacing:-.035em}.brand-wordmark small{color:#aaa;font-size:9px;font-weight:750;letter-spacing:.04em}
     .nav{display:flex;align-items:center;gap:16px;margin-right:auto}
     .nav a{display:flex;align-items:center;gap:10px;padding:18px 8px 15px;border-bottom:3px solid var(--yellow);font-weight:750}
@@ -115,7 +115,7 @@
     html[data-ac-theme="light"] .tool-icon{background:#faf8f3!important;border-color:#d3b77d!important;color:#9a7439!important;box-shadow:none!important}
     html[data-ac-theme="light"] .category-tab{background:linear-gradient(145deg,#fff,#eee9e1)!important;color:#202526!important;border-color:#d0c8bc!important;box-shadow:0 10px 30px rgba(54,48,40,.08)!important}html[data-ac-theme="light"] .category-tab:hover{border-color:#a77d3f!important}html[data-ac-theme="light"] .category-symbol{background:#faf8f3!important;color:#8b6836!important;border-color:#ccb17f!important}html[data-ac-theme="light"] .category-copy small{color:#69645b!important}html[data-ac-theme="light"] .category-count{color:#775a31!important}html[data-ac-theme="light"] .category-empty{background:#fff!important;color:#6b655c!important;border-color:#c7bfb4!important}
     html[data-ac-theme="light"] .go{background:#202527!important;color:#fff!important;border-color:#202527!important;box-shadow:none!important}
-    html[data-ac-theme="light"] .brand-wordmark strong{color:#202526!important}html[data-ac-theme="light"] .brand-wordmark small{color:#67645f!important}html[data-ac-theme="light"] .brand-mark{border-color:#d2cbc0!important}
+    html[data-ac-theme="light"] .brand-wordmark strong{color:#202526!important}html[data-ac-theme="light"] .brand-wordmark small{color:#67645f!important}html[data-ac-theme="light"] .brand-mark{background:#fff!important;border-color:#d2cbc0!important}html[data-ac-theme="light"] .brand-mark img{filter:none!important}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -123,7 +123,7 @@
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Alert Tradie Pro home">
-        <img class="brand-mark" src="./assets/alert-tradie-pro-logo.png?v=41" alt="Alert Tradie Pro">
+        <span class="brand-mark"><img src="./assets/alert-tradie-pro-logo.png?v=42" alt=""></span>
         <span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
       </a>
       <nav class="nav" aria-label="Primary navigation">
@@ -300,7 +300,7 @@
 
     <footer class="footer"><strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span></footer>
   </div>
-  <script src="./shared/platform-config.js?v=41"></script>
+  <script src="./shared/platform-config.js?v=42"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
   <script>
@@ -344,7 +344,7 @@
       });
     })();
   </script>
-  <script src="./shared/product-shell.js?v=41"></script>
+  <script src="./shared/product-shell.js?v=42"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>

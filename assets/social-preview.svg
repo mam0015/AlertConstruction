@@ -9,12 +9,16 @@
     <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
       <path d="M48 0H0V48" fill="none" stroke="#f5b400" stroke-opacity=".08"/>
     </pattern>
+    <filter id="white-mark" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/>
+    </filter>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#grid)"/>
   <path d="M0 512 390 122h292L1200 416v214H0Z" fill="#0d0d0d" stroke="#f5b400" stroke-opacity=".24" stroke-width="2"/>
   <path d="M850 0h350v350L850 0Z" fill="#f5b400" fill-opacity=".07"/>
-  <image href="alert-tradie-pro-logo.png" x="76" y="55" width="165" height="165"/>
+  <rect x="76" y="55" width="165" height="165" rx="34" fill="#111414" stroke="#353a3a"/>
+  <image href="alert-tradie-pro-logo.png" x="92" y="79" width="133" height="117" preserveAspectRatio="xMidYMid meet" filter="url(#white-mark)"/>
   <text x="76" y="275" fill="#f5b400" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="800" letter-spacing="7">ALERT TRADIE PRO</text>
   <text x="76" y="360" fill="#fff" font-family="Georgia,'Times New Roman',serif" font-size="70" letter-spacing="-3">Build smarter. Work together.</text>
   <rect x="76" y="404" width="112" height="4" fill="#f5b400"/>
