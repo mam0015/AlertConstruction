@@ -2,7 +2,7 @@
   'use strict';
   const config=global.AC_PLATFORM_CONFIG||{},MAX_PHOTO=20*1024*1024,MAX_LOGO=5*1024*1024;
   const ACCESS_ROLES=new Set(['owner','admin','manager','site_supervisor','estimator']);
-  const UPLOAD_ROLES=new Set(['owner','admin','manager','site_supervisor']);
+  const UPLOAD_ROLES=new Set(['owner','admin']);
   const BOOKLET_ROLES=new Set(['owner','admin']);
 
   function base(){return String(config.supabaseUrl||'').replace(/\/$/,'')}
@@ -56,6 +56,7 @@
     const ctx=await context(),response=await fetch(`${base()}/storage/v1/object/authenticated/${bucket}/${encodePath(path)}`,{headers:{apikey:config.publishableKey||'',...(await global.ACAuth.headers())}});
     if(!response.ok)throw new Error(`The saved private file could not be opened (${response.status}).`);return response.blob();
   }
+  async function privateObjectUrl(bucket,path){return URL.createObjectURL(await download(bucket,path))}
   function blobDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob)})}
   async function photoDataUrl(path){return blobDataUrl(await download('project-photos',path))}
   async function logoDataUrl(path){if(path)return blobDataUrl(await download('company-assets',path));const response=await fetch('../assets/invoice-logo.png');return response.ok?blobDataUrl(await response.blob()):''}
@@ -79,5 +80,5 @@
     return required.filter(([key])=>!String(profile[key]||'').trim()).map(([,label])=>label);
   }
 
-  global.ACPhotoAPI={ACCESS_ROLES,UPLOAD_ROLES,BOOKLET_ROLES,context,snapshot,companyProfile,saveCompanyProfile,createPhoto,updatePhoto,deletePhoto,savePair,deletePair,saveBooklet,recordReport,archiveReport,uploadPhoto,uploadCompanyLogo,uploadReport,signedUrl,photoDataUrl,logoDataUrl,reportBlob,downloadBlob,normaliseImage,profileMissing};
+  global.ACPhotoAPI={ACCESS_ROLES,UPLOAD_ROLES,BOOKLET_ROLES,context,snapshot,companyProfile,saveCompanyProfile,createPhoto,updatePhoto,deletePhoto,savePair,deletePair,saveBooklet,recordReport,archiveReport,uploadPhoto,uploadCompanyLogo,uploadReport,signedUrl,privateObjectUrl,photoDataUrl,logoDataUrl,reportBlob,downloadBlob,normaliseImage,profileMissing};
 })(window);

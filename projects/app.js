@@ -13,10 +13,11 @@
   $('projectModal').addEventListener('click',event=>{if(event.target===$('projectModal'))closeModal()});
   $('projectModal').querySelector('.modal-save').addEventListener('click',()=>{
     const name=$('newName').value.trim();if(!name)return alert('Enter the project name.');
-    try{const project=store.create({name,address:$('newAddress').value,client:$('newClient').value});currentId=project.id;closeModal();render();toast('Project created')}catch(error){alert(error.message||'The project could not be created.')}
+    try{const project=store.create({name,category:$('newCategory').value,address:$('newAddress').value,client:$('newClient').value});currentId=project.id;closeModal();render();toast('Project created')}catch(error){alert(error.message||'The project could not be created.')}
   });
-  function closeModal(){$('projectModal').classList.remove('show');['newName','newAddress','newClient'].forEach(id=>$(id).value='')}
+  function closeModal(){$('projectModal').classList.remove('show');['newName','newAddress','newClient'].forEach(id=>$(id).value='');$('newCategory').value='Renovation'}
   $('addRecordBtn').addEventListener('click',()=>{if(!currentId)return;$('recordModal').classList.add('show')});
+  $('overviewAddRecordBtn').addEventListener('click',()=>{if(!currentId)return;$('recordModal').classList.add('show')});
   $('recordModal').querySelector('.modal-cancel').addEventListener('click',closeRecordModal);
   $('recordModal').addEventListener('click',event=>{if(event.target===$('recordModal'))closeRecordModal()});
   $('recordModal').querySelector('.modal-save').addEventListener('click',async()=>{
@@ -30,8 +31,8 @@
   document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>showTab(button.dataset.tab)));
   function showTab(name){document.querySelectorAll('.tab').forEach(button=>button.classList.toggle('active',button.dataset.tab===name));document.querySelectorAll('.tab-panel').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===name))}
 
-  $('saveDetailsBtn').addEventListener('click',()=>{if(!currentId)return;try{store.update(currentId,{name:$('editName').value,address:$('editAddress').value,client:$('editClient').value,status:$('editStatus').value,notes:$('editNotes').value});render();showTab('details');toast('Project details saved')}catch(error){alert(error.message||'Project details could not be saved.')}});
-  $('deleteProjectBtn').addEventListener('click',async()=>{const project=current();if(!project||!confirm(`Delete "${project.name}" and all of its saved records, tasks and attachments from this device?`))return;await store.remove(project.id);await window.ACAuth?.audit?.('project_deleted',{projectId:project.id,module:'projects',details:{name:project.name,deleted_at:new Date().toISOString()}});currentId=store.list()[0]?.id||'';render()});
+  $('saveDetailsBtn').addEventListener('click',()=>{if(!currentId)return;try{store.update(currentId,{name:$('editName').value,category:$('editCategory').value,address:$('editAddress').value,client:$('editClient').value,status:$('editStatus').value,notes:$('editNotes').value});render();showTab('details');toast('Project details saved')}catch(error){alert(error.message||'Project details could not be saved.')}});
+  $('deleteProjectBtn').addEventListener('click',async()=>{const project=current();if(!project||!confirm(`Delete "${project.name}" and all of its saved records, tasks and cloud attachments?`))return;await store.remove(project.id);await window.ACAuth?.audit?.('project_deleted',{projectId:project.id,module:'projects',details:{name:project.name,deleted_at:new Date().toISOString()}});currentId=store.list()[0]?.id||'';render()});
   $('taskForm').addEventListener('submit',event=>{event.preventDefault();if(!currentId)return;store.addTask(currentId,{title:$('taskTitle').value,dueDate:$('taskDate').value,dueTime:$('taskTime').value,priority:$('taskPriority').value});$('taskTitle').value='';$('taskTime').value='';render();showTab('schedule');toast('Task added')});
   $('exportBtn').addEventListener('click',async()=>{try{const text=await store.exportAll(),blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='AC_Project_Backup_'+store.today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(error){alert(error.message||'Backup could not be created.')}});
   $('importBtn').addEventListener('click',()=>$('importFile').click());
@@ -39,14 +40,14 @@
 
   function render(){
     renderToday();renderProjectList();const project=current();$('emptyDetail').style.display=project?'none':'grid';$('detail').classList.toggle('show',!!project);if(!project)return;
-    store.setActive(project.id);$('projectTitle').textContent=project.name;$('projectSubtitle').textContent=[project.address,project.client,project.status].filter(Boolean).join(' • ')||'Project workspace';$('photoTimelineLink').href=`../builder/index.html?view=photo-timeline&project=${encodeURIComponent(project.id)}`;
-    $('editName').value=project.name||'';$('editAddress').value=project.address||'';$('editClient').value=project.client||'';$('editStatus').value=project.status||'Active';$('editNotes').value=project.notes||'';
+    store.setActive(project.id);$('projectTitle').textContent=project.name;$('projectSubtitle').textContent=[project.category||'Other',project.address,project.client,project.status].filter(Boolean).join(' • ')||'Project workspace';$('photoTimelineLink').href=`../builder/index.html?view=photo-timeline&project=${encodeURIComponent(project.id)}`;
+    $('editName').value=project.name||'';$('editCategory').value=project.category||'Other';$('editAddress').value=project.address||'';$('editClient').value=project.client||'';$('editStatus').value=project.status||'Active';$('editNotes').value=project.notes||'';
     const open=(project.tasks||[]).filter(task=>!task.done),done=(project.tasks||[]).filter(task=>task.done),today=open.filter(task=>task.dueDate===store.today());
     $('recordStat').textContent=(project.records||[]).length;$('taskStat').textContent=open.length;$('todayStat').textContent=today.length;$('doneStat').textContent=done.length;
     $('taskDate').value=$('taskDate').value||store.today();renderRecords(project);renderTasks(project);
   }
   function renderProjectList(){
-    const projects=store.list();$('projectList').innerHTML=projects.length?projects.map(project=>{const open=(project.tasks||[]).filter(task=>!task.done).length;return `<button class="project-item ${project.id===currentId?'active':''}" data-id="${project.id}"><strong>${esc(project.name)}</strong><span>${esc(project.address||project.status||'Project')}</span><span class="project-meta"><em>${(project.records||[]).length} records</em><em>${open} tasks</em></span></button>`}).join(''):'<div class="empty-list">No projects yet.</div>';
+    const category=$('projectCategoryFilter').value,projects=store.list().filter(project=>!category||(project.category||'Other')===category);$('projectList').innerHTML=projects.length?projects.map(project=>{const open=(project.tasks||[]).filter(task=>!task.done).length;return `<button class="project-item ${project.id===currentId?'active':''}" data-id="${project.id}"><strong>${esc(project.name)}</strong><span class="project-category">${esc(project.category||'Other')}</span><span>${esc(project.address||project.status||'Project')}</span><span class="project-meta"><em>${(project.records||[]).length} files & notes</em><em>${open} tasks</em></span></button>`}).join(''):`<div class="empty-list">${category?'No projects in this type.':'No projects yet.'}</div>`;
     $('projectList').querySelectorAll('[data-id]').forEach(button=>button.addEventListener('click',()=>{currentId=button.dataset.id;store.setActive(currentId);render()}));
   }
   function renderToday(){
@@ -61,7 +62,7 @@
   async function recordAction(projectId,recordId,action){
     const project=store.get(projectId),record=project?.records?.find(item=>item.id===recordId);if(!record)return;
     if(action==='delete'){if(confirm('Delete this saved record?')){await store.deleteRecord(projectId,recordId);await window.ACAuth?.audit?.('project_record_deleted',{projectId,recordId,module:record.module,details:{title:record.title||'',deleted_at:new Date().toISOString()}});render()}return}
-    if(action==='file'){const ids=Array.isArray(record.attachmentIds)&&record.attachmentIds.length?record.attachmentIds:record.attachmentId?[record.attachmentId]:[];let downloaded=0;for(const id of ids){const file=await store.getAttachment(id);if(!file)continue;const url=URL.createObjectURL(file.blob),a=document.createElement('a');a.href=url;a.download=file.name;a.click();downloaded++;setTimeout(()=>URL.revokeObjectURL(url),1200)}if(!downloaded)alert('The attachment is no longer available on this device.');return}
+    if(action==='file'){const ids=Array.isArray(record.attachmentIds)&&record.attachmentIds.length?record.attachmentIds:record.attachmentId?[record.attachmentId]:[];let downloaded=0;try{for(const id of ids){const file=await store.getAttachment(id);if(!file)continue;const url=URL.createObjectURL(file.blob),a=document.createElement('a');a.href=url;a.download=file.name;a.click();downloaded++;setTimeout(()=>URL.revokeObjectURL(url),60000)}if(!downloaded)alert('The attachment could not be found in the secure project storage.')}catch(error){alert(error.message||'The secure project file could not be opened.')}return}
     openRecord(project,record);
   }
   function openRecord(project,record){
@@ -80,6 +81,7 @@
     $('taskList').querySelectorAll('[data-task]').forEach(row=>row.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>{const id=row.dataset.task;if(button.dataset.action==='toggle'){const task=project.tasks.find(item=>item.id===id);store.updateTask(project.id,id,{done:!task.done})}else if(confirm('Delete this task?'))store.deleteTask(project.id,id);render();showTab('schedule')})));
   }
   window.addEventListener('ac-projects-changed',()=>{if(currentId&&!store.get(currentId))currentId=store.list()[0]?.id||''});
+  $('projectCategoryFilter').addEventListener('change',renderProjectList);
   window.ACAuth?.ready?.then(()=>document.querySelectorAll('.quick-links a').forEach(link=>{const tool=link.getAttribute('href')?.match(/\.\.\/([^/]+)\//)?.[1];if(tool)link.hidden=!window.ACAuth.canUseTool(tool);if(link.id==='photoTimelineLink')link.hidden=!['owner','admin','manager','site_supervisor','estimator'].includes(window.ACAuth.role?.())}));
   render();
 })();
