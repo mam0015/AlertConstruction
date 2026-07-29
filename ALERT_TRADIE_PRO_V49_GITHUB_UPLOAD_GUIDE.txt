@@ -1,0 +1,90 @@
+ALERT TRADIE PRO V49 — ROLE-AWARE HOME AND FINANCE NAVIGATION
+COMPLETE GITHUB WEBSITE PACKAGE
+==============================================================
+
+PACKAGE
+-------
+AlertTradiePro-V49-WEB-PUBLIC-FINAL.zip
+
+This is the complete public website based on the verified V48 release.
+Upload everything INSIDE the ZIP to the root of the existing
+mam0015/AlertConstruction GitHub repository, replacing matching files.
+
+
+DEPLOYMENT ORDER
+----------------
+1. Keep a recoverable copy of the current GitHub files.
+2. Upload every file inside AlertTradiePro-V49-WEB-PUBLIC-FINAL.zip to the
+   GitHub repository root.
+3. Wait for GitHub Pages to finish.
+4. Hard-refresh the app so the alert-tradie-pro-v49 offline cache activates.
+
+No new Supabase migration is required for V49. Keep all migrations already
+installed for V44 Finance, V47 Work Management and V48 Photo Timeline.
+
+
+FINANCIAL DATA
+--------------
+The existing Financial Data section remains in the Operation Hub left sidebar.
+Its sections are:
+
+- Overview
+- Income
+- Expenses
+- Project Budgets
+- Approvals
+- Finance Access
+
+Users enter revenue, payments, expenses, committed costs and budget data in
+these sections. The Finance page recalculates cash flow, revenue vs expenses,
+expense categories and project profitability. Approved data also updates the
+authorised Finance cards and Finance Summary on the Operation Hub Overview.
+
+
+ROLE-AWARE HOME AND NAVIGATION
+------------------------------
+- Home tool cards are now filtered by the signed-in active role.
+- The top Tools menu uses the same permission matrix.
+- Empty tool categories are hidden.
+- Category filters cannot reveal a tool outside the current role.
+- The Home page states which role is active and how many tools are available.
+- Project Photo Timeline is now included as a Home tool for authorised roles.
+- The global Reports link now opens the real Work Management Reports page.
+- Deep-link protection and Supabase Row-Level Security remain unchanged.
+
+Verified Home visibility:
+
+- Owner: all 14 public tool cards.
+- Estimator: 12 estimating, analysis, project, invoice, assigned-budget and
+  view-only Photo Timeline tools.
+- Project Manager: 6 project, site and business tools.
+- Site Supervisor: 4 assigned-project and site tools.
+- Worker: own finance-claim entry from Home, plus Operation Hub / Reports
+  navigation for personal work records.
+
+Finance applies a second permission layer after the menu opens:
+
+- Owner: full company dashboard, transactions, budgets, approvals and access.
+- Admin: only the finance permissions enabled by the Owner.
+- Manager: authorised assigned-project commercial information.
+- Estimator: assigned-project budget / estimate values without company profit
+  or transaction management.
+- Site Supervisor and Worker: their own expense submissions only.
+
+
+DATA AND BACKEND COMPATIBILITY
+------------------------------
+V49 preserves:
+
+- existing accounts, organisations, Team Codes and role identifiers;
+- projects, photos, booklets and deletion cleanup;
+- invoices, finance transactions, payments, budgets and approvals;
+- Team Management, messages and Work Management data;
+- private Storage buckets, current paths and Row-Level Security.
+
+
+IMPORTANT
+---------
+- Do not remove the existing V44, V47 or V48 Supabase migrations.
+- Do not upload any SQL, private package, key or .env file to GitHub.
+- Do not disable Row-Level Security.

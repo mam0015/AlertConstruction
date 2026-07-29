@@ -1,40 +1,89 @@
-ALERT TRADIE PRO V48 — PROJECT PHOTO TIMELINE OVERHAUL
+ALERT TRADIE PRO V48 — PROJECT PHOTO TIMELINE COMMAND CENTRE
 COMPLETE GITHUB WEBSITE PACKAGE
-======================================================
+============================================================
 
-PACKAGE PURPOSE
----------------
-V48 keeps the complete V47 app and redesigns Project Photo Timeline as a
-project-folder command centre.
+PACKAGE
+-------
+AlertTradiePro-V48-WEB-PUBLIC-FINAL.zip
 
-INSTALLATION ORDER
-------------------
-1. Open Supabase SQL Editor and create a new query.
-2. Run:
-   20260729_project_photo_folders_delete_v48.sql
-3. Confirm Supabase shows Success.
-4. Upload every file inside AlertTradiePro-V48-WEB-PUBLIC-FINAL.zip to the
-   root of the existing GitHub repository, replacing matching files.
+This is the complete public website based on the verified V47 release.
+Upload everything INSIDE the ZIP to the root of the existing
+mam0015/AlertConstruction GitHub repository, replacing matching files.
 
-WHAT CHANGED
-------------
-- Photo Timeline opens on project folders instead of automatically selecting
-  the first project.
-- Folder cards show project name, address, status, photo count, latest photo
-  date and an authorised private cover image.
-- Opening a folder displays all photos grouped by photo date.
-- Owner/Admin retain upload, edit and delete controls.
-- Manager and Estimator remain view-only.
-- Site Supervisor remains limited to assigned projects.
-- The delete flow removes Before/After references first and accepts legacy
-  private Storage paths.
-- A stale or already-missing Storage object no longer restores the database
-  photo record or makes Delete appear to fail.
-- Existing projects, photos, booklets, reports, roles and Supabase identifiers
-  are preserved.
+
+DEPLOYMENT ORDER
+----------------
+1. Keep a recoverable copy of the current GitHub files.
+2. Open the private V48 Supabase package.
+3. In Supabase SQL Editor, create a new query and run:
+   supabase/migrations/20260729_project_photo_timeline_v48.sql
+4. Confirm Supabase reports Success.
+5. Upload every file inside AlertTradiePro-V48-WEB-PUBLIC-FINAL.zip to the
+   GitHub repository root.
+6. Wait for GitHub Pages to finish, then hard-refresh the app.
+
+
+PROJECT PHOTO TIMELINE OVERHAUL
+-------------------------------
+- The landing page now shows project folders only.
+- Existing projects automatically become folders; no photo re-upload or data
+  conversion is required.
+- Folder cards display the real project name, address, status, photo count,
+  latest update, Before/During/After progress and an authorised private cover.
+- Opening a folder displays that project's photos grouped by photo date, with
+  the newest date first.
+- Gallery and Timeline layouts both keep the date grouping.
+- Owners and Admins can upload, edit, select and delete one or many photos.
+- A full-screen photo preview provides safe Edit and Delete actions.
+- Marketing Booklet, saved reports, Before/After pairs and Company Profile
+  remain connected to the selected project.
+
+
+DELETE FIX
+----------
+The old deletion function tried to remove a private Storage object directly
+from SQL. V48 replaces that unreliable flow:
+
+- the database deletion and cleanup job are recorded in one transaction;
+- the authenticated private Storage API removes the real object and thumbnail;
+- successful cleanup is marked complete;
+- interrupted or failed cleanup stays queued and retries automatically for an
+  authorised Owner/Admin on a future Photo Timeline load;
+- Before/After pairs linked to a deleted photo are removed by the existing
+  database cascade;
+- deleting multiple selected photos reports partial failures clearly.
+
+
+ROLE ACCESS
+-----------
+- Owner: all authorised projects; upload, edit, single delete, bulk delete,
+  marketing approval, booklet and Company Profile controls.
+- Admin: all authorised projects; upload, edit, single delete, bulk delete,
+  marketing approval and booklet controls.
+- Manager: view-only Photo Timeline access.
+- Estimator: view-only access; Internal Only photos remain hidden.
+- Site Supervisor: view-only access to assigned projects only.
+- Worker: no Project Photo Timeline menu or data access.
+
+These boundaries are enforced in both the interface and Supabase functions /
+Storage policies.
+
+
+DATA AND BACKEND COMPATIBILITY
+------------------------------
+V48 preserves:
+- the /AlertConstruction/ public route;
+- existing accounts, organisations, Team Codes and role identifiers;
+- every existing project and project photo;
+- photo pairs, booklet drafts and generated reports;
+- invoices, finance, Team Management, messages and V47 Work Management data;
+- the private project-photos bucket and current storage paths.
+
 
 IMPORTANT
 ---------
-Do not place the private SQL ZIP in GitHub.
-Keep the project-photos bucket private.
-The existing public route remains /AlertConstruction/.
+- Do not upload AlertTradiePro-V48-SUPABASE-PRIVATE.zip or any SQL file to
+  GitHub.
+- Keep project-photos private.
+- Do not disable Row-Level Security.
+- The V48 migration is required for reliable deletion and folder summary data.

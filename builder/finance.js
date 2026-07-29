@@ -87,8 +87,11 @@
       state={...state,...result,permissions:{...result.permissions},transactions:Array.isArray(result.transactions)?result.transactions:[],payments:Array.isArray(result.payments)?result.payments:[],projects:Array.isArray(result.projects)?result.projects:[],budgets:Array.isArray(result.budgets)?result.budgets:[],project_totals:Array.isArray(result.project_totals)?result.project_totals:[],members:Array.isArray(result.members)?result.members:[],invoice_summary:result.invoice_summary||{count:0,balance_due:0,overdue_count:0}};
       renderAll();applyRoleUI();applyRoute();
     }catch(error){
-      $('financeView').innerHTML=`<div class="finance-no-access"><strong>${esc(error.message)}</strong><br><br>Install the V44 Finance Supabase migration, then sign out and sign in again.</div>`;
-      $('financeNav').hidden=true;
+      const authorised=preview||window.ACAuth?.canUseTool?.('finance')===true;
+      $('financeNav').hidden=!authorised;
+      $('financeView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Commercial &amp; Finance</div><h1>Financial Data.</h1><p>The Finance workspace is available for this role, but its data could not be loaded.</p></div><div class="page-actions"><button class="btn primary" id="financeRetry" type="button">Try Again</button></div></div><div class="finance-no-access"><strong>${esc(error.message)}</strong><br><br>${authorised?'Run the V50 Finance repair SQL once, then select Try Again.':'This account does not currently have Finance access.'}</div>`;
+      $('financeRetry')?.addEventListener('click',()=>location.reload());
+      window.ACRefreshSideGroups?.();
     }
   }
 

@@ -78,14 +78,14 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
           </button>
           <div class="app-tools-menu" id="appToolsMenu" hidden>
-            <div class="app-tools-group"><strong>Estimating</strong><a href="./electrical/index.html">Electrical Estimate</a><a href="./plumbing/index.html">Plumbing Estimate</a><a href="./cladding/index.html">Cladding Estimate</a><a href="./renovation-budget/index.html">Renovation Budget</a></div>
-            <div class="app-tools-group"><strong>Analysis &amp; AI</strong><a href="./plan-ai/index.html">AI Plan Estimator</a><a href="./quote-analysis/index.html">Quote Price Analysis</a><a href="./property-estimate/index.html">Property Value Guide</a></div>
-            <div class="app-tools-group"><strong>Projects &amp; Site</strong><a href="./projects/index.html">Projects &amp; Schedule</a><a href="./checklist/index.html">Site Checklist</a><a href="./permit-checklist/index.html">Permit Checklist</a></div>
-            <div class="app-tools-group"><strong>Business</strong><a href="./builder/index.html?view=financial-data">Financial Data</a><a href="./invoice/index.html">Invoice Generator</a><a href="./builder/index.html?view=photo-timeline">Photo Timeline</a><a href="./catalogue/index.html">Price Catalogue</a></div>
+            <div class="app-tools-group"><strong>Estimating</strong><a data-role-tool="electrical" href="./electrical/index.html">Electrical Estimate</a><a data-role-tool="plumbing" href="./plumbing/index.html">Plumbing Estimate</a><a data-role-tool="cladding" href="./cladding/index.html">Cladding Estimate</a><a data-role-tool="renovation-budget" href="./renovation-budget/index.html">Renovation Budget</a></div>
+            <div class="app-tools-group"><strong>Analysis &amp; AI</strong><a data-role-tool="plan-ai" href="./plan-ai/index.html">AI Plan Estimator</a><a data-role-tool="quote-analysis" href="./quote-analysis/index.html">Quote Price Analysis</a><a data-role-tool="property-estimate" href="./property-estimate/index.html">Property Value Guide</a></div>
+            <div class="app-tools-group"><strong>Projects &amp; Site</strong><a data-role-tool="projects" href="./projects/index.html">Projects &amp; Schedule</a><a data-role-tool="checklist" href="./checklist/index.html">Site Checklist</a><a data-role-tool="permit-checklist" href="./permit-checklist/index.html">Permit Checklist</a></div>
+            <div class="app-tools-group"><strong>Business</strong><a data-role-tool="finance" href="./builder/index.html?view=financial-data">Financial Data</a><a data-role-tool="invoice" href="./invoice/index.html">Invoice Generator</a><a data-role-tool="photo-timeline" href="./builder/index.html?view=photo-timeline">Photo Timeline</a><a data-role-tool="catalogue" href="./catalogue/index.html">Price Catalogue</a></div>
           </div>
         </div>
         <a href="./projects/index.html">Projects</a>
-        <a href="./builder/index.html?view=photo-timeline&amp;tab=reports">Reports</a>
+        <a data-role-tool="builder" href="./builder/index.html?view=reports">Reports</a>
         <a href="./legal/support.html">Support</a>
       </nav>
     </header>
@@ -124,7 +124,7 @@
       <section class="workspace" id="tools">
         <div class="workspace-head">
           <div><div class="workspace-kicker">Your building clinic</div><h2>Everything in its place.</h2></div>
-          <p>Open the job you need without digging through the app. The same categories appear in the Tools menu at the top of every screen.</p>
+          <p id="roleToolSummary" aria-live="polite">Open the job you need without digging through the app. Your approved role controls which tools appear here.</p>
         </div>
         <div class="category-strip" aria-label="Filter tools">
           <button class="category-chip" type="button" data-filter="all" aria-pressed="true">All tools</button>
@@ -134,19 +134,20 @@
           <button class="category-chip" type="button" data-filter="business" aria-pressed="false">Business</button>
         </div>
         <div class="tool-card-grid">
-          <a class="tool-card" data-category="estimating" href="./electrical/index.html"><span class="tool-category">Estimating</span><h3>Electrical Estimate</h3><p>Build a detailed electrical scope and estimate.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" href="./plumbing/index.html"><span class="tool-category">Estimating</span><h3>Plumbing Estimate</h3><p>Price plumbing work with a clear item breakdown.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" href="./cladding/index.html"><span class="tool-category">Estimating</span><h3>Cladding Estimate</h3><p>Plan quantities, waste and installation costs.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" href="./renovation-budget/index.html"><span class="tool-category">Estimating</span><h3>Renovation Budget</h3><p>Shape a renovation budget before work begins.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" href="./plan-ai/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>AI Plan Estimator</h3><p>Review drawings and prepare a checked estimate.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" href="./quote-analysis/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Quote Price Analysis</h3><p>Compare quote pricing and identify gaps quickly.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" href="./property-estimate/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Property Value Guide</h3><p>Guide property value with local sales evidence.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" href="./projects/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Projects &amp; Schedule</h3><p>Keep projects, tasks, files and dates together.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" href="./checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Site Checklist</h3><p>Complete clear, repeatable site checks.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" href="./permit-checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Permit Checklist</h3><p>Track permit tasks and required documents.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" href="./invoice/index.html"><span class="tool-category">Business</span><h3>Invoice Generator</h3><p>Create a simple professional GST invoice.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" href="./builder/index.html?view=financial-data"><span class="tool-category">Business</span><h3>Financial Data</h3><p>Track cash flow, project budgets, costs and approvals.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" href="./catalogue/index.html"><span class="tool-category">Business</span><h3>Price Catalogue</h3><p>Keep company rates current and versioned.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" data-role-tool="electrical" href="./electrical/index.html"><span class="tool-category">Estimating</span><h3>Electrical Estimate</h3><p>Build a detailed electrical scope and estimate.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" data-role-tool="plumbing" href="./plumbing/index.html"><span class="tool-category">Estimating</span><h3>Plumbing Estimate</h3><p>Price plumbing work with a clear item breakdown.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" data-role-tool="cladding" href="./cladding/index.html"><span class="tool-category">Estimating</span><h3>Cladding Estimate</h3><p>Plan quantities, waste and installation costs.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="estimating" data-role-tool="renovation-budget" href="./renovation-budget/index.html"><span class="tool-category">Estimating</span><h3>Renovation Budget</h3><p>Shape a renovation budget before work begins.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" data-role-tool="plan-ai" href="./plan-ai/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>AI Plan Estimator</h3><p>Review drawings and prepare a checked estimate.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" data-role-tool="quote-analysis" href="./quote-analysis/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Quote Price Analysis</h3><p>Compare quote pricing and identify gaps quickly.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="analysis" data-role-tool="property-estimate" href="./property-estimate/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Property Value Guide</h3><p>Guide property value with local sales evidence.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" data-role-tool="projects" href="./projects/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Projects &amp; Schedule</h3><p>Keep projects, tasks, files and dates together.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" data-role-tool="checklist" href="./checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Site Checklist</h3><p>Complete clear, repeatable site checks.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="site" data-role-tool="permit-checklist" href="./permit-checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Permit Checklist</h3><p>Track permit tasks and required documents.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" data-role-tool="invoice" href="./invoice/index.html"><span class="tool-category">Business</span><h3>Invoice Generator</h3><p>Create a simple professional GST invoice.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" data-role-tool="finance" href="./builder/index.html?view=financial-data"><span class="tool-category">Business</span><h3>Financial Data</h3><p>Track cash flow, project budgets, costs and approvals.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" data-role-tool="photo-timeline" href="./builder/index.html?view=photo-timeline"><span class="tool-category">Business</span><h3>Project Photo Timeline</h3><p>Open project folders, review dated photos and prepare visual records.</p><span class="tool-open">Open tool →</span></a>
+          <a class="tool-card" data-category="business" data-role-tool="catalogue" href="./catalogue/index.html"><span class="tool-category">Business</span><h3>Price Catalogue</h3><p>Keep company rates current and versioned.</p><span class="tool-open">Open tool →</span></a>
         </div>
       </section>
     </main>
@@ -163,13 +164,47 @@
     (function(){
       var buttons=Array.prototype.slice.call(document.querySelectorAll('.category-chip'));
       var cards=Array.prototype.slice.call(document.querySelectorAll('.tool-card'));
+      var activeFilter='all';
+      function render(){
+        cards.forEach(function(card){
+          card.hidden=card.dataset.roleHidden==='true'||(activeFilter!=='all'&&card.dataset.category!==activeFilter);
+        });
+        buttons.forEach(function(button){
+          var category=button.dataset.filter;
+          var available=category==='all'||cards.some(function(card){return card.dataset.category===category&&card.dataset.roleHidden!=='true'});
+          button.hidden=!available;
+        });
+      }
+      async function applyRole(){
+        if(!window.ACAuth)return;
+        await window.ACAuth.ready;
+        var active=window.ACAuth.hasAccess&&window.ACAuth.hasAccess();
+        cards.forEach(function(card){
+          var allowed=!active||window.ACAuth.canUseTool(card.dataset.roleTool);
+          card.dataset.roleHidden=String(!allowed);
+        });
+        if(activeFilter!=='all'&&!cards.some(function(card){return card.dataset.category===activeFilter&&card.dataset.roleHidden!=='true'})){
+          activeFilter='all';
+          buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item.dataset.filter==='all'))});
+        }
+        var profile=window.ACAuth.profile&&window.ACAuth.profile();
+        var summary=document.getElementById('roleToolSummary');
+        if(summary&&active){
+          var count=cards.filter(function(card){return card.dataset.roleHidden!=='true'}).length;
+          summary.textContent='Showing '+count+' tool'+(count===1?'':'s')+' approved for '+window.ACAuth.roleLabel(profile&&profile.role)+'. Tools outside this role stay hidden.';
+        }
+        render();
+      }
       buttons.forEach(function(button){
         button.addEventListener('click',function(){
-          var filter=button.dataset.filter;
+          activeFilter=button.dataset.filter;
           buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item===button))});
-          cards.forEach(function(card){card.hidden=filter!=='all'&&card.dataset.category!==filter});
+          render();
         });
       });
+      window.addEventListener('ac-auth-ready',applyRole);
+      window.addEventListener('ac-auth-changed',applyRole);
+      applyRole();
     })();
   </script>
   <script src="./shared/dashboard-v43.js?v=44"></script>

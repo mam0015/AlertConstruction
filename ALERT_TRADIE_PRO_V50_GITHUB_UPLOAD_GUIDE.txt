@@ -1,0 +1,79 @@
+ALERT TRADIE PRO V50 — FINANCIAL DATA SIDEBAR REPAIR
+COMPLETE GITHUB WEBSITE PACKAGE
+====================================================
+
+WHY THIS REPAIR IS REQUIRED
+---------------------------
+The V44 Finance migration created get_ac_finance_snapshot, but that function
+used role_value without declaring it. Supabase could accept the SQL and show
+Success, while the function still failed only when the website called it.
+V49 then hid the Financial Data sidebar button after that failed request.
+
+V50 fixes both problems:
+
+- the repair SQL declares the signed-in role correctly;
+- the public website no longer hides an authorised Finance menu because of a
+  temporary database/request error.
+
+No account, project, finance entry, photo, file, invoice or team data is
+deleted or reset.
+
+
+FILES
+-----
+Public website:
+AlertTradiePro-V50-WEB-PUBLIC-FINAL.zip
+
+Private Supabase repair:
+20260730_finance_snapshot_repair_v50.sql
+
+
+INSTALLATION ORDER
+------------------
+1. In Supabase, open SQL Editor and create a new query.
+2. Open 20260730_finance_snapshot_repair_v50.sql.
+3. Copy the complete SQL into the new query and select Run.
+4. Confirm that Supabase shows Success.
+5. Upload every item INSIDE AlertTradiePro-V50-WEB-PUBLIC-FINAL.zip to the
+   root of the existing GitHub repository, replacing matching files.
+6. Wait for GitHub Pages to finish deploying.
+7. Sign out, reopen the website in a private/incognito window, sign in as the
+   Owner, and hard-refresh once.
+8. Open Operation Hub. Financial Data must appear directly below Commercial
+   and above Workspace.
+
+
+EXPECTED OWNER RESULT
+---------------------
+Financial Data contains:
+
+- Overview
+- Income
+- Expenses
+- Project Budgets
+- Approvals
+- Finance Access
+
+Finance values entered in these sections update the authorised finance cards
+and Finance Summary on the Operation Hub Overview.
+
+
+ROLE SECURITY
+-------------
+V50 does not widen access:
+
+- Owner: full company finance dashboard and management.
+- Admin: only finance permissions enabled by the Owner.
+- Manager: assigned-project commercial information.
+- Estimator: assigned-project budget and estimate values only.
+- Site Supervisor and Worker: their own expense submissions only.
+
+Supabase permission checks and Row-Level Security remain active.
+
+
+CACHE
+-----
+V50 uses the service-worker cache alert-tradie-pro-v50 and the Finance script
+cache key finance.js?v=50.
+
+Do not upload the SQL file, private package, key or .env file to GitHub.
