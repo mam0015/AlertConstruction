@@ -19,6 +19,12 @@
   const projectName=id=>project(id)?.name||'Project';
   const currentSheet=()=>state.timesheets.find(item=>item.user_id===state.viewer?.id&&!item.clock_out)||null;
   const hasReport=timesheetId=>state.reports.some(item=>item.timesheet_id===timesheetId);
+  const setText=(id,value)=>{const node=$(id);if(node)node.textContent=value};
+  const sheetMinutes=item=>item.clock_out?Math.max(0,Number(item.total_minutes)||0):Math.max(0,Math.floor((Date.now()-new Date(item.clock_in).getTime())/60000)-Number(item.break_minutes||0));
+  const activeMembers=()=>state.members.filter(item=>item&&item.active!==false&&!['pending','rejected'].includes(item.role));
+  const compareLabel=(current,previous,noun)=>{const change=current-previous;if(change===0)return`No change vs yesterday`;return`${Math.abs(change)} ${noun}${Math.abs(change)===1?'':'s'} ${change>0?'more':'fewer'} than yesterday`};
+  const weekStart=()=>{const date=new Date(),day=date.getDay()||7;date.setHours(0,0,0,0);date.setDate(date.getDate()-day+1);return date};
+  const dashboardImage=index=>['../assets/luxury-property.webp','../assets/luxury-renovation.webp','../assets/luxury-site.webp'][index%3];
 
   async function headers(){return{apikey:config.publishableKey||'','Content-Type':'application/json',...await window.ACAuth.headers()}}
   async function rpc(name,body={}){const response=await fetch(`${apiBase}/rest/v1/rpc/${name}`,{method:'POST',headers:await headers(),body:JSON.stringify(body)}),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||data.error||`${name} failed (${response.status}).`);return data}
@@ -45,13 +51,24 @@
     const tasks=[
       {id:'task-1',project_id:'project-rowville',assigned_to:'worker-preview',task_date:today(),title:'Complete bedroom wiring',description:'The electrician must complete the bedroom wiring today.',manager_note:'Photograph the completed rough-in before leaving.',status:'not_completed',created_by:'manager-preview',created_at:iso(7200000)},
       {id:'task-2',project_id:'project-rowville',assigned_to:'supervisor-preview',task_date:today(),title:'Check waterproofing preparation',description:'Confirm the substrate and falls are ready before membrane starts.',manager_note:'Call the manager if the floor waste position is wrong.',status:'completed',created_by:'owner-preview',completed_at:iso(1200000),created_at:iso(10800000)},
-      {id:'task-3',project_id:'project-glen',assigned_to:'estimator-preview',task_date:today(),title:'Review plumbing variation',description:'Check the received variation against the approved project scope.',manager_note:'',status:'not_completed',created_by:'manager-preview',created_at:iso(4200000)}
+      {id:'task-3',project_id:'project-glen',assigned_to:'estimator-preview',task_date:today(),title:'Review plumbing variation',description:'Check the received variation against the approved project scope.',manager_note:'',status:'not_completed',created_by:'manager-preview',created_at:iso(4200000)},
+      {id:'task-4',project_id:'project-rowville',assigned_to:'supervisor-preview',task_date:today(),title:'Site clean-up and waste removal',description:'Confirm access paths and the main work area are clear.',manager_note:'',status:'completed',created_by:'manager-preview',completed_at:iso(2400000),created_at:iso(8200000)},
+      {id:'task-5',project_id:'project-glen',assigned_to:'worker-preview',task_date:today(),title:'Deliver materials — beams and timber',description:'Check delivery quantities against the project list.',manager_note:'',status:'not_completed',created_by:'manager-preview',created_at:iso(5200000)}
     ];
     const timesheets=[
-      {id:'sheet-1',project_id:'project-rowville',user_id:'worker-preview',work_date:today(),clock_in:iso(7*3600000),clock_out:iso(900000),break_minutes:30,total_minutes:375,approved_by:null,approved_at:null},
-      {id:'sheet-2',project_id:'project-rowville',user_id:'supervisor-preview',work_date:shiftDate(-1),clock_in:iso(32*3600000),clock_out:iso(24*3600000),break_minutes:30,total_minutes:450,approved_by:'manager-preview',approved_at:iso(22*3600000)}
+      {id:'sheet-1',project_id:'project-rowville',user_id:'worker-preview',work_date:today(),clock_in:iso(8*3600000),clock_out:iso(45*60000),break_minutes:30,total_minutes:405,approved_by:null,approved_at:null},
+      {id:'sheet-2',project_id:'project-rowville',user_id:'supervisor-preview',work_date:shiftDate(-1),clock_in:iso(32*3600000),clock_out:iso(24*3600000),break_minutes:30,total_minutes:450,approved_by:'manager-preview',approved_at:iso(22*3600000)},
+      {id:'sheet-3',project_id:'project-rowville',user_id:'manager-preview',work_date:today(),clock_in:iso(9*3600000),clock_out:iso(75*60000),break_minutes:45,total_minutes:420,approved_by:'owner-preview',approved_at:iso(60*60000)},
+      {id:'sheet-4',project_id:'project-glen',user_id:'supervisor-preview',work_date:today(),clock_in:iso(10*3600000),clock_out:iso(2*3600000),break_minutes:30,total_minutes:450,approved_by:'manager-preview',approved_at:iso(90*60000)},
+      {id:'sheet-5',project_id:'project-glen',user_id:'estimator-preview',work_date:shiftDate(-2),clock_in:iso(56*3600000),clock_out:iso(49*3600000),break_minutes:30,total_minutes:390,approved_by:'owner-preview',approved_at:iso(48*3600000)},
+      {id:'sheet-6',project_id:'project-rowville',user_id:'worker-preview',work_date:shiftDate(-3),clock_in:iso(80*3600000),clock_out:iso(76*3600000),break_minutes:15,total_minutes:225,approved_by:'manager-preview',approved_at:iso(74*3600000)}
     ];
-    const reports=[{id:'report-1',timesheet_id:'sheet-2',project_id:'project-rowville',user_id:'supervisor-preview',role_snapshot:'site_supervisor',report_date:shiftDate(-1),clock_in:timesheets[1].clock_in,clock_out:timesheets[1].clock_out,total_minutes:450,completed_work:'Checked waterproofing preparation and updated the site checklist.',unfinished_work:'Bedroom wet-area photos still need filing.',issues_delays:'No material delay.',tomorrow_notes:'Confirm membrane delivery before 8 am.',submitted_at:iso(23*3600000)}];
+    const reports=[
+      {id:'report-1',timesheet_id:'sheet-2',project_id:'project-rowville',user_id:'supervisor-preview',role_snapshot:'site_supervisor',report_date:shiftDate(-1),clock_in:timesheets[1].clock_in,clock_out:timesheets[1].clock_out,total_minutes:450,completed_work:'Checked waterproofing preparation and updated the site checklist.',unfinished_work:'Bedroom wet-area photos still need filing.',issues_delays:'No material delay.',tomorrow_notes:'Confirm membrane delivery before 8 am.',submitted_at:iso(23*3600000)},
+      {id:'report-2',timesheet_id:'sheet-1',project_id:'project-rowville',user_id:'worker-preview',role_snapshot:'worker',report_date:today(),clock_in:timesheets[0].clock_in,clock_out:timesheets[0].clock_out,total_minutes:405,completed_work:'Installed bedroom cabling and completed the rough-in photos.',unfinished_work:'Fit-off remains for the next stage.',issues_delays:'No delay.',tomorrow_notes:'Check switch locations with the supervisor.',submitted_at:iso(35*60000)},
+      {id:'report-3',timesheet_id:'sheet-3',project_id:'project-rowville',user_id:'manager-preview',role_snapshot:'manager',report_date:today(),clock_in:timesheets[2].clock_in,clock_out:timesheets[2].clock_out,total_minutes:420,completed_work:'Reviewed the project program and coordinated tomorrow’s trades.',unfinished_work:'Supplier confirmation pending.',issues_delays:'Timber delivery moved to the afternoon.',tomorrow_notes:'Confirm delivery before 9 am.',submitted_at:iso(55*60000)},
+      {id:'report-4',timesheet_id:'sheet-4',project_id:'project-glen',user_id:'supervisor-preview',role_snapshot:'site_supervisor',report_date:today(),clock_in:timesheets[3].clock_in,clock_out:timesheets[3].clock_out,total_minutes:450,completed_work:'Completed plumbing rough-in inspection. All checked items passed.',unfinished_work:'Upload final inspection photos.',issues_delays:'No delay.',tomorrow_notes:'Prepare for wall close-up.',submitted_at:iso(80*60000)}
+    ];
     const history=[
       {id:'h1',actor_id:'manager-preview',project_id:'project-rowville',record_id:'task-1',action:'daily_task_created',module:'team-management',details:{assigned_to:'worker-preview',title:'Complete bedroom wiring'},created_at:iso(7200000)},
       {id:'h2',actor_id:'worker-preview',project_id:'project-rowville',record_id:'sheet-1',action:'clock_out',module:'team-management',details:{total_minutes:375},created_at:iso(900000)},
@@ -77,16 +94,83 @@
   function applyRoleUI(){
     const management=canManage(),access=!!state.viewer?.can_manage_access,commandAccess=management||access;
     const supervisor=state.viewer?.role==='site_supervisor',workspaceName=management?'Team Management':'My Workday',taskName=management?'Daily Tasks':supervisor?'Project Tasks':'My Tasks';
-    document.querySelectorAll('[data-tm-tab="members"],[data-tm-tab="history"]').forEach(button=>button.hidden=!management);
-    $('tmNewTask').hidden=!management;document.querySelectorAll('.tm-manager-filter').forEach(row=>row.hidden=!management);
+    document.querySelectorAll('[data-tm-tab="overview"],[data-tm-tab="members"],[data-tm-tab="history"]').forEach(button=>button.hidden=!management);
+    $('tmNewTask').hidden=!management;$('tmInviteMember').hidden=!management;$('tmDashboardAddMember').hidden=!management;document.querySelectorAll('.tm-manager-filter').forEach(row=>row.hidden=!management);
     document.querySelectorAll('[data-view="overview"],[data-view="team"],[data-view="activity"],[data-view="messages"]').forEach(button=>button.hidden=!commandAccess);
     const requestedView=new URLSearchParams(location.search).get('view')||'';
+    if(requestedView==='team-management')document.querySelector('[data-view="team-management"]')?.click();
     if(!commandAccess&&!['financial-data','photo-timeline'].includes(requestedView)){document.querySelector('[data-view="team-management"]')?.click()}
     window.ACRefreshSideGroups?.();
-    if(!management){switchTab('tasks')}
-    $('teamWorkspaceNavLabel').textContent=workspaceName;$('teamWorkspaceTitle').textContent=`${workspaceName}.`;$('teamWorkspaceDescription').textContent=management?'Manage people, daily instructions, project attendance, approved hours and end-of-day reporting.':supervisor?'View today’s authorised project tasks and manage only your own hours and daily reports.':'View your assigned tasks and manage only your own hours and daily reports.';$('teamWorkspaceTabs').setAttribute('aria-label',`${workspaceName} sections`);
+    const requestedTeamTab=new URLSearchParams(location.search).get('teamTab');
+    switchTab(management&&['overview','members','tasks','timesheets','reports','history'].includes(requestedTeamTab)?requestedTeamTab:management?'overview':'tasks');
+    $('teamWorkspaceNavLabel').textContent=workspaceName;$('teamWorkspaceTitle').textContent=workspaceName;$('teamWorkspaceDescription').textContent=management?'Manage your team, tasks, time and daily reporting from one place.':supervisor?'View today’s authorised project tasks and manage only your own hours and daily reports.':'View your assigned tasks and manage only your own hours and daily reports.';$('teamWorkspaceTabs').setAttribute('aria-label',`${workspaceName} sections`);
     $('tmTasksTabLabel').textContent=taskName;$('tmTimesheetsTabLabel').textContent=management?'Timesheets':'My Timesheets';$('tmReportsTabLabel').textContent=management?'Daily Reports':'My Daily Reports';$('tmTasksHeading').textContent=taskName;$('tmTasksEyebrow').textContent=management?'Daily instructions':supervisor?'Today’s project instructions':'Personal instructions';$('tmTasksDescription').textContent=management?'Write any task in plain language. New tasks start as Not Completed.':supervisor?'Read-only tasks for today across projects assigned to you. Final status is set by the Owner or Manager.':'Your assigned work is read only. Final status is set by the Owner or Manager.';$('tmTimesheetsHeading').textContent=management?'Clock In / Clock Out':'My Clock In / Clock Out';$('tmTimesheetsDescription').textContent=management?'Review team attendance, approve completed hours and record your own time.':'Record only your own attendance. Approved hours are locked.';$('tmReportsHeading').textContent=management?'Daily Reports':'My Daily Reports';$('tmReportsDescription').textContent=management?'Submit your report and review reports from the team.':'Submit and review only your own end-of-day reports.';
     const card=$('builderAccessCard');if(card){card.querySelector('strong').textContent=`${roleLabel(state.viewer.role)} access`;card.querySelector('span').textContent=management?'Full Team Management with project, user and date controls.':'My Workday shows only authorised project tasks and personal work records.'}
+  }
+
+  function renderDashboard(){
+    if(!canManage())return;
+    const members=activeMembers(),todayKey=today(),yesterdayKey=shiftDate(-1);
+    const todayTasks=state.tasks.filter(item=>item.task_date===todayKey);
+    const completed=todayTasks.filter(item=>item.status==='completed').length;
+    const taskPercent=todayTasks.length?Math.round(completed/todayTasks.length*100):0;
+    const todaySheets=state.timesheets.filter(item=>item.work_date===todayKey);
+    const yesterdaySheets=state.timesheets.filter(item=>item.work_date===yesterdayKey);
+    const todayMinutes=todaySheets.reduce((sum,item)=>sum+sheetMinutes(item),0);
+    const yesterdayMinutes=yesterdaySheets.reduce((sum,item)=>sum+sheetMinutes(item),0);
+    const todayReports=state.reports.filter(item=>item.report_date===todayKey);
+    const yesterdayReports=state.reports.filter(item=>item.report_date===yesterdayKey);
+    const monthStart=new Date();monthStart.setDate(1);monthStart.setHours(0,0,0,0);
+    const newThisMonth=members.filter(item=>item.created_at&&new Date(item.created_at)>=monthStart).length;
+    setText('tmKpiMembers',members.length);
+    setText('tmKpiMemberTrend',newThisMonth?`${newThisMonth} new this month`:`${members.length} active member${members.length===1?'':'s'}`);
+    $('tmKpiMemberTrend').className=newThisMonth?'positive':'';
+    setText('tmKpiTasksCompleted',completed);setText('tmKpiTasksTotal',todayTasks.length);setText('tmKpiTasksPercent',`${taskPercent}%`);
+    $('tmKpiTaskRing').style.setProperty('--tm-progress',`${taskPercent}%`);
+    setText('tmKpiTaskTrend',todayTasks.length?`${todayTasks.length-completed} still open`:'No tasks assigned today');
+    setText('tmKpiHours',minutesLabel(todayMinutes));
+    setText('tmKpiHoursTrend',compareLabel(Math.round(todayMinutes/60),Math.round(yesterdayMinutes/60),'hour'));
+    $('tmKpiHoursTrend').className=todayMinutes>yesterdayMinutes?'positive':todayMinutes<yesterdayMinutes?'negative':'';
+    setText('tmKpiReports',todayReports.length);
+    setText('tmKpiReportsTrend',compareLabel(todayReports.length,yesterdayReports.length,'report'));
+    $('tmKpiReportsTrend').className=todayReports.length>yesterdayReports.length?'positive':todayReports.length<yesterdayReports.length?'negative':'';
+
+    $('tmDashboardMembers').innerHTML=members.slice(0,5).map(item=>{
+      const sheets=state.timesheets.filter(sheet=>sheet.user_id===item.id&&sheet.work_date===todayKey);
+      const open=sheets.find(sheet=>!sheet.clock_out),worked=sheets.reduce((sum,sheet)=>sum+sheetMinutes(sheet),0);
+      const presence=open?['on','On Site']:worked?['','Off Site']:['','Not Clocked In'];
+      return`<div class="tm-dashboard-member"><div class="tm-dashboard-avatar ${item.role==='owner'?'owner':''}">${esc(initials(item.full_name||item.email))}</div><div><strong>${esc(item.full_name||item.email||'Team member')}</strong><small>${esc(roleLabel(item.role))}</small></div><span class="tm-presence ${presence[0]}">${esc(presence[1])}</span></div>`;
+    }).join('')||'<div class="tm-empty-compact">No active team members.</div>';
+
+    const orderedTasks=[...todayTasks].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,5);
+    $('tmDashboardTasks').innerHTML=orderedTasks.map(item=>{
+      const complete=item.status==='completed';
+      return`<div class="tm-dashboard-task" data-dashboard-task-row="${esc(item.id)}"><span class="tm-task-leading">✓</span><div><strong>${esc(item.title)}</strong><small>${esc(projectName(item.project_id))}</small></div><button class="tm-task-result ${complete?'complete':''}" type="button" data-dashboard-task="${esc(item.id)}" aria-label="${complete?'Mark task not completed':'Mark task completed'}">${complete?'✓':''}</button></div>`;
+    }).join('')||'<div class="tm-empty-compact">No tasks assigned today.</div>';
+
+    const regular=todaySheets.reduce((sum,item)=>sum+Math.min(sheetMinutes(item),480),0);
+    const overtime=todaySheets.reduce((sum,item)=>sum+Math.max(0,sheetMinutes(item)-480),0);
+    const breaks=todaySheets.reduce((sum,item)=>sum+Math.max(0,Number(item.break_minutes)||0),0);
+    const donutTotal=regular+overtime+breaks,regularPct=donutTotal?regular/donutTotal*100:0,overtimePct=donutTotal?overtime/donutTotal*100:0;
+    setText('tmTimesheetTotal',minutesLabel(todayMinutes));setText('tmRegularTime',minutesLabel(regular));setText('tmOvertime',minutesLabel(overtime));setText('tmBreakTime',minutesLabel(breaks));
+    $('tmTimesheetDonut').style.setProperty('--tm-regular',`${regularPct.toFixed(2)}%`);$('tmTimesheetDonut').style.setProperty('--tm-overtime',`${overtimePct.toFixed(2)}%`);
+
+    $('tmDashboardReports').innerHTML=[...state.reports].sort((a,b)=>String(b.submitted_at||'').localeCompare(String(a.submitted_at||''))).slice(0,3).map((item,index)=>`<div class="tm-dashboard-report"><img src="${dashboardImage(index)}" alt=""><div><strong>${esc(projectName(item.project_id))}</strong><p>${esc(item.completed_work||'Daily progress report submitted.')}</p><small>By ${esc(memberName(item.user_id))}</small></div><time>${esc(timeOnly(item.submitted_at))}</time></div>`).join('')||'<div class="tm-empty-compact">No daily reports submitted.</div>';
+
+    $('tmDashboardHistory').innerHTML=[...state.history].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,4).map(item=>{
+      const info=historyInfo(item.action),subject=item.details?.assigned_to||item.details?.user_id;
+      const detail=[info[1],item.details?.title||'',subject&&subject!==item.actor_id?memberName(subject):''].filter(Boolean).join(' · ');
+      return`<div class="tm-dashboard-event"><div class="tm-event-avatar">${esc(initials(memberName(item.actor_id)))}</div><div><strong>${esc(memberName(item.actor_id))}</strong><small>${esc(detail)}</small></div><time>${esc(localDate(item.created_at)===todayKey?'Today, '+timeOnly(item.created_at):dateLabel(localDate(item.created_at)))}</time></div>`;
+    }).join('')||'<div class="tm-empty-compact">No team activity recorded.</div>';
+
+    const start=weekStart(),dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    $('tmAttendanceChart').innerHTML=dayNames.map((label,index)=>{
+      const date=new Date(start);date.setDate(start.getDate()+index);const key=localDate(date),byMember=new Map();
+      state.timesheets.filter(item=>item.work_date===key).forEach(item=>byMember.set(item.user_id,(byMember.get(item.user_id)||0)+sheetMinutes(item)));
+      const total=Math.max(1,members.length),present=[...byMember.values()].filter(value=>value>=360).length,partial=[...byMember.values()].filter(value=>value>0&&value<360).length;
+      const presentPct=present/total*100,partialPct=partial/total*100,absentPct=Math.max(0,100-presentPct-partialPct);
+      return`<div class="tm-day-column" title="${esc(`${label}: ${present} present, ${partial} partial, ${Math.max(0,members.length-present-partial)} absent`)}"><div class="tm-day-bar"><i class="present" style="height:${presentPct}%"></i><i class="partial" style="height:${partialPct}%"></i><i class="absent" style="height:${absentPct}%"></i></div><b>${label}</b></div>`;
+    }).join('');
   }
 
   function renderAll(){
@@ -95,7 +179,7 @@
     ['tmTaskProjectFilter','tmTimeProjectFilter','tmReportProjectFilter','tmHistoryProject'].forEach(id=>fillSelect(id,projects,'All projects'));
     updateTaskAssignees();
     ['tmTaskUserFilter','tmTimeUserFilter','tmReportUserFilter','tmHistoryUser'].forEach(id=>fillSelect(id,members,'All people'));
-    renderClock();renderMembers();renderTasks();renderTimesheets();renderReports();renderHistory();renderReportChoices();
+    renderClock();renderDashboard();renderMembers();renderTasks();renderTimesheets();renderReports();renderHistory();renderReportChoices();
     const open=currentSheet();$('teamManagementBadge').textContent=open?'1':'';$('teamManagementBadge').classList.toggle('show',!!open);
   }
 
@@ -126,7 +210,14 @@
   function filteredHistory(){const projectId=$('tmHistoryProject').value,userId=$('tmHistoryUser').value,from=$('tmHistoryFrom').value,to=$('tmHistoryTo').value;return state.history.filter(item=>(!projectId||item.project_id===projectId)&&(!userId||item.actor_id===userId||item.details?.user_id===userId||item.details?.assigned_to===userId)&&(!from||localDate(item.created_at)>=from)&&(!to||localDate(item.created_at)<=to))}
   function renderHistory(){if(!canManage())return;const rows=filteredHistory();$('tmHistoryList').innerHTML=rows.map(item=>{const [icon,title]=historyInfo(item.action),subject=item.details?.assigned_to||item.details?.user_id,detail=[projectName(item.project_id),subject?memberName(subject):'',item.details?.title||'',item.details?.to?`Status: ${String(item.details.to).replace(/_/g,' ')}`:''].filter(Boolean).join(' • ');return`<article class="tm-history-item"><div class="tm-history-icon">${esc(icon)}</div><div class="tm-history-copy"><strong>${esc(title)}</strong><span>${esc(memberName(item.actor_id))}${detail?' • '+esc(detail):''}</span></div><time>${esc(dateTime(item.created_at))}</time></article>`}).join('')||'<div class="tm-empty">No Team Management activity matches these filters.</div>'}
 
-  function switchTab(tab){document.querySelectorAll('[data-tm-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tmTab===tab));document.querySelectorAll('[data-tm-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.tmPanel===tab))}
+  function switchTab(tab){
+    const overview=tab==='overview'&&canManage(),workspace=$('teamManagementView'),dashboard=document.querySelector('[data-tm-dashboard]');
+    if(dashboard)dashboard.hidden=!overview;
+    workspace?.classList.toggle('tm-detail-open',!overview);
+    document.querySelectorAll('[data-tm-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tmTab===tab));
+    document.querySelectorAll('[data-tm-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.tmPanel===tab));
+    const url=new URL(location.href);if(tab==='overview')url.searchParams.delete('teamTab');else url.searchParams.set('teamTab',tab);history.replaceState(null,'',url);
+  }
   function resetTaskForm(){['tmTaskId','tmTaskTitle','tmTaskDescription','tmTaskNote'].forEach(id=>$(id).value='');$('tmTaskDate').value=today();$('tmTaskForm').hidden=true}
   function editTask(id){const item=state.tasks.find(task=>task.id===id);if(!item)return;$('tmTaskId').value=item.id;$('tmTaskProject').value=item.project_id;updateTaskAssignees(item.assigned_to);$('tmTaskDate').value=item.task_date;$('tmTaskTitle').value=item.title;$('tmTaskDescription').value=item.description||'';$('tmTaskNote').value=item.manager_note||'';$('tmTaskForm').hidden=false;$('tmTaskForm').scrollIntoView({behavior:'smooth',block:'center'})}
 
@@ -134,6 +225,12 @@
   function uid(prefix){return`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`}
 
   document.querySelectorAll('[data-tm-tab]').forEach(button=>button.addEventListener('click',()=>switchTab(button.dataset.tmTab)));
+  document.querySelectorAll('[data-tm-open-tab]').forEach(button=>button.addEventListener('click',()=>{switchTab(button.dataset.tmOpenTab);$('teamWorkspaceTabs').scrollIntoView({behavior:'smooth',block:'start'})}));
+  document.querySelectorAll('[data-open-team-tab]').forEach(button=>button.addEventListener('click',()=>switchTab(button.dataset.openTeamTab)));
+  document.querySelectorAll('[data-tm-command-view]').forEach(button=>button.addEventListener('click',()=>{document.querySelector(`[data-view="${button.dataset.tmCommandView}"]`)?.click();button.closest('details')?.removeAttribute('open')}));
+  const openTeamAccess=()=>document.querySelector('[data-view="team"]')?.click();
+  $('tmInviteMember').addEventListener('click',openTeamAccess);$('tmDashboardAddMember').addEventListener('click',openTeamAccess);$('tmRefreshDashboard').addEventListener('click',()=>load());
+  $('tmDashboardTasks').addEventListener('click',event=>{const button=event.target.closest('[data-dashboard-task]');if(!button||!canManage())return;const item=state.tasks.find(task=>task.id===button.dataset.dashboardTask);if(!item)return;const completed=item.status!=='completed';mutate('set_ac_daily_task_status',{p_task_id:item.id,p_completed:completed},()=>{item.status=completed?'completed':'not_completed';item.completed_at=completed?new Date().toISOString():null},completed?'Task marked Completed.':'Task marked Not Completed.').catch(()=>{})});
   $('tmMemberSearch').addEventListener('input',renderMembers);$('tmMemberRole').addEventListener('change',renderMembers);
   $('tmTaskProject').addEventListener('change',()=>updateTaskAssignees());
   $('tmMemberGrid').addEventListener('change',event=>{const input=event.target.closest('[data-project-assignment]');if(!input)return;const memberId=input.closest('[data-member]').dataset.member,projectId=input.dataset.projectAssignment,assigned=input.checked;input.disabled=true;mutate('set_ac_project_assignment',{p_project_id:projectId,p_user:memberId,p_assigned:assigned},()=>{if(assigned)state.assignments.push({id:uid('assignment'),project_id:projectId,user_id:memberId,created_at:new Date().toISOString()});else state.assignments=state.assignments.filter(item=>!(item.project_id===projectId&&item.user_id===memberId))},assigned?'Project access assigned.':'Project access removed.').catch(()=>{input.checked=!assigned}).finally(()=>input.disabled=false)});

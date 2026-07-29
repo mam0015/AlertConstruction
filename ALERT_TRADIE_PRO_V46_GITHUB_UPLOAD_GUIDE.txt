@@ -1,0 +1,156 @@
+ALERT TRADIE PRO V46 — TEAM MANAGEMENT COMMAND CENTRE
+COMPLETE GITHUB WEBSITE PACKAGE
+======================================================
+
+PACKAGE PURPOSE
+---------------
+AlertTradiePro-V46-WEB-PUBLIC-FINAL.zip is the complete public web app.
+It keeps the verified V45 Operation Hub and V44 finance system, then rebuilds
+Team Management to closely follow the supplied dark construction dashboard
+reference.
+
+Copy the complete contents of this package to the ROOT of the existing
+mam0015/AlertConstruction GitHub repository. This is not a partial patch.
+
+
+WHAT V46 CHANGES
+----------------
+- Rebuilds Team Management as a black-and-gold operations command centre.
+- Uses the existing Alert Tradie Pro AT logo; no reference-image logo is copied.
+- Matches the reference page hierarchy, spacing, density, fine borders,
+  dashboard cards, chart treatment and responsive behaviour.
+- Adds four live Team Management KPI cards:
+  - Total Team Members
+  - Tasks Completed Today
+  - Hours Logged Today
+  - Reports Submitted
+- Adds six live management panels:
+  - Team Members
+  - Daily Tasks
+  - Timesheet Overview
+  - Daily Reports
+  - Team History
+  - Attendance Summary
+- Uses real authorised Supabase snapshot data in production. Empty workspaces
+  show clear empty states instead of invented company totals.
+- Keeps detailed Team Members, Tasks, Timesheets, Reports and History workspaces
+  behind the View all controls.
+- Keeps task creation/editing/status, project assignment, clock in/out, break
+  records, timesheet approval and end-of-day report functions.
+- Reorders the Operation Hub sidebar to follow the supplied Operations and
+  Tools & Features structure.
+- Adds direct sidebar shortcuts for projects, quotes, estimates, finance,
+  invoices, schedule, checklists, documents, reports and site diary.
+- Preserves the mobile overlay drawer and makes KPI cards horizontally
+  swipeable on small screens without horizontal page overflow.
+- Keeps Team Management readable in light mode while retaining the requested
+  dark-mode identity.
+
+
+EXISTING V45 AND V44 FEATURES RETAINED
+--------------------------------------
+- Reference-matched Operation Hub command centre.
+- Featured project, approvals, activity, performance, operations, schedule,
+  finance, document and project-status panels.
+- Clickable finance cards and cash-flow, comparison and category charts.
+- Project budgets, committed costs, forecasts, approvals and private receipts.
+- Invoice Generator, Photo Timeline, project files, team chat and all
+  estimating and AI tools.
+
+
+DATA AND BACKEND COMPATIBILITY
+------------------------------
+V46 keeps the existing:
+- GitHub Pages path: /AlertConstruction/
+- public Supabase URL and publishable/anon key configuration
+- ac_ tables and RPC names
+- organisations, accounts, roles, projects and project assignments
+- daily tasks, timesheets, daily reports and Team Management history
+- invoices, finance records, project photos, messages and files
+
+V46 is an interface release. It does not add a database migration.
+If V45 is working, no new Supabase deployment is required.
+
+
+DEPLOYMENT
+----------
+1. Back up the current GitHub repository.
+2. Unzip AlertTradiePro-V46-WEB-PUBLIC-FINAL.zip.
+3. Copy EVERYTHING INSIDE the extracted package into the repository root.
+4. Allow the upload to replace existing files.
+5. Confirm .nojekyll remains at the repository root.
+6. Review, commit and deploy through the normal GitHub Pages workflow.
+
+Suggested commit message:
+
+  V46 redesign Team Management command centre
+
+Never upload the private Supabase ZIP, supabase/ folder, .env files,
+service_role keys, database backups, receipts or customer files to GitHub.
+
+
+ROLE-SAFE TEAM MANAGEMENT
+-------------------------
+Owner / authorised team manager
+  Receives the complete dashboard and detailed management controls allowed by
+  the existing Team Management Supabase permission response.
+
+Admin / Manager
+  Receives the full command centre when the existing backend grants
+  can_manage. Owner-only account, role and Team Code controls remain protected
+  by their existing server rules.
+
+Site Supervisor
+  Receives My Workday with authorised project tasks and only their own
+  timesheets and daily reports. The management dashboard is not exposed.
+
+Estimator / Worker
+  Receives My Workday with only role-authorised personal records. The
+  management dashboard, full member list and Team History are not exposed.
+
+The interface continues to trust the server permission response and does not
+replace Supabase Row-Level Security with hidden buttons.
+
+
+CACHE REFRESH
+-------------
+V46 uses the service-worker cache name alert-tradie-pro-v46.
+
+Desktop:
+  Hard-refresh with Ctrl+Shift+R on Windows or Cmd+Shift+R on Mac.
+
+iPhone/iPad PWA:
+  If the old interface remains, remove the Home Screen app, open the live site
+  in Safari, then use Share > Add to Home Screen.
+
+Android PWA:
+  Close and reopen the app. If required, clear the site's cached data or
+  reinstall the PWA.
+
+
+REQUIRED LIVE CHECK
+-------------------
+1. Owner:
+   - Open Operation Hub > Team Management.
+   - Confirm four KPI cards and six dashboard panels are visible.
+   - Confirm View all opens each detailed workspace.
+   - Change one sample task status and confirm the KPI updates.
+
+2. Admin and Manager:
+   - Confirm only the data returned for the authorised workspace is visible.
+   - Confirm Owner-only role and Team Code mutations remain protected.
+
+3. Site Supervisor, Estimator and Worker:
+   - Confirm My Workday opens instead of the management dashboard.
+   - Confirm only authorised tasks and personal work records are visible.
+
+4. Mobile:
+   - Open the Hub menu and confirm it overlays the page.
+   - Swipe the KPI row horizontally.
+   - Confirm the page itself has no horizontal overflow.
+
+
+ROLLBACK
+--------
+Restore the previous GitHub commit or Pages deployment. No database rollback is
+required because V46 adds no database migration.
