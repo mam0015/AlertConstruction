@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const $=id=>document.getElementById(id),config=window.AC_PLATFORM_CONFIG||{},apiBase=String(config.supabaseUrl||'').replace(/\/$/,''),preview=new URLSearchParams(location.search).get('preview')==='1',MAX_FILE=10*1024*1024;
+  const $=id=>document.getElementById(id),config=window.AC_PLATFORM_CONFIG||{},apiBase=String(config.supabaseUrl||'').replace(/\/$/,''),params=new URLSearchParams(location.search),preview=params.get('preview')==='1',previewRole=params.get('role')||'owner',MAX_FILE=10*1024*1024;
   let state={organisation:null,members:[],sessions:[],events:[],messages:[],selectedMember:'',selectedChat:'',messageRows:[]};
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const initials=value=>String(value||'AT').split(/[\s@._-]+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')||'AT';
@@ -8,8 +8,15 @@
   const dateTime=value=>value?new Date(value).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}):'—';
   const timeAgo=value=>{if(!value)return'No activity';const minutes=Math.max(0,Math.round((Date.now()-new Date(value).getTime())/60000));if(minutes<2)return'Active now';if(minutes<60)return`${minutes} min ago`;const hours=Math.round(minutes/60);if(hours<24)return`${hours} hr ago`;return`${Math.round(hours/24)} d ago`};
   const memberName=id=>{const member=state.members.find(item=>item.id===id);return member?.full_name||member?.email||'Team member'};
-  const currentUser=()=>preview?{id:'owner-preview',email:'mamobiniali@gmail.com'}:window.ACAuth.user();
-  const currentProfile=()=>preview?{id:'owner-preview',organisation_id:'org-preview',role:'owner',active:true}:window.ACAuth.profile();
+  const currentUser=()=>preview?({
+    owner:{id:'owner-preview',email:'mamobiniali@gmail.com'},
+    admin:{id:'owner-preview',email:'admin@alertconstruction.com.au'},
+    manager:{id:'sarah-preview',email:'sarah@alertconstruction.com.au'},
+    estimator:{id:'mohammad-preview',email:'mohammad@alertconstruction.com.au'},
+    site_supervisor:{id:'liam-preview',email:'liam@alertconstruction.com.au'},
+    worker:{id:'worker-preview',email:'worker@alertconstruction.com.au'}
+  }[previewRole]||{id:'owner-preview',email:'mamobiniali@gmail.com'}):window.ACAuth.user();
+  const currentProfile=()=>preview?{id:currentUser().id,organisation_id:'org-preview',role:previewRole,active:true}:window.ACAuth.profile();
   const cleanDetail=value=>String(value||'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
   const encodePath=path=>String(path||'').split('/').map(encodeURIComponent).join('/');
   async function apiHeaders(content=true){return{apikey:config.publishableKey||'',...(content?{'Content-Type':'application/json'}:{}),...await ACAuth.headers()}}
@@ -80,7 +87,82 @@
   }
   function renderStats(){const today=new Date();today.setHours(0,0,0,0);$('activeCount').textContent=activeMembers().length;$('onlineCount').textContent=`${activeMembers().filter(member=>online(latestSession(member.id))).length} online now`;$('pendingCount').textContent=pending().length;$('actionCount').textContent=state.events.filter(event=>new Date(event.created_at)>=today).length;$('conversationCount').textContent=1+Math.max(0,activeMembers().length-1);['overviewBadge','teamBadge'].forEach(id=>{const badge=$(id);badge.textContent=pending().length;badge.classList.toggle('show',pending().length>0)});const unread=state.messages.filter(message=>message.recipient_id===currentUser()?.id&&!message.read_at).length;$('messageBadge').textContent=unread;$('messageBadge').classList.toggle('show',unread>0)}
   function requestCard(member){return`<article class="join-card" data-member="${esc(member.id)}"><div class="join-top"><div class="avatar yellow">${esc(initials(member.full_name||member.email))}</div><div class="join-copy"><strong>${esc(member.full_name||'New team request')}</strong><span>${esc(member.email)}</span></div><span class="pending-pill">VERIFY IDENTITY</span></div><div class="join-meta"><div><small>Joined with</small><strong>Team Code</strong></div><div><small>Requested</small><strong>${esc(timeAgo(member.created_at))}</strong></div><div><small>Current access</small><strong>Locked</strong></div></div><div class="join-actions"><select aria-label="Role"><option value="worker">Worker</option><option value="estimator">Estimator</option><option value="manager">Project Manager</option><option value="site_supervisor">Site Supervisor</option><option value="admin">Admin</option></select><button class="btn primary" data-action="approve" type="button">Approve</button><button class="btn danger" data-action="decline" type="button">Remove</button></div></article>`}
-  function renderOverview(){const requests=pending();$('requestList').innerHTML=requests.length?requests.slice(0,2).map(requestCard).join('<div style="height:8px"></div>'):'<div class="empty">No new Team Code requests. Your workspace is clear.</div>';$('presenceList').innerHTML=activeMembers().slice(0,5).map(member=>{const session=latestSession(member.id),isOnline=online(session);return`<div class="person"><div class="avatar">${esc(initials(member.full_name||member.email))}</div><div class="person-copy"><strong>${esc(member.full_name||member.email)}</strong><span>${esc(roleLabel(member.role))} • ${esc(member.email)}</span></div><div class="presence ${isOnline?'online':''}"><i></i>${isOnline?'Online':timeAgo(session?.last_seen_at)}</div></div>`}).join('');$('latestActivity').innerHTML=latestEvents().slice(0,7).map(eventHtml).join('')||'<div class="empty">No company activity has been recorded yet.</div>'}
+  function renderOverview(){
+    const role=currentProfile()?.role||'worker',requests=pending(),members=activeMembers(),events=latestEvents(),today=new Date(),todayStart=new Date();todayStart.setHours(0,0,0,0);
+    const set=(id,value)=>{const node=$(id);if(node)node.textContent=value};
+    const scope={
+      owner:['Owner access','Full company control'],
+      admin:['Admin access','Authorised workspace'],
+      manager:['Project Manager','Assigned projects'],
+      estimator:['Estimator access','Estimates & assigned projects'],
+      site_supervisor:['Site Supervisor','Assigned site operations'],
+      worker:['Worker access','My workday']
+    }[role]||['Secure access','Role-protected'];
+    set('ohAccessRole',scope[0]);set('ohAccessScope',scope[1]);set('ohDashboardRole',`${role==='owner'?'Executive ':''}${roleLabel(role)} Dashboard`);
+    set('ohDateTime',today.toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}));
+
+    $('requestList').innerHTML=requests.length?requests.slice(0,2).map(requestCard).join(''):'<div class="empty">No access approvals are waiting.</div>';
+    $('presenceList').innerHTML=members.slice(0,4).map(member=>{const session=latestSession(member.id),isOnline=online(session);return`<div class="person"><div class="avatar">${esc(initials(member.full_name||member.email))}</div><div class="person-copy"><strong>${esc(member.full_name||member.email)}</strong><span>${esc(roleLabel(member.role))} • ${esc(member.email)}</span></div><div class="presence ${isOnline?'online':''}"><i></i>${isOnline?'Online':timeAgo(session?.last_seen_at)}</div></div>`}).join('')||'<div class="empty">No active team members.</div>';
+    $('latestActivity').innerHTML=events.slice(0,5).map(eventHtml).join('')||'<div class="empty">No company activity has been recorded yet.</div>';
+
+    const onlineCount=members.filter(member=>online(latestSession(member.id))).length,todayActions=events.filter(event=>new Date(event.created_at)>=todayStart).length,score=Math.min(99,Math.max(68,78+onlineCount*3+Math.min(9,todayActions)));
+    set('ohPerformanceActive',members.length);set('ohTeamScore',`${score}%`);set('ohCriticalCount',String(requests.length));set('ohMessageCount',state.messages.length);set('ohDocumentCount',events.filter(event=>event.action==='file_shared').length||'—');set('ohRegisterCount',events.length||'—');
+    const ring=$('ohTeamRing');if(ring)ring.style.background=`conic-gradient(var(--oh-green) 0 ${score}%,#2b3030 ${score}%)`;
+
+    const quoteEvents=events.filter(event=>/quote/.test(`${event.action} ${event.module}`)),companyCommercial=['owner','admin'].includes(role);
+    set('ohQuoteCount',quoteEvents.length||'—');set('ohQuoteValue',preview&&companyCommercial?'$4.62M':'—');set('ohConversionRate',preview&&companyCommercial?'36%':'—');
+
+    const priorityRows=[
+      ...requests.map(item=>({icon:'♙',title:`Approve ${item.full_name||item.email}`,detail:'Team access request',due:'Review now'})),
+      ...events.filter(event=>['warn',''].includes(eventInfo(event).tone)&&!/session/.test(event.action)).slice(0,4).map(event=>{const info=eventInfo(event);return{icon:info.icon,title:info.title,detail:info.detail,due:timeAgo(event.created_at)}})
+    ].slice(0,5);
+    set('ohPriorityCount',priorityRows.length);
+    $('ohPriorityList').innerHTML=priorityRows.length?priorityRows.map(item=>`<div class="oh-priority-row"><i>${esc(item.icon)}</i><div><strong>${esc(item.title)}</strong><span>${esc(item.detail)}</span></div><b>${esc(item.due)}</b></div>`).join(''):'<div class="empty">No urgent actions. Your workspace is clear.</div>';
+
+    const schedule=preview?[
+      ['7:30 AM','Site visit','Rowville Renovation'],
+      ['9:00 AM','Design review meeting','Glen Waverley Extension'],
+      ['11:30 AM','Progress meeting','Mitcham Townhouses'],
+      ['3:30 PM','Client walkthrough','Rowville Renovation']
+    ]:[];
+    $('ohScheduleList').innerHTML=schedule.length?schedule.map(item=>`<div class="oh-schedule-item"><time>${esc(item[0])}</time><div><strong>${esc(item[1])}</strong><span>${esc(item[2])}</span></div></div>`).join(''):'<div class="empty">Assigned schedule items will appear here.</div>';
+  }
+
+  function applyFinanceOverview(snapshot){
+    if(!snapshot)return;
+    const set=(id,value)=>{const node=$(id);if(node)node.textContent=value};
+    const money=value=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',currencyDisplay:'narrowSymbol',maximumFractionDigits:0}).format(Number(value)||0).replace(/^A\$/,'A$');
+    const company=Boolean(snapshot.permissions?.can_view_dashboard);
+    document.querySelectorAll('[data-overview-company-finance]').forEach(node=>node.hidden=!company);
+    const projects=Array.isArray(snapshot.projects)?snapshot.projects:[],primary=projects[0]||null;
+    set('ohActiveProjectCount',projects.length||'—');
+    if(primary){
+      const progress=Number.isFinite(primary.progress)?Math.max(0,Math.min(100,primary.progress)):0;
+      set('ohActiveProjectName',primary.name||'Current active project');set('ohActiveProjectAddress',primary.address||'Project workspace');
+      set('ohActiveProjectStatus',primary.status||'In progress');set('ohActiveProjectRef',primary.reference||'Operation Hub');
+      set('ohActiveProjectProgress',progress?`${Math.round(progress)}%`:'—');
+      const bar=$('ohActiveProjectBar');if(bar)bar.style.width=`${progress}%`;
+      set('ohProjectStart',primary.start||'—');set('ohProjectFinish',primary.finish||'—');
+    }
+    $('ohProjectProgressRows').innerHTML=projects.length?projects.slice(0,5).map(item=>{
+      const progress=Math.max(0,Math.min(130,Number(item.progress)||0)),tone=progress>100?'delayed':progress>85?'risk':'',status=progress>100?'Over budget':progress>85?'At risk':'On track';
+      return`<div class="oh-project-row ${tone}"><strong>${esc(item.name||'Project')}</strong><span>${Math.round(progress)}%</span><i><b style="width:${Math.min(100,progress)}%"></b></i><em>${status}</em></div>`;
+    }).join(''):'<div class="oh-empty-line">Projects will appear here when available.</div>';
+
+    const finance=snapshot.summary||{},budget=Number(snapshot.budget)||0,actual=Number(snapshot.actual)||0,committed=Number(snapshot.committed)||0,forecast=Number(snapshot.forecast)||0,profit=Number(finance.forecastProfit)||0,revenue=Number(finance.revenue)||0,cash=Number(finance.netCash)||0,spent=budget?Math.max(0,Math.min(100,actual/budget*100)):0,margin=Number(finance.forecastRevenue)?profit/Number(finance.forecastRevenue)*100:0;
+    if(company){
+      set('ohFinanceRevenue',money(revenue));set('ohFinanceBudget',money(budget));set('ohFinanceProfit',money(profit));set('ohFinanceCash',money(cash));set('ohWeeklyRevenue',money(snapshot.weeklyRevenue));
+      set('ohFinanceBudgetMeta',budget?`${Math.round(spent)}% actual spend`:'Approved project budgets');set('ohFinanceProfitMeta',`${margin.toFixed(1)}% forecast margin`);set('ohFinanceCashMeta',cash>=0?'Healthy cash position':'Cash out exceeds cash in');
+      set('ohFinanceBudget2',money(budget));set('ohFinanceCommitted',money(committed));set('ohFinanceActual',money(actual));set('ohFinanceForecast',money(forecast));set('ohFinanceSpent',budget?`${Math.round(spent)}%`:'—');
+      const budgetBar=$('ohFinanceBudgetBar');if(budgetBar)budgetBar.style.width=`${spent}%`;
+      const donut=$('ohFinanceDonut');if(donut)donut.style.background=`conic-gradient(var(--yellow) 0 ${spent}%,#2a3030 ${spent}%)`;
+      const categories=Array.isArray(snapshot.categories)?snapshot.categories.slice(0,4):[];
+      $('ohFinanceLegend').innerHTML=categories.length?categories.map((item,index)=>`<li><i style="background:${['#f5b400','#c8d66c','#e49435','#89918e'][index]}"></i><span>${esc(item.name)}</span><b>${esc(money(item.value))}</b></li>`).join(''):'<li><i></i><span>Finance data</span><b>Open report</b></li>';
+    }
+    const approvalTotal=pending().length+Number(snapshot.approvalCount||0),critical=approvalTotal+Number(snapshot.overdueCount||0);
+    set('pendingCount',approvalTotal);set('ohCriticalCount',critical);
+  }
+  window.ACOperationsOverview={setFinance:applyFinanceOverview};
   function eventHtml(event){const info=eventInfo(event);return`<article class="event"><div class="event-icon ${info.tone}">${esc(info.icon)}</div><div class="event-copy"><strong>${esc(info.title)}</strong><span>${esc(memberName(event.actor_id))} • ${esc(info.detail)}</span></div><time>${esc(timeAgo(event.created_at))}</time></article>`}
   function renderTeam(){
     const query=$('teamSearch').value.toLowerCase().trim(),roleFilter=$('teamRoleFilter').value,status=$('teamStatusFilter').value;

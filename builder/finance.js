@@ -169,7 +169,30 @@
   function renderAccess(){
     $('financeAccessList').innerHTML=state.members.filter(item=>item.role==='admin').map(item=>{const value=item.finance_permission||{};return`<article class="finance-access-card" data-finance-user="${esc(item.id)}"><div><strong>${esc(item.full_name||item.email)}</strong><span>${esc(item.email||'Admin account')}</span></div><label><input type="checkbox" data-permission="finance_enabled" ${value.finance_enabled?'checked':''}> Finance access</label><label><input type="checkbox" data-permission="can_view_company_dashboard" ${value.can_view_company_dashboard?'checked':''}> Company dashboard</label><label><input type="checkbox" data-permission="can_manage_transactions" ${value.can_manage_transactions?'checked':''}> Manage entries</label><label><input type="checkbox" data-permission="can_manage_budgets" ${value.can_manage_budgets?'checked':''}> Manage budgets</label><label><input type="checkbox" data-permission="can_approve" ${value.can_approve?'checked':''}> Approve entries</label><label><input type="checkbox" data-permission="can_export" ${value.can_export?'checked':''}> Export reports</label><label>Approval limit<input type="number" min="0" step="100" data-permission="approval_limit" value="${esc(value.approval_limit||0)}"></label><button class="btn primary" type="button" data-finance-save-access>Save access</button></article>`}).join('')||'<div class="finance-empty">No Admin accounts are available. Admin finance access is off by default.</div>';
   }
-  function renderAll(){renderCards();renderCharts();renderTransactions();renderBudgets();renderApprovals();renderAccess()}
+  function syncOperationsOverview(){
+    if(!window.ACOperationsOverview?.setFinance)return;
+    const totals=state.projects.map((item,index)=>{
+      const data=projectMetrics(item.id),limit=number(data.budget.original_budget)+number(data.budget.approved_variations),used=limit?(data.expense+data.committed)/limit*100:0;
+      return{...item,progress:preview?[68,55,32][index]??Math.min(100,used):Math.min(130,used),status:used>100?'Budget exceeded':'In progress',reference:preview?`ATP-${String(index+1).padStart(3,'0')}`:'Operation Hub',start:preview?'15 Jan 2026':'—',finish:preview?'28 Nov 2026':'—',budget:limit,actual:data.expense,committed:data.committed,forecast:data.forecastCost,revenue:data.forecastRevenue,profit:data.profit};
+    });
+    const data=summary(),budget=totals.reduce((sum,item)=>sum+number(item.budget),0),actual=totals.reduce((sum,item)=>sum+number(item.actual),0),committed=totals.reduce((sum,item)=>sum+number(item.committed),0),forecast=totals.reduce((sum,item)=>sum+number(item.forecast),0);
+    const categories=new Map();approved().filter(item=>item.entry_kind==='expense'&&inPeriod(item.transaction_date)).forEach(item=>categories.set(item.category||'Other',(categories.get(item.category||'Other')||0)+number(item.amount_ex_gst)));
+    const weekAgo=shift(today(),-6),weeklyRevenue=approved().filter(item=>item.entry_kind==='income'&&String(item.transaction_date||'').slice(0,10)>=weekAgo&&String(item.transaction_date||'').slice(0,10)<=today()).reduce((sum,item)=>sum+number(item.amount_ex_gst),0);
+    window.ACOperationsOverview.setFinance({
+      permissions:state.permissions,
+      projects:totals,
+      summary:data,
+      budget,
+      actual,
+      committed,
+      forecast,
+      weeklyRevenue,
+      approvalCount:state.transactions.filter(item=>item.status==='Pending Approval').length,
+      overdueCount:number(state.invoice_summary?.overdue_count),
+      categories:[...categories.entries()].sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value}))
+    });
+  }
+  function renderAll(){renderCards();renderCharts();renderTransactions();renderBudgets();renderApprovals();renderAccess();syncOperationsOverview()}
 
   function applyRoleUI(){
     const p=state.permissions||{},role=state.viewer?.role||previewRole,scope=p.scope||'own';
@@ -186,6 +209,7 @@
     document.querySelectorAll('[data-finance-access-tab]').forEach(item=>item.hidden=!p.can_manage_access);
     document.querySelectorAll('[data-finance-export]').forEach(item=>item.hidden=!p.can_export);
     document.querySelectorAll('[data-finance-actual-cost]').forEach(item=>item.hidden=role==='estimator');
+    document.querySelectorAll('[data-overview-company-finance]').forEach(item=>item.hidden=!p.can_view_dashboard);
     $('invoiceSideLink').hidden=!['owner','manager','estimator'].includes(role);
     window.ACRefreshSideGroups?.();
     $('financeProjectFilter').innerHTML='<option value="">All authorised projects</option>'+state.projects.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
@@ -289,6 +313,7 @@
 
   document.querySelectorAll('[data-finance-tab]').forEach(button=>button.addEventListener('click',()=>switchTab(button.dataset.financeTab)));
   document.querySelectorAll('[data-finance-open]').forEach(button=>button.addEventListener('click',()=>switchTab(button.dataset.financeOpen)));
+  document.querySelectorAll('[data-finance-overview-link]').forEach(button=>button.addEventListener('click',()=>{if(state.permissions.can_view_dashboard)switchTab('overview')}));
   document.querySelectorAll('[data-finance-new]').forEach(button=>button.addEventListener('click',()=>openEntry(button.dataset.financeNew)));
   $('financeNav').addEventListener('click',()=>{const url=new URL(location.href);url.searchParams.set('view','financial-data');url.searchParams.set('financeTab',state.tab);history.replaceState(null,'',url)});
   $('financePeriod').addEventListener('change',()=>{setPeriod();load()});['financeFrom','financeTo'].forEach(id=>$(id).addEventListener('change',()=>{setPeriod('custom');load()}));$('financeProjectFilter').addEventListener('change',()=>{state.projectId=$('financeProjectFilter').value;load()});$('financeRefresh').addEventListener('click',load);

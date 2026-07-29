@@ -58,7 +58,7 @@
       {id:'h3',actor_id:'manager-preview',project_id:'project-rowville',record_id:'sheet-2',action:'timesheet_approved',module:'team-management',details:{user_id:'supervisor-preview',total_minutes:450},created_at:iso(22*3600000)},
       {id:'h4',actor_id:'supervisor-preview',project_id:'project-rowville',record_id:'report-1',action:'daily_report_submitted',module:'team-management',details:{total_minutes:450},created_at:iso(23*3600000)}
     ];
-    const viewer=members.find(item=>item.id===viewerId),managerRoles=['owner','manager'],visibleProjects=managerRoles.includes(previewRole)?projects:projects.filter(item=>assignments.some(a=>a.user_id===viewerId&&a.project_id===item.id)),visibleMembers=managerRoles.includes(previewRole)?members:previewRole==='site_supervisor'?members.filter(item=>item.id===viewerId||assignments.some(a=>a.user_id===item.id&&visibleProjects.some(p=>p.id===a.project_id))):[viewer];
+    const viewer=members.find(item=>item.id===viewerId),managerRoles=['owner','admin','manager'],visibleProjects=managerRoles.includes(previewRole)?projects:projects.filter(item=>assignments.some(a=>a.user_id===viewerId&&a.project_id===item.id)),visibleMembers=managerRoles.includes(previewRole)?members:previewRole==='site_supervisor'?members.filter(item=>item.id===viewerId||assignments.some(a=>a.user_id===item.id&&visibleProjects.some(p=>p.id===a.project_id))):[viewer];
     return{viewer:{...viewer,can_manage:managerRoles.includes(previewRole),can_manage_access:previewRole==='owner'},projects:visibleProjects,members:visibleMembers,assignments:managerRoles.includes(previewRole)?assignments:assignments.filter(a=>a.user_id===viewerId),tasks:managerRoles.includes(previewRole)?tasks:previewRole==='site_supervisor'?tasks.filter(t=>t.task_date===today()&&visibleProjects.some(p=>p.id===t.project_id)):tasks.filter(t=>t.assigned_to===viewerId),timesheets:managerRoles.includes(previewRole)?timesheets:timesheets.filter(t=>t.user_id===viewerId),reports:managerRoles.includes(previewRole)?reports:reports.filter(r=>r.user_id===viewerId),history:managerRoles.includes(previewRole)?history:[]};
   }
 
@@ -75,13 +75,13 @@
   function memberOptions(){return state.members.map(item=>({value:item.id,label:`${item.full_name||item.email||'Team member'} — ${roleLabel(item.role)}`}))}
   function updateTaskAssignees(selected){const projectId=$('tmTaskProject').value,allowed=state.members.filter(item=>['owner','manager'].includes(item.role)||state.assignments.some(a=>a.project_id===projectId&&a.user_id===item.id));fillSelect('tmTaskAssignee',allowed.map(item=>({value:item.id,label:`${item.full_name||item.email||'Team member'} — ${roleLabel(item.role)}`})),'Select assigned person',selected)}
   function applyRoleUI(){
-    const management=canManage(),access=!!state.viewer?.can_manage_access;
+    const management=canManage(),access=!!state.viewer?.can_manage_access,commandAccess=management||access;
     const supervisor=state.viewer?.role==='site_supervisor',workspaceName=management?'Team Management':'My Workday',taskName=management?'Daily Tasks':supervisor?'Project Tasks':'My Tasks';
     document.querySelectorAll('[data-tm-tab="members"],[data-tm-tab="history"]').forEach(button=>button.hidden=!management);
     $('tmNewTask').hidden=!management;document.querySelectorAll('.tm-manager-filter').forEach(row=>row.hidden=!management);
-    document.querySelectorAll('[data-view="overview"],[data-view="team"],[data-view="activity"],[data-view="messages"]').forEach(button=>button.hidden=!access);
+    document.querySelectorAll('[data-view="overview"],[data-view="team"],[data-view="activity"],[data-view="messages"]').forEach(button=>button.hidden=!commandAccess);
     const requestedView=new URLSearchParams(location.search).get('view')||'';
-    if(!access&&!['financial-data','photo-timeline'].includes(requestedView)){document.querySelector('[data-view="team-management"]')?.click()}
+    if(!commandAccess&&!['financial-data','photo-timeline'].includes(requestedView)){document.querySelector('[data-view="team-management"]')?.click()}
     window.ACRefreshSideGroups?.();
     if(!management){switchTab('tasks')}
     $('teamWorkspaceNavLabel').textContent=workspaceName;$('teamWorkspaceTitle').textContent=`${workspaceName}.`;$('teamWorkspaceDescription').textContent=management?'Manage people, daily instructions, project attendance, approved hours and end-of-day reporting.':supervisor?'View today’s authorised project tasks and manage only your own hours and daily reports.':'View your assigned tasks and manage only your own hours and daily reports.';$('teamWorkspaceTabs').setAttribute('aria-label',`${workspaceName} sections`);

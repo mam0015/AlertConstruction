@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./team-management.css?v=39">
   <link rel="stylesheet" href="./photo-timeline.css?v=40">
   <link rel="stylesheet" href="./finance.css?v=44">
+  <link rel="stylesheet" href="./operation-overview.css?v=45">
   <style>
     :root{--bg:#090a0a;--panel:#111313;--panel2:#171919;--panel3:#1d1f1f;--line:#2b2e2e;--line2:#373a3a;--text:#f3f2ed;--muted:#969b99;--yellow:#f5b400;--yellow2:#ffce47;--green:#40d18a;--red:#ff7373;--blue:#83b7ff;--shadow:0 24px 70px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{min-height:100vh;background:radial-gradient(circle at 68% -15%,rgba(245,180,0,.08),transparent 34%),linear-gradient(180deg,#0c0e0e,#080909 58%)}
@@ -68,7 +69,9 @@
   </header>
   <div class="role-gate" role="status">Checking your secure Operations Hub access…</div>
   <div class="layout">
-    <aside class="side" id="operationsSide"><p class="side-label">Operation Hub</p><nav>
+    <aside class="side" id="operationsSide"><p class="side-label">Operation Hub</p>
+      <div class="oh-access-card"><span class="oh-access-icon">♛</span><div><small id="ohAccessRole">Secure access</small><strong id="ohAccessScope">Role-protected</strong></div></div>
+      <nav>
       <span class="side-group-label">Overview</span>
       <button class="active" type="button" data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-3H4zm10-13h6V4h-6z"/></svg>Overview<b id="overviewBadge"></b></button>
       <span class="side-group-label">Projects &amp; Site</span>
@@ -85,11 +88,82 @@
     </nav><div class="side-card" id="builderAccessCard"><small>Secure control</small><strong>Role-protected access</strong><span>Each person sees only the team and project information allowed for their role.</span></div></aside>
     <div class="side-backdrop" id="sideBackdrop"></div>
     <main class="main">
-      <section class="view active" data-view-panel="overview">
-        <div class="page-head"><div><div class="eyebrow">Company operations</div><h1>Good evening, Builder.</h1><p>A live view of staff access, attendance, requests and work activity across your construction workspace.</p></div><div class="page-actions"><button class="btn" id="copyTeamCode" type="button">Copy Team Code</button><button class="btn primary" data-open-view="messages" type="button">Message Team</button></div></div>
-        <div class="stats"><article class="stat"><small>Active team</small><strong id="activeCount">—</strong><span><i></i><span id="onlineCount">— online now</span></span></article><article class="stat"><small>Join requests</small><strong class="yellow" id="pendingCount">—</strong><span>Awaiting your decision</span></article><article class="stat"><small>Actions today</small><strong id="actionCount">—</strong><span>Across projects and tools</span></article><article class="stat"><small>Open conversations</small><strong id="conversationCount">—</strong><span>Team and direct channels</span></article></div>
-        <div class="grid-main"><div class="panel"><div class="panel-head"><div><h2>Access requests</h2><span>Verify the person before assigning a role.</span></div><button class="btn" data-open-view="team" type="button">View all</button></div><div class="panel-body" id="requestList"></div></div><div class="panel"><div class="panel-head"><div><h2>Team presence</h2><span>Live from recent app activity.</span></div><button class="btn" data-open-view="team" type="button">Manage</button></div><div class="panel-body roster-mini" id="presenceList"></div></div></div>
-        <div class="panel" style="margin-top:13px"><div class="panel-head"><div><h2>Latest company activity</h2><span>Sign-ins, edits, checklist changes and access decisions.</span></div><button class="btn" data-open-view="activity" type="button">Full history</button></div><div class="panel-body activity-list" id="latestActivity"></div></div>
+      <section class="view active oh-overview" data-view-panel="overview">
+        <div class="oh-heading">
+          <div class="oh-title-lockup"><span class="oh-title-icon">▥</span><div><div class="eyebrow">Operation command centre</div><h1>Operations Hub</h1><p id="ohDashboardRole">Executive dashboard</p></div></div>
+          <div class="oh-heading-actions"><span class="oh-live-time" id="ohDateTime">Live workspace</span><button class="btn" id="copyTeamCode" type="button">Copy Team Code</button><button class="btn primary" data-open-view="messages" type="button">Message Team</button></div>
+        </div>
+
+        <div class="oh-hero-grid">
+          <article class="oh-card oh-featured-project">
+            <img src="../assets/luxury-property.webp" alt="Current construction project">
+            <div class="oh-project-copy">
+              <span class="oh-kicker">Live project</span>
+              <h2 id="ohActiveProjectName">Current active project</h2>
+              <p id="ohActiveProjectAddress">Select a project to view its command summary.</p>
+              <dl><div><dt>Project status</dt><dd id="ohActiveProjectStatus">In progress</dd></div><div><dt>Workspace</dt><dd id="ohActiveProjectRef">Operation Hub</dd></div></dl>
+            </div>
+            <div class="oh-progress-copy">
+              <span>Overall progress</span><strong id="ohActiveProjectProgress">—</strong><small><i></i> On track</small>
+              <div class="oh-progress-track"><i id="ohActiveProjectBar"></i></div>
+              <dl><div><dt>Project start</dt><dd id="ohProjectStart">—</dd></div><div><dt>Forecast completion</dt><dd id="ohProjectFinish">—</dd></div></dl>
+            </div>
+          </article>
+
+          <article class="oh-card oh-executive-finance" data-overview-company-finance>
+            <button type="button" data-open-view="financial-data" data-finance-overview-link><span class="oh-metric-icon">↗</span><small>Revenue</small><strong id="ohFinanceRevenue">—</strong><em>Current reporting period</em><svg viewBox="0 0 100 24" aria-hidden="true"><path d="M1 20 12 14 22 17 34 9 45 13 57 7 69 11 81 3 99 6"/></svg></button>
+            <button type="button" data-open-view="financial-data" data-finance-overview-link><span class="oh-metric-icon">▣</span><small>Budget</small><strong id="ohFinanceBudget">—</strong><em id="ohFinanceBudgetMeta">Approved project budgets</em><div class="oh-mini-track"><i id="ohFinanceBudgetBar"></i></div></button>
+            <button type="button" data-open-view="financial-data" data-finance-overview-link><span class="oh-metric-icon">♜</span><small>Forecast profit</small><strong id="ohFinanceProfit">—</strong><em id="ohFinanceProfitMeta">Forecast margin</em><svg viewBox="0 0 100 24" aria-hidden="true"><path d="M1 18 15 13 27 17 39 11 52 14 64 6 77 10 89 4 99 7"/></svg></button>
+            <button type="button" data-open-view="financial-data" data-finance-overview-link><span class="oh-metric-icon green">⌁</span><small>Cash flow</small><strong id="ohFinanceCash">—</strong><em id="ohFinanceCashMeta">Payments received less paid</em><svg class="green" viewBox="0 0 100 24" aria-hidden="true"><path d="M1 16 13 12 25 18 37 8 49 14 62 7 74 13 87 4 99 9"/></svg></button>
+          </article>
+        </div>
+
+        <div class="oh-command-cards">
+          <button class="oh-command" type="button" onclick="location.href='../projects/index.html'"><span class="oh-command-icon">▤</span><div><small>Active projects</small><strong id="ohActiveProjectCount">—</strong><em>Across your workspace</em></div><b>⌁</b></button>
+          <button class="oh-command" type="button" data-open-view="team"><span class="oh-command-icon">☷</span><div><small>Approvals pending</small><strong id="pendingCount">—</strong><em>Requires a decision</em></div><b>⌁</b></button>
+          <button class="oh-command" type="button" data-open-view="financial-data" data-finance-overview-link data-overview-company-finance><span class="oh-command-icon">↗</span><div><small>Weekly revenue</small><strong id="ohWeeklyRevenue">—</strong><em>Approved income</em></div><b>⌁</b></button>
+          <button class="oh-command" type="button" data-open-view="team"><span class="oh-command-icon">♙</span><div><small>Team on site</small><strong id="activeCount">—</strong><em id="onlineCount">— online now</em></div><b>⌁</b></button>
+          <button class="oh-command urgent" type="button" data-open-view="activity"><span class="oh-command-icon">△</span><div><small>Critical issues</small><strong id="ohCriticalCount">—</strong><em>Needs attention</em></div><b>⌁</b></button>
+        </div>
+
+        <div class="oh-content-grid">
+          <div class="oh-main-stack">
+            <div class="oh-three-grid">
+              <article class="oh-card oh-list-card"><header><h2>Approvals Queue</h2><button data-open-view="team" type="button">View all →</button></header><div class="oh-compact-list" id="requestList"></div></article>
+              <article class="oh-card oh-list-card"><header><h2>Live Activity Feed</h2><button data-open-view="activity" type="button">View all →</button></header><div class="activity-list oh-activity-list" id="latestActivity"></div></article>
+              <article class="oh-card oh-performance"><header><h2>Team Performance</h2><button data-open-view="team" type="button">View team →</button></header><div class="oh-performance-body"><div class="oh-ring" id="ohTeamRing"><span><strong id="ohTeamScore">—</strong><small>Overall score</small></span></div><div class="oh-score-list"><div><span>Active team</span><b id="ohPerformanceActive">—</b><i style="--score:92%"></i></div><div><span>Actions today</span><b id="actionCount">—</b><i style="--score:88%"></i></div><div><span>Open conversations</span><b id="conversationCount">—</b><i style="--score:84%"></i></div></div></div><div class="roster-mini oh-presence" id="presenceList"></div></article>
+            </div>
+
+            <div class="oh-two-grid">
+              <article class="oh-card oh-project-overview"><header><h2>Operations Overview</h2><span>This week</span></header><div class="oh-project-rows" id="ohProjectProgressRows"><div class="oh-empty-line">Projects will appear here when available.</div></div><button type="button" onclick="location.href='../projects/index.html'">View all projects →</button></article>
+              <article class="oh-card oh-schedule"><header><h2>Upcoming Schedule</h2><button type="button" data-open-view="team-management">Open schedule →</button></header><div class="oh-schedule-list" id="ohScheduleList"></div></article>
+            </div>
+
+            <div class="oh-two-grid">
+              <article class="oh-card oh-estimates"><header><h2>Estimates &amp; Quotes</h2><a href="../quote-analysis/index.html">View all →</a></header><div class="oh-estimate-row"><span>Total quotes</span><strong id="ohQuoteCount">—</strong><svg viewBox="0 0 110 25"><path d="M1 21 12 17 23 19 35 11 47 14 59 7 70 10 83 4 97 7 109 2"/></svg></div><div class="oh-estimate-row"><span>Potential value</span><strong id="ohQuoteValue">—</strong><svg viewBox="0 0 110 25"><path d="M1 20 14 15 27 18 40 10 53 12 66 5 78 9 91 3 109 6"/></svg></div><div class="oh-estimate-row"><span>Conversion rate</span><strong id="ohConversionRate">—</strong><svg viewBox="0 0 110 25"><path d="M1 19 13 16 25 20 38 12 50 15 63 8 75 11 88 5 100 9 109 4"/></svg></div></article>
+              <article class="oh-card oh-priority"><header><h2>Priority Actions <b id="ohPriorityCount">—</b></h2><button type="button" data-open-view="activity">View actions →</button></header><div class="oh-priority-list" id="ohPriorityList"></div></article>
+            </div>
+          </div>
+
+          <aside class="oh-side-stack">
+            <article class="oh-card oh-finance-summary" data-overview-company-finance><header><h2>Finance Summary</h2><button type="button" data-open-view="financial-data" data-finance-overview-link>View full report →</button></header><div class="oh-finance-four"><div><span>Total budget</span><strong id="ohFinanceBudget2">—</strong></div><div><span>Committed</span><strong id="ohFinanceCommitted">—</strong></div><div><span>Actual spend</span><strong id="ohFinanceActual">—</strong></div><div><span>Forecast final</span><strong id="ohFinanceForecast">—</strong></div></div><div class="oh-finance-breakdown"><div class="oh-finance-donut" id="ohFinanceDonut"><span id="ohFinanceSpent">—</span></div><ul id="ohFinanceLegend"><li><i></i><span>Finance data</span><b>Open report</b></li></ul></div></article>
+            <article class="oh-card oh-documents"><header><h2>Document Control</h2><a href="../projects/index.html">View all →</a></header><div class="oh-document-grid"><button type="button" onclick="location.href='../projects/index.html'"><span>▱</span><small>Documents</small><strong id="ohDocumentCount">—</strong></button><button type="button" onclick="location.href='../projects/index.html'"><span>▧</span><small>Drawings</small><strong>—</strong></button><button type="button" data-open-view="activity"><span>☷</span><small>Register items</small><strong id="ohRegisterCount">—</strong></button><button type="button" data-open-view="messages"><span>▢</span><small>Messages</small><strong id="ohMessageCount">—</strong></button></div></article>
+            <article class="oh-card oh-status"><header><h2>Project Status Timeline</h2><a href="../projects/index.html">View timeline →</a></header><div class="oh-status-line"><div class="done"><i>✓</i><strong>Planning</strong><span>Complete</span></div><div class="done"><i>✓</i><strong>Design</strong><span>Complete</span></div><div class="active"><i>⌂</i><strong>Construction</strong><span>In progress</span></div><div><i>○</i><strong>Handover</strong><span>Upcoming</span></div></div></article>
+          </aside>
+        </div>
+
+        <article class="oh-card oh-tools"><header><div><h2>Operation Hub Tools</h2><p>Everything you need to run your operations with precision.</p></div><button type="button" data-open-view="team">Customise Hub</button></header><div class="oh-tools-grid">
+          <a href="../projects/index.html"><span>▱</span><strong>Projects</strong><small>Manage all your projects</small><b>›</b></a>
+          <a href="../quote-analysis/index.html"><span>▤</span><strong>Quotes</strong><small>Create and analyse quotes</small><b>›</b></a>
+          <a href="../invoice/index.html"><span>▧</span><strong>Invoices</strong><small>Generate and manage invoices</small><b>›</b></a>
+          <button type="button" data-open-view="team-management"><span>□</span><strong>Schedule</strong><small>Project schedules and tasks</small><b>›</b></button>
+          <a href="../checklist/index.html"><span>☷</span><strong>Checklists</strong><small>Site checklists and forms</small><b>›</b></a>
+          <button type="button" data-open-view="photo-timeline"><span>▱</span><strong>Documents</strong><small>Photos and project reports</small><b>›</b></button>
+          <button type="button" data-open-view="team"><span>♙</span><strong>Team</strong><small>Manage roles and access</small><b>›</b></button>
+          <button type="button" data-open-view="activity"><span>▥</span><strong>Reports</strong><small>Activity and analytics</small><b>›</b></button>
+          <button type="button" data-open-view="messages"><span>▢</span><strong>Messages</strong><small>Team communication</small><b>›</b></button>
+          <a href="../plan-ai/index.html"><span>⌘</span><strong>Plan AI</strong><small>AI plan takeoff and estimate</small><b>›</b></a>
+        </div></article>
       </section>
 
       <section class="view" data-view-panel="financial-data" id="financeView">
@@ -297,6 +371,6 @@
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=44"></script><script src="./team-management.js?v=44"></script><script src="./photo-timeline.js?v=40"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=44"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
+<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=45"></script><script src="./team-management.js?v=45"></script><script src="./photo-timeline.js?v=40"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=45"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
 </body>
 </html>

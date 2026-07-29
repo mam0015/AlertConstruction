@@ -1,0 +1,147 @@
+ALERT TRADIE PRO V45 — REFERENCE-MATCHED OPERATION HUB
+COMPLETE GITHUB WEBSITE PACKAGE
+======================================================
+
+PACKAGE PURPOSE
+---------------
+AlertTradiePro-V45-WEB-PUBLIC-FINAL.zip is the complete public web app.
+It includes the verified V44 finance system plus the V45 Operation Hub
+interface rebuilt from the six supplied desktop and mobile references.
+
+Copy the complete contents of this package to the ROOT of the existing
+mam0015/AlertConstruction GitHub repository. This is not a partial patch.
+
+
+WHAT V45 CHANGES
+----------------
+- Rebuilds the Operation Hub first page as a dense construction command centre.
+- Uses the existing Alert Tradie Pro AT logo; no reference-image logo is copied.
+- Adds the featured active-project panel and progress summary.
+- Adds five top command cards for projects, approvals, revenue, team and issues.
+- Adds Approvals Queue, Live Activity Feed and Team Performance panels.
+- Adds Operations Overview and Upcoming Schedule panels.
+- Adds Estimates & Quotes and Priority Actions panels.
+- Adds the role-safe Finance Summary with budget, committed, actual and forecast.
+- Adds Document Control and Project Status Timeline panels.
+- Adds the complete Operation Hub Tools grid.
+- Matches the reference dark surfaces, fine borders, yellow accent, spacing,
+  chart treatment, information density and desktop hierarchy.
+- Preserves the mobile overlay drawer and converts wide KPI areas into
+  swipeable rows without horizontal page overflow.
+- Keeps light mode readable while retaining the requested dark-mode identity.
+
+
+V44 FINANCE FEATURES RETAINED
+-----------------------------
+- Clickable Cash In, Cash Out, Net Cash Flow, Outstanding Invoices and
+  Forecast Profit cards.
+- Cash-flow, income/expense and expense-category charts.
+- Project budgets, committed cost, cost-to-complete and profit forecasts.
+- Draft, approval, payment, partial-payment, receipt and audit-safe void flows.
+- Owner-controlled optional Admin finance permissions and approval limits.
+- Australian financial-year and GST-aware reporting.
+
+
+DATA AND BACKEND COMPATIBILITY
+------------------------------
+V45 keeps the existing:
+- GitHub Pages path: /AlertConstruction/
+- public Supabase URL and publishable/anon key configuration
+- ac_ tables and RPC naming pattern
+- organisations, accounts, roles, projects and assignments
+- invoices, project photos, chat attachments and project files
+
+V45 is a public interface release. It does not add a new database migration.
+It uses the same private V44 finance migration and RLS rules already supplied.
+
+
+DEPLOYMENT
+----------
+If the V44 finance migration is already installed:
+
+1. Back up the current GitHub repository.
+2. Unzip AlertTradiePro-V45-WEB-PUBLIC-FINAL.zip.
+3. Copy EVERYTHING INSIDE the extracted package into the repository root.
+4. Allow the upload to replace existing files.
+5. Confirm .nojekyll remains at the repository root.
+6. Review, commit and deploy through the normal GitHub Pages workflow.
+
+Suggested commit message:
+
+  V45 reference-matched Operation Hub dashboard
+
+If the V44 finance migration is not installed, privately run:
+
+  supabase/migrations/20260729_operation_hub_finance_v44.sql
+
+Never upload the private Supabase ZIP, supabase/ folder, .env files,
+service_role keys, database backups, receipts or customer files to GitHub.
+
+
+ROLE-SAFE OVERVIEW
+------------------
+Owner
+  Full command centre, company finance, approvals, all projects and tools.
+
+Finance-enabled Admin
+  Company finance only when the Owner has enabled the relevant permission.
+
+Manager
+  Command centre for assigned projects. Company finance cards and company-wide
+  commercial values remain hidden. Team management remains available without
+  granting Owner-only role/access controls.
+
+Estimator
+  Assigned estimate and budget/forecast access only. Company finance, actual
+  cost, transactions and approvals remain hidden.
+
+Site Supervisor
+  Assigned project workday, own timesheets, reports and expense claims.
+
+Worker
+  Own workday, timesheets, reports and expense claims only.
+
+Supabase RPC functions and Row-Level Security still enforce the V44 finance
+permissions. V45 does not rely only on hiding interface controls.
+
+
+CACHE REFRESH
+-------------
+V45 uses the service-worker cache name alert-tradie-pro-v45.
+
+Desktop:
+  Hard-refresh with Ctrl+Shift+R on Windows or Cmd+Shift+R on Mac.
+
+iPhone/iPad PWA:
+  If the old interface remains, remove the Home Screen app, open the live site
+  in Safari, then use Share > Add to Home Screen.
+
+Android PWA:
+  Close and reopen the app. If required, clear the site's cached data or
+  reinstall the PWA.
+
+
+REQUIRED LIVE CHECK
+-------------------
+1. Owner:
+   - Open Operation Hub and confirm all command-centre panels are visible.
+   - Open Finance Summary and confirm it opens Financial Data > Overview.
+   - Confirm finance values match the Financial Data page.
+
+2. Manager:
+   - Confirm the Overview opens and shows assigned projects.
+   - Confirm company finance cards and Finance Summary are hidden.
+
+3. Estimator, Site Supervisor and Worker:
+   - Confirm existing limited views and finance access remain unchanged.
+
+4. Mobile:
+   - Open the Hub menu and confirm it overlays the page.
+   - Swipe the KPI rows horizontally.
+   - Confirm the page itself has no horizontal overflow.
+
+
+ROLLBACK
+--------
+Restore the previous GitHub commit or Pages deployment. Do not remove the
+additive V44 finance tables, finance records or private receipt objects.
