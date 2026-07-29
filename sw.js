@@ -1,4 +1,4 @@
-const CACHE='alert-tradie-pro-v48';
+const CACHE='alert-tradie-pro-v50';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',

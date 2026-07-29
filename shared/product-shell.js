@@ -97,10 +97,32 @@
   }
   document.addEventListener('click',event=>{const target=event.target.closest?.('button,a');if(target&&isRestrictedControl(target)&&!canSave()){event.preventDefault();event.stopImmediatePropagation();denySave()}},true);
   document.addEventListener('submit',event=>{if(/\/projects\//.test(location.pathname)&&event.target?.id==='taskForm'&&!canSave()){event.preventDefault();event.stopImmediatePropagation();denySave()}},true);
+  function navigationTool(link){
+    if(link?.dataset?.roleTool)return link.dataset.roleTool;
+    let url;try{url=new URL(link.href,location.href)}catch(_){return''}
+    const part=url.pathname.match(/\/(electrical|plumbing|cladding|renovation-budget|property-estimate|permit-checklist|plan-ai|quote-analysis|invoice|projects|checklist|catalogue|builder)\/(?:index\.html)?$/)?.[1]||'';
+    if(part!=='builder')return part;
+    const view=url.searchParams.get('view');
+    if(view==='financial-data')return'finance';
+    if(view==='photo-timeline')return'photo-timeline';
+    return'builder';
+  }
+  async function updateRoleNavigation(){
+    if(!window.ACAuth)return;
+    await window.ACAuth.ready;
+    const active=window.ACAuth.hasAccess?.()===true;
+    document.querySelectorAll('.app-global-nav a,.at-global-nav a').forEach(link=>{
+      const tool=navigationTool(link);
+      if(tool)link.hidden=active&&!window.ACAuth.canUseTool?.(tool);
+    });
+    document.querySelectorAll('.app-tools-group,.at-global-tools-group').forEach(group=>{group.hidden=!group.querySelector('a:not([hidden])')});
+  }
+  window.ACApplyRoleNavigation=updateRoleNavigation;
   async function updatePermissionUI(){
     await window.ACAuth?.ready;const allowed=canSave(),restrictedPath=/\/(electrical|plumbing|cladding|renovation-budget|property-estimate|permit-checklist|plan-ai|quote-analysis|projects|checklist)\//.test(location.pathname);document.documentElement.classList.toggle('ac-print-locked',restrictedPath&&!allowed);
     document.querySelectorAll([...restrictedIds].map(id=>'#'+id).join(',')).forEach(control=>{control.classList.toggle('ac-save-locked',!allowed);if(!allowed)control.title='Your assigned role does not include saving this record'});
     let printDenied=document.querySelector('.ac-print-denied');if(!printDenied){printDenied=document.createElement('div');printDenied.className='ac-print-denied';printDenied.hidden=true;printDenied.textContent='Printing and PDF saving are available only to an authorised Owner or Estimator account.';document.body.appendChild(printDenied)}
+    await updateRoleNavigation();
   }
   function installPrivacyProtection(){
     if(document.querySelector('.ac-privacy-shield'))return;const shield=document.createElement('div');shield.className='ac-privacy-shield';shield.innerHTML='<div><span>Protected workspace</span>Return to Alert Tradie Pro to view project information.</div>';document.body.appendChild(shield);

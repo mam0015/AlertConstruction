@@ -31,7 +31,7 @@
         '<div class="at-global-tools-group"><strong>Business</strong><a href="'+new URL('builder/?view=financial-data',base).href+'">Financial Data</a><a href="'+new URL('invoice/',base).href+'">Invoice Generator</a><a href="'+new URL('builder/?view=photo-timeline',base).href+'">Photo Timeline</a><a href="'+new URL('catalogue/',base).href+'">Price Catalogue</a></div>'+
       '</div></details>'+
       '<a href="'+new URL('projects/',base).href+'">Projects</a>'+
-      '<a href="'+new URL('builder/?view=photo-timeline&tab=reports',base).href+'">Reports</a>'+
+      '<a data-role-tool="builder" href="'+new URL('builder/?view=reports',base).href+'">Reports</a>'+
       '<a href="'+new URL('legal/support.html',base).href+'">Support</a>';
     return nav;
   }
@@ -121,6 +121,7 @@
 
   function run(){
     installNavigation();
+    setTimeout(function(){window.ACApplyRoleNavigation&&window.ACApplyRoleNavigation()},0);
     installTravelMode();
     setTimeout(addSocialLinks,0);
   }
