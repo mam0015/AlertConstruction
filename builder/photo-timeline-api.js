@@ -20,7 +20,40 @@
   async function saveCompanyProfile(profile){return rpc('upsert_ac_company_profile',{p_profile:profile})}
   async function createPhoto(projectId,photo){return rpc('create_ac_project_photo',{p_project_id:projectId,p_photo:photo})}
   async function updatePhoto(id,patch){return rpc('update_ac_project_photo',{p_photo_id:id,p_patch:patch})}
-  async function deletePhoto(id){return rpc('delete_ac_project_photo',{p_photo_id:id})}
+  async function removeObjects(bucket,paths){
+    const prefixes=[...new Set((paths||[]).map(path=>String(path||'').trim()).filter(Boolean))];
+    if(!prefixes.length)return[];
+    const ctx=await context(),response=await fetch(`${base()}/storage/v1/object/${encodeURIComponent(bucket)}`,{
+      method:'DELETE',
+      headers:ctx.headers,
+      body:JSON.stringify({prefixes})
+    });
+    return parse(response);
+  }
+  async function completePhotoCleanup(id){return rpc('complete_ac_photo_storage_cleanup',{p_cleanup_id:id})}
+  async function removeCleanupJob(job){
+    const paths=Array.isArray(job?.object_paths)?job.object_paths:[job?.storage_path,job?.thumbnail_path];
+    await removeObjects(job?.bucket_id||'project-photos',paths);
+    if(job?.id||job?.cleanup_id)await completePhotoCleanup(job.id||job.cleanup_id);
+    return true;
+  }
+  async function cleanupPending(jobs=[]){
+    const completed=[],failed=[];
+    for(const job of jobs){
+      try{await removeCleanupJob(job);completed.push(job.id||job.cleanup_id)}
+      catch(error){failed.push({id:job.id||job.cleanup_id,message:error.message})}
+    }
+    return{completed,failed};
+  }
+  async function deletePhoto(id){
+    const result=await rpc('delete_ac_project_photo',{p_photo_id:id});
+    try{
+      await removeCleanupJob(result||{});
+      return{...result,storage_deleted:true};
+    }catch(error){
+      return{...result,storage_deleted:false,storage_warning:error.message};
+    }
+  }
   async function savePair(projectId,pair){return rpc('save_ac_photo_pair',{p_project_id:projectId,p_pair:pair})}
   async function deletePair(id){return rpc('delete_ac_photo_pair',{p_pair_id:id})}
   async function saveBooklet(projectId,booklet){return rpc('save_ac_project_booklet',{p_project_id:projectId,p_booklet:booklet})}
@@ -80,5 +113,5 @@
     return required.filter(([key])=>!String(profile[key]||'').trim()).map(([,label])=>label);
   }
 
-  global.ACPhotoAPI={ACCESS_ROLES,UPLOAD_ROLES,BOOKLET_ROLES,context,snapshot,companyProfile,saveCompanyProfile,createPhoto,updatePhoto,deletePhoto,savePair,deletePair,saveBooklet,recordReport,archiveReport,uploadPhoto,uploadCompanyLogo,uploadReport,signedUrl,privateObjectUrl,photoDataUrl,logoDataUrl,reportBlob,downloadBlob,normaliseImage,profileMissing};
+  global.ACPhotoAPI={ACCESS_ROLES,UPLOAD_ROLES,BOOKLET_ROLES,context,snapshot,companyProfile,saveCompanyProfile,createPhoto,updatePhoto,deletePhoto,cleanupPending,removeObjects,savePair,deletePair,saveBooklet,recordReport,archiveReport,uploadPhoto,uploadCompanyLogo,uploadReport,signedUrl,privateObjectUrl,photoDataUrl,logoDataUrl,reportBlob,downloadBlob,normaliseImage,profileMissing};
 })(window);

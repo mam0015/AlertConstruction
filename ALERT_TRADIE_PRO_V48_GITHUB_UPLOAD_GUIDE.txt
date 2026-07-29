@@ -1,0 +1,40 @@
+ALERT TRADIE PRO V48 — PROJECT PHOTO TIMELINE OVERHAUL
+COMPLETE GITHUB WEBSITE PACKAGE
+======================================================
+
+PACKAGE PURPOSE
+---------------
+V48 keeps the complete V47 app and redesigns Project Photo Timeline as a
+project-folder command centre.
+
+INSTALLATION ORDER
+------------------
+1. Open Supabase SQL Editor and create a new query.
+2. Run:
+   20260729_project_photo_folders_delete_v48.sql
+3. Confirm Supabase shows Success.
+4. Upload every file inside AlertTradiePro-V48-WEB-PUBLIC-FINAL.zip to the
+   root of the existing GitHub repository, replacing matching files.
+
+WHAT CHANGED
+------------
+- Photo Timeline opens on project folders instead of automatically selecting
+  the first project.
+- Folder cards show project name, address, status, photo count, latest photo
+  date and an authorised private cover image.
+- Opening a folder displays all photos grouped by photo date.
+- Owner/Admin retain upload, edit and delete controls.
+- Manager and Estimator remain view-only.
+- Site Supervisor remains limited to assigned projects.
+- The delete flow removes Before/After references first and accepts legacy
+  private Storage paths.
+- A stale or already-missing Storage object no longer restores the database
+  photo record or makes Delete appear to fail.
+- Existing projects, photos, booklets, reports, roles and Supabase identifiers
+  are preserved.
+
+IMPORTANT
+---------
+Do not place the private SQL ZIP in GitHub.
+Keep the project-photos bucket private.
+The existing public route remains /AlertConstruction/.
