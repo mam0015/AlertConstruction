@@ -1,0 +1,167 @@
+ALERT TRADIE PRO V44 — OPERATION HUB FINANCIAL DATA
+COMPLETE GITHUB WEBSITE PACKAGE
+===================================================
+
+PACKAGE PURPOSE
+---------------
+AlertTradiePro-V44-WEB-PUBLIC-FINAL.zip is the complete public web app.
+It is based on the verified full V43 package and includes the V44 Operation
+Hub and Financial Data update.
+
+Copy the complete contents of this package to the ROOT of the existing
+mam0015/AlertConstruction GitHub repository. This is not a partial patch.
+
+
+WHAT V44 ADDS
+-------------
+- Grouped Operation Hub navigation for Overview, Projects & Site,
+  Commercial & Finance, Team, and Documents & Reports.
+- Mobile Operation Hub menu that opens as an overlay drawer.
+- Financial Data landing page with clickable summary cards.
+- Cash In, Cash Out, Net Cash Flow, Outstanding Invoices and Forecast Profit.
+- Cash-flow line chart using actual payment dates.
+- Income-versus-expenses chart using earned/incurred transaction dates.
+- Expense category donut chart.
+- Project budget, committed cost, cost-to-complete and profit forecasts.
+- Income and expense Draft, Pending Approval, Approved, Rejected and Voided
+  workflows.
+- Multiple dated payment records for accurate cash-flow reporting and partial
+  payment balances.
+- Receipt and PDF attachments through private Supabase storage.
+- Duplicate supplier/customer transaction detection.
+- Owner-controlled optional Admin finance access and approval limits.
+- Australian financial-year reporting and GST-exclusive management figures.
+- CSV export for authorised roles.
+- Existing Alert Tradie Pro logo and brand text; no replacement logo.
+
+
+DATA AND BACKEND COMPATIBILITY
+------------------------------
+V44 keeps the existing:
+- GitHub Pages path: /AlertConstruction/
+- public Supabase URL and publishable/anon key configuration
+- ac_ tables and RPC naming pattern
+- organisations, accounts, roles, projects and assignments
+- invoices, project photos, chat attachments and project files
+
+The V44 database migration is additive. It does not rename or remove existing
+projects, invoices, users, photos, files or storage buckets.
+
+
+REQUIRED DEPLOYMENT ORDER
+-------------------------
+1. Back up the current GitHub repository and Supabase database.
+2. Keep AlertTradiePro-V44-SUPABASE-PRIVATE.zip off GitHub.
+3. Run the complete private migration:
+
+   supabase/migrations/20260729_operation_hub_finance_v44.sql
+
+4. Continue only after Supabase reports Success.
+5. Unzip AlertTradiePro-V44-WEB-PUBLIC-FINAL.zip.
+6. Copy EVERYTHING INSIDE the extracted package into the repository root.
+7. Allow the upload to replace existing files.
+8. Confirm .nojekyll remains at the repository root.
+9. Review, commit and deploy through the normal GitHub Pages workflow.
+
+Suggested commit message:
+
+  V44 Operation Hub financial data and role permissions
+
+
+NEVER UPLOAD THESE TO PUBLIC GITHUB
+-----------------------------------
+- AlertTradiePro-V44-SUPABASE-PRIVATE.zip
+- a supabase/ folder
+- .env files
+- service_role keys
+- database backups
+- private receipts, invoices or customer files
+
+The public Supabase URL and publishable/anon key are expected in the web app.
+A Supabase service_role key must never appear in this public package.
+
+
+ROLE ACCESS SUMMARY
+-------------------
+Owner
+  Full company dashboard, all projects, budgets, transactions, approvals,
+  audit-safe voids, exports and Admin finance permission management.
+
+Admin
+  No finance access by default. The Owner can enable the dashboard,
+  transactions, budgets, approvals, exports and an approval limit separately.
+
+Manager
+  Assigned projects only. Can create assigned-project income/expense drafts,
+  view assigned budgets and export assigned transaction reports. Cannot see the
+  company dashboard or approve entries.
+
+Estimator
+  Read-only assigned-project estimate and forecast values. Cannot see actual
+  cost, company profit, transactions or approvals.
+
+Site Supervisor
+  Can submit and track only their own expense claims on assigned projects.
+
+Worker
+  Can submit and track only their own expense claims on assigned projects.
+
+Permissions are enforced by Supabase RPC functions and Row-Level Security, not
+only by hidden buttons.
+
+
+CACHE REFRESH
+-------------
+V44 uses the new service-worker cache name alert-tradie-pro-v44.
+
+Desktop:
+  Hard-refresh with Ctrl+Shift+R on Windows or Cmd+Shift+R on Mac.
+
+iPhone/iPad PWA:
+  If the old interface remains, remove the Home Screen app, open the live site
+  in Safari, then use Share > Add to Home Screen.
+
+Android PWA:
+  Close and reopen the app. If required, clear the site's cached data or
+  reinstall the PWA.
+
+
+REQUIRED REAL-ACCOUNT CHECK
+---------------------------
+1. Owner:
+   - Open Operation Hub > Financial Data.
+   - Add one Income and one Expense Draft.
+   - Submit, approve and confirm the charts and totals update.
+   - Add a project budget, committed cost and cost-to-complete forecast.
+   - Enable a test Admin with a low approval limit.
+
+2. Admin:
+   - Before being enabled, confirm Financial Data is unavailable.
+   - After being enabled, confirm only Owner-selected capabilities appear.
+   - Confirm an approval above the limit is blocked.
+
+3. Manager:
+   - Confirm only assigned projects are shown.
+   - Confirm company-wide overview, approvals and access settings are hidden.
+
+4. Estimator:
+   - Confirm only assigned-project budget/forecast values appear.
+   - Confirm actual costs and finance transactions are unavailable.
+
+5. Site Supervisor and Worker:
+   - Submit a JPG/PDF receipt claim.
+   - Confirm only the user's own submissions appear.
+   - Confirm an unassigned project cannot be selected or opened.
+
+6. Records:
+   - Confirm an Approved entry cannot be edited or deleted.
+   - As Owner, void it with a reason and confirm it remains in history.
+   - Confirm the finance-receipts bucket remains private.
+
+
+ROLLBACK
+--------
+If the website deployment needs to be rolled back, restore the previous GitHub
+commit or Pages deployment. Leave the additive V44 finance tables and private
+bucket installed; older public files do not use them. Do not delete finance
+records or receipt objects as a rollback method.

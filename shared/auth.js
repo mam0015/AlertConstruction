@@ -16,6 +16,7 @@
     projects:['owner','admin','estimator','manager','site_supervisor'],
     checklist:['owner','admin','manager','site_supervisor'],
     catalogue:['owner','admin'],
+    finance:['owner','admin','manager','estimator','site_supervisor','worker'],
     builder:['owner','admin','manager','site_supervisor','estimator','worker']
   };
   const ready=new Promise(resolve=>readyResolve=resolve);

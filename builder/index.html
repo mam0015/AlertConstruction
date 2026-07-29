@@ -6,11 +6,12 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0c">
-  <meta name="description" content="Role-protected Alert Tradie Pro team tasks, attendance, timesheets, daily reports and operational history. Powered by Alert Construction.">
+  <meta name="description" content="Role-protected Alert Tradie Pro project operations, financial data, team activity, project photos and reporting. Powered by Alert Construction.">
   <title>Operations Hub | Alert Tradie Pro</title>
   <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./team-management.css?v=39">
   <link rel="stylesheet" href="./photo-timeline.css?v=40">
+  <link rel="stylesheet" href="./finance.css?v=44">
   <style>
     :root{--bg:#090a0a;--panel:#111313;--panel2:#171919;--panel3:#1d1f1f;--line:#2b2e2e;--line2:#373a3a;--text:#f3f2ed;--muted:#969b99;--yellow:#f5b400;--yellow2:#ffce47;--green:#40d18a;--red:#ff7373;--blue:#83b7ff;--shadow:0 24px 70px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{min-height:100vh;background:radial-gradient(circle at 68% -15%,rgba(245,180,0,.08),transparent 34%),linear-gradient(180deg,#0c0e0e,#080909 58%)}
@@ -62,25 +63,90 @@
 <body class="role-pending">
 <div class="shell">
   <header class="top">
-    <a class="brand" href="../index.html"><span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png?v=42" alt=""></span><span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span><span class="product-name"><small>Operations Hub</small><strong>Project &amp; Team</strong></span></a>
-    <div class="top-actions"><a href="../index.html">Dashboard</a><a href="../projects/index.html">Projects</a><button type="button" id="refreshBtn">Refresh</button><span id="ownerEmail" hidden>Owner account</span></div>
+    <a class="brand" href="../index.html"><span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt=""></span><span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span><span class="product-name"><small>Operation Hub</small><strong>Project, Team &amp; Finance</strong></span></a>
+    <div class="top-actions"><button class="side-toggle" id="sideToggle" type="button" aria-label="Open Operation Hub menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Hub</span></button><a href="../index.html">Dashboard</a><a href="../projects/index.html">Projects</a><button type="button" id="refreshBtn">Refresh</button><span id="ownerEmail" hidden>Owner account</span></div>
   </header>
   <div class="role-gate" role="status">Checking your secure Operations Hub access…</div>
   <div class="layout">
-    <aside class="side"><p class="side-label">Operations</p><nav>
+    <aside class="side" id="operationsSide"><p class="side-label">Operation Hub</p><nav>
+      <span class="side-group-label">Overview</span>
       <button class="active" type="button" data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-3H4zm10-13h6V4h-6z"/></svg>Overview<b id="overviewBadge"></b></button>
+      <span class="side-group-label">Projects &amp; Site</span>
       <button type="button" data-view="team-management"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 19v-8l6-5 6 5v8M9 19v-5h6v5M3 5h5M5.5 2.5v5"/></svg><span id="teamWorkspaceNavLabel">Operations Workspace</span><b id="teamManagementBadge"></b></button>
       <button type="button" data-view="photo-timeline" id="photoTimelineNav"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01"/></svg>Project Photo Timeline<b id="photoTimelineBadge"></b></button>
+      <span class="side-group-label">Commercial &amp; Finance</span>
+      <button type="button" data-view="financial-data" id="financeNav"><svg viewBox="0 0 24 24"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 21h18"/></svg><span>Financial Data</span><b id="financeApprovalsBadge"></b></button>
+      <a class="side-link" id="invoiceSideLink" href="../invoice/index.html"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Invoices</a>
+      <span class="side-group-label">Team</span>
       <button type="button" data-view="team"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8m13 10v-2a4 4 0 0 0-3-3.87m-2-11.99a4 4 0 0 1 0 7.75"/></svg>Team & roles<b id="teamBadge"></b></button>
-      <button type="button" data-view="activity"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Activity history</button>
       <button type="button" data-view="messages"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>Team messages<b id="messageBadge"></b></button>
+      <span class="side-group-label">Documents &amp; Reports</span>
+      <button type="button" data-view="activity"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Activity history</button>
     </nav><div class="side-card" id="builderAccessCard"><small>Secure control</small><strong>Role-protected access</strong><span>Each person sees only the team and project information allowed for their role.</span></div></aside>
+    <div class="side-backdrop" id="sideBackdrop"></div>
     <main class="main">
       <section class="view active" data-view-panel="overview">
         <div class="page-head"><div><div class="eyebrow">Company operations</div><h1>Good evening, Builder.</h1><p>A live view of staff access, attendance, requests and work activity across your construction workspace.</p></div><div class="page-actions"><button class="btn" id="copyTeamCode" type="button">Copy Team Code</button><button class="btn primary" data-open-view="messages" type="button">Message Team</button></div></div>
         <div class="stats"><article class="stat"><small>Active team</small><strong id="activeCount">—</strong><span><i></i><span id="onlineCount">— online now</span></span></article><article class="stat"><small>Join requests</small><strong class="yellow" id="pendingCount">—</strong><span>Awaiting your decision</span></article><article class="stat"><small>Actions today</small><strong id="actionCount">—</strong><span>Across projects and tools</span></article><article class="stat"><small>Open conversations</small><strong id="conversationCount">—</strong><span>Team and direct channels</span></article></div>
         <div class="grid-main"><div class="panel"><div class="panel-head"><div><h2>Access requests</h2><span>Verify the person before assigning a role.</span></div><button class="btn" data-open-view="team" type="button">View all</button></div><div class="panel-body" id="requestList"></div></div><div class="panel"><div class="panel-head"><div><h2>Team presence</h2><span>Live from recent app activity.</span></div><button class="btn" data-open-view="team" type="button">Manage</button></div><div class="panel-body roster-mini" id="presenceList"></div></div></div>
         <div class="panel" style="margin-top:13px"><div class="panel-head"><div><h2>Latest company activity</h2><span>Sign-ins, edits, checklist changes and access decisions.</span></div><button class="btn" data-open-view="activity" type="button">Full history</button></div><div class="panel-body activity-list" id="latestActivity"></div></div>
+      </section>
+
+      <section class="view" data-view-panel="financial-data" id="financeView">
+        <div class="page-head"><div><div class="eyebrow">Commercial &amp; Finance</div><h1>Financial Data.</h1><p>Track project revenue, cash received, costs, payments, budgets and approvals without confusing invoiced work with money in the bank.</p></div><div class="page-actions"><button class="btn" type="button" data-finance-export>Export CSV</button><button class="btn primary" type="button" data-finance-new="expense" data-finance-expense-submit>Add Expense</button></div></div>
+        <div class="finance-role-notice" id="financeRoleNotice"><strong>Checking finance access…</strong><span>Permissions are enforced by the database as well as the interface.</span></div>
+        <div class="finance-toolbar">
+          <label>Reporting period<select id="financePeriod"><option value="financial-year">Current financial year</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="custom">Custom dates</option></select></label>
+          <label class="finance-custom-date" hidden>From<input id="financeFrom" type="date"></label><label class="finance-custom-date" hidden>To<input id="financeTo" type="date"></label>
+          <label class="finance-project-filter">Project<select id="financeProjectFilter"><option value="">All authorised projects</option></select></label><span class="finance-toolbar-spacer"></span><button class="btn" id="financeRefresh" type="button">Refresh</button>
+        </div>
+        <nav class="finance-tabs" aria-label="Financial Data sections">
+          <button class="active" type="button" data-finance-tab="overview" data-finance-company-only>Overview</button>
+          <button type="button" data-finance-tab="income" data-finance-manage>Income</button>
+          <button type="button" data-finance-tab="expenses">Expenses</button>
+          <button type="button" data-finance-tab="budgets">Project Budgets</button>
+          <button type="button" data-finance-tab="approvals" data-finance-approve-tab>Approvals <b id="financeApprovalsTabBadge"></b></button>
+          <button type="button" data-finance-tab="access" data-finance-access-tab>Finance Access</button>
+        </nav>
+
+        <div class="finance-pane active" data-finance-panel="overview">
+          <div class="finance-cards">
+            <button class="finance-card primary" id="financeCashInCard" type="button" data-finance-open="income"><small>Cash In</small><strong id="financeCashIn">—</strong><span id="financeCashInMeta">Payments received</span></button>
+            <button class="finance-card" id="financeCashOutCard" type="button" data-finance-open="expenses"><small>Cash Out</small><strong id="financeCashOut">—</strong><span id="financeCashOutMeta">Payments made</span></button>
+            <button class="finance-card" id="financeNetCashCard" type="button" data-finance-open="overview"><small>Net Cash Flow</small><strong id="financeNetCash">—</strong><span id="financeNetCashMeta">Cash In minus Cash Out</span></button>
+            <button class="finance-card" id="financeOutstandingCard" type="button" onclick="location.href='../invoice/index.html'"><small>Outstanding Invoices</small><strong id="financeOutstanding">—</strong><span id="financeOutstandingMeta">Unpaid customer invoices</span></button>
+            <button class="finance-card" id="financeForecastCard" type="button" data-finance-open="budgets"><small>Forecast Profit</small><strong id="financeForecast">—</strong><span id="financeForecastMeta">Revenue less forecast final cost</span></button>
+          </div>
+          <div class="finance-overview-grid">
+            <section class="finance-panel"><div class="finance-panel-head"><div><h2>Cash-flow trend</h2><p>Actual payments received and made · GST inclusive</p></div><div class="finance-legend"><span><i class="income"></i>Cash In</span><span><i class="expense"></i>Cash Out</span></div></div><div class="finance-chart" id="financeCashChart"></div></section>
+            <section class="finance-panel"><div class="finance-panel-head"><div><h2>Expense breakdown</h2><p>Approved costs · GST exclusive</p></div></div><div class="finance-donut-layout"><div class="finance-donut" id="financeDonut"></div><div class="finance-expense-legend" id="financeExpenseLegend"></div></div></section>
+          </div>
+          <section class="finance-panel"><div class="finance-panel-head"><div><h2>Income vs expenses</h2><p>Monthly earned revenue and incurred cost · GST exclusive</p></div></div><div class="finance-chart" id="financeCompareChart"></div></section>
+          <section class="finance-panel finance-profit-panel"><div class="finance-panel-head"><div><h2>Project profitability</h2><p>Forecast revenue and costs · GST exclusive</p></div><button class="btn" type="button" data-finance-open="budgets">Open budgets</button></div><div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Project</th><th>Forecast Revenue</th><th>Forecast Cost</th><th>Forecast Profit</th><th>Margin</th></tr></thead><tbody id="financeProfitRows"></tbody></table></div></section>
+        </div>
+
+        <div class="finance-pane" data-finance-panel="income">
+          <div class="finance-section-head"><div><h2>Income &amp; Revenue</h2><p>Revenue is work earned. Cash received is the amount actually paid.</p></div><div class="finance-actions"><button class="btn primary" type="button" data-finance-new="income" data-finance-manage>Add Income</button></div></div>
+          <div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Customer / Description</th><th>Project</th><th>Category</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="financeIncomeRows"></tbody></table></div>
+        </div>
+
+        <div class="finance-pane" data-finance-panel="expenses">
+          <div class="finance-section-head"><div><h2>Expenses &amp; Claims</h2><p>Office roles manage project expenses. Site users submit their own receipt claims for approval.</p></div><div class="finance-actions"><button class="btn primary" type="button" data-finance-new="expense" data-finance-expense-submit>Add Expense / Claim</button></div></div>
+          <div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Supplier / Description</th><th>Project</th><th>Category</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="financeExpenseRows"></tbody></table></div>
+        </div>
+
+        <div class="finance-pane" data-finance-panel="budgets">
+          <div class="finance-section-head"><div><h2>Project Budgets &amp; Forecasts</h2><p>Compare approved budget with actual cost, committed cost and cost to complete.</p></div></div>
+          <div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Project</th><th>Original Budget</th><th data-finance-actual-cost>Actual Cost</th><th>Committed Cost</th><th>Cost to Complete</th><th>Forecast Final Cost</th><th>Budget Variance</th><th>Control</th></tr></thead><tbody id="financeBudgetRows"></tbody></table></div>
+        </div>
+
+        <div class="finance-pane" data-finance-panel="approvals">
+          <div class="finance-section-head"><div><h2>Finance Approvals</h2><p>Review supporting documents before approving. Approved records are never permanently deleted.</p></div></div><div class="finance-approval-list" id="financeApprovalList"></div>
+        </div>
+
+        <div class="finance-pane" data-finance-panel="access">
+          <div class="finance-section-head"><div><h2>Admin Finance Access</h2><p>Admin access is off by default. The Owner decides what each Admin can see and approve.</p></div></div><div class="finance-access-list" id="financeAccessList"></div>
+        </div>
       </section>
 
       <section class="view" data-view-panel="photo-timeline" id="photoTimelineView">
@@ -183,12 +249,54 @@
     </main>
   </div>
 </div>
+<div class="finance-modal" id="financeEntryModal" aria-hidden="true">
+  <div class="finance-modal-card">
+    <div class="finance-modal-head"><h2 id="financeEntryTitle">Add Expense</h2><button type="button" data-finance-entry-close aria-label="Close">×</button></div>
+    <form class="finance-form" id="financeEntryForm" onsubmit="return false">
+      <input id="financeEntryId" type="hidden">
+      <div class="finance-form-grid">
+        <label>Entry type<select id="financeEntryKind"><option value="income">Income / Revenue</option><option value="expense">Expense / Cost</option></select></label>
+        <label>Project *<select id="financeEntryProject" required></select></label>
+        <label>Category<select id="financeEntryCategory"><option>Progress Claim</option><option>Variation</option><option>Materials</option><option>Labour</option><option>Subcontractors</option><option>Equipment</option><option>Permits</option><option>Insurance</option><option>Professional Fees</option><option>Travel</option><option>Other</option></select></label>
+        <label>Customer / Supplier *<input id="financeEntryCounterparty" maxlength="180" required></label>
+        <label class="wide">Description *<input id="financeEntryDescription" maxlength="500" required></label>
+        <label>Reference / Invoice no.<input id="financeEntryReference" maxlength="120"></label>
+        <label>Transaction date *<input id="financeEntryDate" type="date" required></label>
+        <label>Due date<input id="financeEntryDue" type="date"></label>
+        <label>Amount excluding GST *<input id="financeEntryAmountEx" type="number" min="0" step="0.01" required></label>
+        <label>GST rate %<input id="financeEntryGstRate" type="number" min="0" max="100" step="0.01" value="10"></label>
+        <label>Amount paid incl. GST<input id="financeEntryPaid" type="number" min="0" step="0.01" value="0"></label>
+        <label>Payment date<input id="financeEntryPaymentDate" type="date"></label>
+        <label>Payment method<select id="financeEntryPaymentMethod"><option value="">Not recorded</option><option>Bank Transfer</option><option>Card</option><option>Cash</option><option>Direct Debit</option><option>Cheque</option><option>Other</option></select></label>
+        <label class="wide">Receipt or document<input id="financeEntryReceipt" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"><span class="finance-current-file" id="financeEntryReceiptCurrent"></span></label>
+      </div>
+      <div class="finance-entry-summary"><div><span>GST</span><strong id="financeEntryGst">$0.00</strong></div><div><span>Total incl. GST</span><strong id="financeEntryTotal">$0.00</strong></div><div><span>Balance</span><strong id="financeEntryBalance">$0.00</strong></div></div>
+      <div class="finance-form-actions"><button class="btn" type="button" data-finance-entry-close>Cancel</button><button class="btn" id="financeEntryDraft" type="button">Save Draft</button><button class="btn primary" id="financeEntrySubmit" type="button">Submit for Approval</button></div>
+    </form>
+  </div>
+</div>
+<div class="finance-modal" id="financeBudgetModal" aria-hidden="true">
+  <div class="finance-modal-card">
+    <div class="finance-modal-head"><h2>Project Finance · <span id="financeBudgetProjectName">Project</span></h2><button type="button" data-finance-budget-close aria-label="Close">×</button></div>
+    <form class="finance-form" id="financeBudgetForm"><input id="financeBudgetProjectId" type="hidden"><div class="finance-form-grid">
+      <label>Original budget<input id="financeBudgetOriginal" type="number" min="0" step="0.01"></label><label>Approved variations<input id="financeBudgetVariations" type="number" step="0.01"></label><label>Forecast revenue<input id="financeBudgetRevenue" type="number" min="0" step="0.01"></label><label>Committed cost<input id="financeBudgetCommitted" type="number" min="0" step="0.01"></label><label>Cost to complete<input id="financeBudgetComplete" type="number" min="0" step="0.01"></label><label class="wide">Forecast note<textarea id="financeBudgetNotes" maxlength="2000"></textarea></label>
+    </div><div class="finance-form-actions"><button class="btn" type="button" data-finance-budget-close>Close</button><button class="btn primary" type="submit">Save Forecast</button></div></form>
+  </div>
+</div>
+<div class="finance-modal" id="financePaymentModal" aria-hidden="true">
+  <div class="finance-modal-card finance-payment-card">
+    <div class="finance-modal-head"><h2>Record Payment · <span id="financePaymentTitle">Finance entry</span></h2><button type="button" data-finance-payment-close aria-label="Close">×</button></div>
+    <form class="finance-form" id="financePaymentForm"><input id="financePaymentTransactionId" type="hidden"><div class="finance-payment-balance"><span>Outstanding balance</span><strong id="financePaymentBalance">$0.00</strong></div><div class="finance-form-grid">
+      <label>Payment amount incl. GST<input id="financePaymentAmount" type="number" min="0.01" step="0.01" required></label><label>Payment date<input id="financePaymentDate" type="date" required></label><label>Payment method<select id="financePaymentMethod"><option>Bank Transfer</option><option>Card</option><option>Cash</option><option>Direct Debit</option><option>Cheque</option><option>Other</option></select></label><label>Payment reference<input id="financePaymentReference" maxlength="120" placeholder="Bank reference or receipt"></label>
+    </div><div class="finance-form-actions"><button class="btn" type="button" data-finance-payment-close>Cancel</button><button class="btn primary" type="submit">Record Payment</button></div></form>
+  </div>
+</div>
 <div class="preview-note">Interactive design preview • sample company data only</div>
 <div class="pt-modal" id="ptPhotoModal"><div class="pt-modal-card"><div class="pt-modal-head"><h2 id="ptPhotoModalTitle">Add Photo Details</h2><button type="button" data-pt-close>×</button></div><div class="pt-modal-body"><div class="pt-upload-preview" id="ptUploadPreview" hidden><img id="ptPreviewImage" alt="Selected project photo"><div class="pt-upload-copy"><strong id="ptPreviewName">Project photo</strong><span id="ptPreviewMeta">Prepared for secure upload</span></div></div><form id="ptPhotoForm"><input id="ptPhotoId" type="hidden"><div class="pt-form-grid"><label class="pt-field"><span>Phase *</span><select id="ptPhotoPhase" required><option>Before</option><option selected>During</option><option>After</option></select></label><label class="pt-field"><span>Project stage</span><input id="ptPhotoStage" list="ptStages" maxlength="100" placeholder="Framing"></label><label class="pt-field"><span>Photo title</span><input id="ptPhotoTitle" maxlength="180"></label><label class="pt-field"><span>Photo date</span><input id="ptPhotoDate" type="date" required></label><label class="pt-field"><span>Area or location</span><input id="ptPhotoArea" list="ptAreas" maxlength="120" placeholder="Kitchen"></label><label class="pt-field"><span>Trade</span><input id="ptPhotoTrade" list="ptTrades" maxlength="120" placeholder="General Construction"></label><label class="pt-field pt-wide"><span>Description</span><textarea id="ptPhotoDescription" maxlength="3000"></textarea></label><label class="pt-field pt-wide"><span>Internal notes</span><textarea id="ptPhotoInternal" maxlength="3000" placeholder="Never included in customer or marketing PDFs"></textarea></label><label class="pt-field"><span>Privacy status</span><select id="ptPhotoPrivacy"><option>Internal Only</option><option>Client Visible</option><option>Approved for Marketing</option></select></label><label class="pt-field"><span>Display order</span><input id="ptPhotoOrder" type="number" min="0" max="9999" value="0"></label><label class="pt-field"><span><input id="ptPhotoFeatured" type="checkbox"> Featured photo</span></label><label class="pt-field"><span><input id="ptPhotoCover" type="checkbox"> Booklet cover photo</span></label></div><div class="pt-form-actions"><button class="btn" type="button" data-pt-close>Cancel</button><button class="btn primary" type="submit" id="ptPhotoSave">Save Photo</button></div></form></div></div></div>
 <div class="pt-modal" id="ptPdfModal"><div class="pt-modal-card pt-preview-card"><div class="pt-modal-head"><h2>Project Booklet Preview</h2><button type="button" data-pt-close-preview>×</button></div><iframe id="ptPdfFrame" title="Project booklet PDF preview"></iframe></div></div>
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=40"></script><script src="./team-management.js?v=40"></script><script src="./photo-timeline.js?v=40"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=43"></script>
+<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=44"></script><script src="./team-management.js?v=44"></script><script src="./photo-timeline.js?v=40"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=44"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
 </body>
 </html>

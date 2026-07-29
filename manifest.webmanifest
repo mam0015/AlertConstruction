@@ -9,6 +9,7 @@
   "shortcuts": [
     { "name": "Projects", "short_name": "Projects", "url": "./projects/" },
     { "name": "Operations Hub", "short_name": "Operations", "url": "./builder/" },
+    { "name": "Financial Data", "short_name": "Finance", "url": "./builder/?view=financial-data" },
     { "name": "Property Value Guide", "short_name": "Property Value", "url": "./property-estimate/" },
     { "name": "Renovation Budget", "short_name": "Renovation", "url": "./renovation-budget/" }
   ],

@@ -5,7 +5,7 @@
   var TRAVEL_KEY='ac_travel_mode_v1';
   var css=document.createElement('link');
   css.rel='stylesheet';
-  css.href=new URL('shared/global-shell-v43.css?v=43',base).href;
+  css.href=new URL('shared/global-shell-v43.css?v=44',base).href;
   document.head.appendChild(css);
 
   function createBrand(){
@@ -13,7 +13,7 @@
     link.className='at-global-brand';
     link.href=new URL('',base).href;
     link.setAttribute('aria-label','Alert Tradie Pro dashboard');
-    link.innerHTML='<span class="at-global-brand-mark"><img src="'+new URL('assets/alert-tradie-pro-logo.png?v=43',base).href+'" alt=""></span><span class="at-global-brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>';
+    link.innerHTML='<span class="at-global-brand-mark"><img src="'+new URL('assets/alert-tradie-pro-logo.png?v=44',base).href+'" alt=""></span><span class="at-global-brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>';
     return link;
   }
 
@@ -28,7 +28,7 @@
         '<div class="at-global-tools-group"><strong>Estimating</strong><a href="'+new URL('electrical/',base).href+'">Electrical Estimate</a><a href="'+new URL('plumbing/',base).href+'">Plumbing Estimate</a><a href="'+new URL('cladding/',base).href+'">Cladding Estimate</a><a href="'+new URL('renovation-budget/',base).href+'">Renovation Budget</a></div>'+
         '<div class="at-global-tools-group"><strong>Analysis &amp; AI</strong><a href="'+new URL('plan-ai/',base).href+'">AI Plan Estimator</a><a href="'+new URL('quote-analysis/',base).href+'">Quote Price Analysis</a><a href="'+new URL('property-estimate/',base).href+'">Property Value Guide</a></div>'+
         '<div class="at-global-tools-group"><strong>Projects &amp; Site</strong><a href="'+new URL('projects/',base).href+'">Projects &amp; Schedule</a><a href="'+new URL('checklist/',base).href+'">Site Checklist</a><a href="'+new URL('permit-checklist/',base).href+'">Permit Checklist</a></div>'+
-        '<div class="at-global-tools-group"><strong>Business</strong><a href="'+new URL('invoice/',base).href+'">Invoice Generator</a><a href="'+new URL('builder/?view=photo-timeline',base).href+'">Photo Timeline</a><a href="'+new URL('catalogue/',base).href+'">Price Catalogue</a></div>'+
+        '<div class="at-global-tools-group"><strong>Business</strong><a href="'+new URL('builder/?view=financial-data',base).href+'">Financial Data</a><a href="'+new URL('invoice/',base).href+'">Invoice Generator</a><a href="'+new URL('builder/?view=photo-timeline',base).href+'">Photo Timeline</a><a href="'+new URL('catalogue/',base).href+'">Price Catalogue</a></div>'+
       '</div></details>'+
       '<a href="'+new URL('projects/',base).href+'">Projects</a>'+
       '<a href="'+new URL('builder/?view=photo-timeline&tab=reports',base).href+'">Reports</a>'+

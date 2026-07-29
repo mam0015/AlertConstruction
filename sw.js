@@ -1,4 +1,4 @@
-const CACHE='alert-tradie-pro-v43';
+const CACHE='alert-tradie-pro-v44';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
@@ -13,7 +13,7 @@ const ASSETS=[
   './vendor/jspdf.umd.min.js','./vendor/jspdf.plugin.autotable.min.js','./vendor/DejaVuSans.ttf','./vendor/DejaVuSans-Bold.ttf','./vendor/LICENSE.dejavu-fonts.txt','./assets/invoice-logo.png',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
-  './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js','./builder/photo-timeline.css','./builder/photo-timeline-api.js','./builder/photo-timeline.js','./builder/booklet-pdf.js',
+  './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js','./builder/photo-timeline.css','./builder/photo-timeline-api.js','./builder/photo-timeline.js','./builder/booklet-pdf.js','./builder/finance.css','./builder/finance-api.js','./builder/finance.js',
   './legal/privacy.html','./legal/terms.html','./legal/support.html',
   './catalogue/','./catalogue/index.html','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
