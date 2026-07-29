@@ -1,0 +1,108 @@
+ALERT TRADIE PRO V47 — OPERATION HUB WORK MANAGEMENT
+COMPLETE GITHUB WEBSITE PACKAGE
+===================================================
+
+PACKAGE
+-------
+AlertTradiePro-V47-WEB-PUBLIC-FINAL.zip
+
+This is the complete public website based on the verified V46 release.
+Upload everything INSIDE the ZIP to the root of the existing
+mam0015/AlertConstruction GitHub repository.
+
+
+DEPLOYMENT ORDER
+----------------
+1. Keep a recoverable copy of the current GitHub files.
+2. Open the private V47 Supabase package.
+3. Run this migration in the Supabase SQL Editor:
+   supabase/migrations/20260729_operation_hub_workspace_tools_v47.sql
+4. Confirm the SQL Editor reports success.
+5. Unzip AlertTradiePro-V47-WEB-PUBLIC-FINAL.zip.
+6. Upload every file and folder inside the ZIP to the GitHub repository root.
+7. Replace files with the same names. Do not upload the ZIP as one file.
+8. Wait for GitHub Pages to deploy, then sign out and sign in again.
+
+
+WHAT V47 CHANGES
+----------------
+Operation Hub navigation
+  - Removes Projects, Estimates, Invoices and Site Diary from the Operation
+    Hub side menu.
+  - Keeps Overview, Team Management, Project Photo Timeline, Team & Roles,
+    Activity History and Team Messages unchanged.
+  - Keeps Financial Data as its own approved commercial section.
+  - Packages Quotes, Schedule, Checklists, Documents and Reports into one clean
+    Work Management group.
+
+Quotes
+  - Opens a dedicated customer quote archive, not Quote Analysis.
+  - Creates folders with a freely typed customer name and work type.
+  - Uploads, opens and deletes quote files inside each customer folder.
+  - Stores files privately and keeps them available after changing devices.
+
+Schedule
+  - Adds an Apple Calendar-style month view.
+  - Selects a date and creates a New Event with title, time, project and notes.
+  - Owner/Admin/Manager can assign events to team members.
+  - Other active roles can create and manage their own events.
+
+Checklists
+  - Provides a clean launch page for Site Supervisor Checklist and Permit
+    Checklist without mixing the two tools.
+
+Documents
+  - Creates, renames and deletes custom folders.
+  - Uploads photos, PDFs, reports, drawings, spreadsheets and other files.
+  - Uses a private 25 MB-per-file storage boundary.
+
+Reports
+  - Displays the existing Team Management daily reports.
+  - Shows completed work, unfinished work, problems or delays and notes for
+    tomorrow.
+  - Avoids creating a second, conflicting report database.
+
+Live Project
+  - Loads the active project's Cover, Featured or After photo when available.
+  - Uses the verified local completed-home image only as a reliable fallback.
+
+
+ROLE ACCESS
+-----------
+Owner / Admin / Manager
+  Quote and document folders/files, all schedule events and all daily reports.
+
+Estimator
+  Quote and document folders/files, personal/assigned schedule and own reports.
+
+Site Supervisor / Worker
+  Schedule, Checklists and their authorised daily reports.
+  No Quote Archive or general Documents access.
+
+These limits are enforced by the V47 Supabase functions, Row-Level Security
+boundary and private Storage policies, not only by hidden buttons.
+
+
+IMPORTANT
+---------
+- Do not put the private Supabase ZIP, SQL files or private deployment guide in
+  the public GitHub repository.
+- V47 preserves the current public route /AlertConstruction/.
+- V47 does not change existing accounts, projects, finance data, invoices,
+  project photos, messages, Team Management records or role identifiers.
+- The service-worker cache name is alert-tradie-pro-v47.
+
+
+QUICK CHECK AFTER DEPLOYMENT
+----------------------------
+1. Open Operation Hub as Owner.
+2. Confirm the original six operation pages still open.
+3. Confirm the side menu has one Work Management package.
+4. Create a test Quote folder with a custom customer and work type.
+5. Upload and reopen a small test PDF.
+6. Add a Schedule event to today's date.
+7. Create a Document folder and upload a file.
+8. Open Reports and verify Team Management daily reports appear.
+9. Open Overview and verify Live Project shows the real project cover photo or
+   the completed-home fallback.
+10. Repeat role checks with a Manager, Estimator and site-role test account.

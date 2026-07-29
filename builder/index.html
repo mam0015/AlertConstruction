@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="./photo-timeline.css?v=40">
   <link rel="stylesheet" href="./finance.css?v=44">
   <link rel="stylesheet" href="./operation-overview.css?v=45">
+  <link rel="stylesheet" href="./operation-tools.css?v=47">
   <style>
     :root{--bg:#090a0a;--panel:#111313;--panel2:#171919;--panel3:#1d1f1f;--line:#2b2e2e;--line2:#373a3a;--text:#f3f2ed;--muted:#969b99;--yellow:#f5b400;--yellow2:#ffce47;--green:#40d18a;--red:#ff7373;--blue:#83b7ff;--shadow:0 24px 70px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{min-height:100vh;background:radial-gradient(circle at 68% -15%,rgba(245,180,0,.08),transparent 34%),linear-gradient(180deg,#0c0e0e,#080909 58%)}
@@ -79,17 +80,17 @@
       <button type="button" data-view="team"><svg viewBox="0 0 24 24"><path d="M4 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2M9 8a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/></svg>Team &amp; roles<b id="teamBadge"></b></button>
       <button type="button" data-view="activity"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Activity history</button>
       <button type="button" data-view="messages"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>Team messages<b id="messageBadge"></b></button>
-      <span class="side-group-label">Tools &amp; Features</span>
-      <a class="side-link" href="../projects/index.html"><svg viewBox="0 0 24 24"><path d="M4 5h6l2 2h8v12H4z"/></svg>Projects</a>
-      <a class="side-link" href="../quote-analysis/index.html"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg>Quotes</a>
-      <a class="side-link" href="../electrical/index.html"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h3M8 16h8"/></svg>Estimates</a>
+      <span class="side-group-label">Commercial</span>
       <button type="button" data-view="financial-data" id="financeNav"><svg viewBox="0 0 24 24"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 21h18"/></svg><span>Financial Data</span><b id="financeApprovalsBadge"></b></button>
-      <a class="side-link" id="invoiceSideLink" href="../invoice/index.html"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Invoices</a>
-      <a class="side-link" href="../projects/index.html"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Schedule</a>
-      <a class="side-link" href="../checklist/index.html"><svg viewBox="0 0 24 24"><path d="M6 4h12v17H6zM9 2h6v4H9zM9 11l2 2 4-4M9 17h6"/></svg>Checklists</a>
-      <a class="side-link" href="./?view=photo-timeline"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6"/></svg>Documents</a>
-      <a class="side-link" href="./?view=photo-timeline&amp;tab=reports"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 15l3-3 2 2 3-4"/></svg>Reports</a>
-      <a class="side-link" href="./?view=team-management&amp;teamTab=reports"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4"/></svg>Site Diary</a>
+      <span class="side-group-label">Workspace</span>
+      <button class="side-package-toggle" id="workspaceToolsToggle" type="button" aria-expanded="true" aria-controls="workspaceToolsMenu"><span class="side-package-icon">◇</span><span><strong>Work Management</strong><small>Files, dates &amp; reports</small></span><em>5</em><svg class="side-package-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></svg></button>
+      <div class="side-package-menu" id="workspaceToolsMenu">
+        <button type="button" data-view="quotes" data-operation-tool="quotes"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg>Quotes</button>
+        <button type="button" data-view="schedule" data-operation-tool="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Schedule</button>
+        <button type="button" data-view="checklists" data-operation-tool="checklists"><svg viewBox="0 0 24 24"><path d="M6 4h12v17H6zM9 2h6v4H9zM9 11l2 2 4-4M9 17h6"/></svg>Checklists</button>
+        <button type="button" data-view="documents" data-operation-tool="documents"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6"/></svg>Documents</button>
+        <button type="button" data-view="reports" data-operation-tool="reports"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 15l3-3 2 2 3-4"/></svg>Reports</button>
+      </div>
     </nav><div class="side-card" id="builderAccessCard"><small>Secure control</small><strong>Role-protected access</strong><span>Each person sees only the team and project information allowed for their role.</span></div></aside>
     <div class="side-backdrop" id="sideBackdrop"></div>
     <main class="main">
@@ -101,7 +102,7 @@
 
         <div class="oh-hero-grid">
           <article class="oh-card oh-featured-project">
-            <img src="../assets/luxury-property.webp" alt="Current construction project">
+            <img id="ohActiveProjectImage" src="../assets/luxury-property.webp" alt="Current construction project">
             <div class="oh-project-copy">
               <span class="oh-kicker">Live project</span>
               <h2 id="ohActiveProjectName">Current active project</h2>
@@ -141,34 +142,69 @@
 
             <div class="oh-two-grid">
               <article class="oh-card oh-project-overview"><header><h2>Operations Overview</h2><span>This week</span></header><div class="oh-project-rows" id="ohProjectProgressRows"><div class="oh-empty-line">Projects will appear here when available.</div></div><button type="button" onclick="location.href='../projects/index.html'">View all projects →</button></article>
-              <article class="oh-card oh-schedule"><header><h2>Upcoming Schedule</h2><button type="button" data-open-view="team-management">Open schedule →</button></header><div class="oh-schedule-list" id="ohScheduleList"></div></article>
+              <article class="oh-card oh-schedule"><header><h2>Upcoming Schedule</h2><button type="button" data-open-view="schedule">Open schedule →</button></header><div class="oh-schedule-list" id="ohScheduleList"></div></article>
             </div>
 
             <div class="oh-two-grid">
-              <article class="oh-card oh-estimates"><header><h2>Estimates &amp; Quotes</h2><a href="../quote-analysis/index.html">View all →</a></header><div class="oh-estimate-row"><span>Total quotes</span><strong id="ohQuoteCount">—</strong><svg viewBox="0 0 110 25"><path d="M1 21 12 17 23 19 35 11 47 14 59 7 70 10 83 4 97 7 109 2"/></svg></div><div class="oh-estimate-row"><span>Potential value</span><strong id="ohQuoteValue">—</strong><svg viewBox="0 0 110 25"><path d="M1 20 14 15 27 18 40 10 53 12 66 5 78 9 91 3 109 6"/></svg></div><div class="oh-estimate-row"><span>Conversion rate</span><strong id="ohConversionRate">—</strong><svg viewBox="0 0 110 25"><path d="M1 19 13 16 25 20 38 12 50 15 63 8 75 11 88 5 100 9 109 4"/></svg></div></article>
+              <article class="oh-card oh-estimates"><header><h2>Customer Quote Archive</h2><button type="button" data-open-view="quotes">View all →</button></header><div class="oh-estimate-row"><span>Customer folders</span><strong id="ohQuoteCount">—</strong><svg viewBox="0 0 110 25"><path d="M1 21 12 17 23 19 35 11 47 14 59 7 70 10 83 4 97 7 109 2"/></svg></div><div class="oh-estimate-row"><span>Quote files</span><strong id="ohQuoteFileCount">—</strong><svg viewBox="0 0 110 25"><path d="M1 20 14 15 27 18 40 10 53 12 66 5 78 9 91 3 109 6"/></svg></div><div class="oh-estimate-row"><span>Updated</span><strong id="ohQuoteUpdated">—</strong><svg viewBox="0 0 110 25"><path d="M1 19 13 16 25 20 38 12 50 15 63 8 75 11 88 5 100 9 109 4"/></svg></div></article>
               <article class="oh-card oh-priority"><header><h2>Priority Actions <b id="ohPriorityCount">—</b></h2><button type="button" data-open-view="activity">View actions →</button></header><div class="oh-priority-list" id="ohPriorityList"></div></article>
             </div>
           </div>
 
           <aside class="oh-side-stack">
             <article class="oh-card oh-finance-summary" data-overview-company-finance><header><h2>Finance Summary</h2><button type="button" data-open-view="financial-data" data-finance-overview-link>View full report →</button></header><div class="oh-finance-four"><div><span>Total budget</span><strong id="ohFinanceBudget2">—</strong></div><div><span>Committed</span><strong id="ohFinanceCommitted">—</strong></div><div><span>Actual spend</span><strong id="ohFinanceActual">—</strong></div><div><span>Forecast final</span><strong id="ohFinanceForecast">—</strong></div></div><div class="oh-finance-breakdown"><div class="oh-finance-donut" id="ohFinanceDonut"><span id="ohFinanceSpent">—</span></div><ul id="ohFinanceLegend"><li><i></i><span>Finance data</span><b>Open report</b></li></ul></div></article>
-            <article class="oh-card oh-documents"><header><h2>Document Control</h2><a href="../projects/index.html">View all →</a></header><div class="oh-document-grid"><button type="button" onclick="location.href='../projects/index.html'"><span>▱</span><small>Documents</small><strong id="ohDocumentCount">—</strong></button><button type="button" onclick="location.href='../projects/index.html'"><span>▧</span><small>Drawings</small><strong>—</strong></button><button type="button" data-open-view="activity"><span>☷</span><small>Register items</small><strong id="ohRegisterCount">—</strong></button><button type="button" data-open-view="messages"><span>▢</span><small>Messages</small><strong id="ohMessageCount">—</strong></button></div></article>
+            <article class="oh-card oh-documents"><header><h2>Document Control</h2><button type="button" data-open-view="documents">View all →</button></header><div class="oh-document-grid"><button type="button" data-open-view="documents"><span>▱</span><small>Documents</small><strong id="ohDocumentCount">—</strong></button><button type="button" data-open-view="documents"><span>▧</span><small>Folders</small><strong id="ohDocumentFolderCount">—</strong></button><button type="button" data-open-view="reports"><span>☷</span><small>Daily reports</small><strong id="ohRegisterCount">—</strong></button><button type="button" data-open-view="messages"><span>▢</span><small>Messages</small><strong id="ohMessageCount">—</strong></button></div></article>
             <article class="oh-card oh-status"><header><h2>Project Status Timeline</h2><a href="../projects/index.html">View timeline →</a></header><div class="oh-status-line"><div class="done"><i>✓</i><strong>Planning</strong><span>Complete</span></div><div class="done"><i>✓</i><strong>Design</strong><span>Complete</span></div><div class="active"><i>⌂</i><strong>Construction</strong><span>In progress</span></div><div><i>○</i><strong>Handover</strong><span>Upcoming</span></div></div></article>
           </aside>
         </div>
 
-        <article class="oh-card oh-tools"><header><div><h2>Operation Hub Tools</h2><p>Everything you need to run your operations with precision.</p></div><button type="button" data-open-view="team">Customise Hub</button></header><div class="oh-tools-grid">
-          <a href="../projects/index.html"><span>▱</span><strong>Projects</strong><small>Manage all your projects</small><b>›</b></a>
-          <a href="../quote-analysis/index.html"><span>▤</span><strong>Quotes</strong><small>Create and analyse quotes</small><b>›</b></a>
-          <a href="../invoice/index.html"><span>▧</span><strong>Invoices</strong><small>Generate and manage invoices</small><b>›</b></a>
-          <button type="button" data-open-view="team-management"><span>□</span><strong>Schedule</strong><small>Project schedules and tasks</small><b>›</b></button>
-          <a href="../checklist/index.html"><span>☷</span><strong>Checklists</strong><small>Site checklists and forms</small><b>›</b></a>
-          <button type="button" data-open-view="photo-timeline"><span>▱</span><strong>Documents</strong><small>Photos and project reports</small><b>›</b></button>
-          <button type="button" data-open-view="team"><span>♙</span><strong>Team</strong><small>Manage roles and access</small><b>›</b></button>
-          <button type="button" data-open-view="activity"><span>▥</span><strong>Reports</strong><small>Activity and analytics</small><b>›</b></button>
-          <button type="button" data-open-view="messages"><span>▢</span><strong>Messages</strong><small>Team communication</small><b>›</b></button>
-          <a href="../plan-ai/index.html"><span>⌘</span><strong>Plan AI</strong><small>AI plan takeoff and estimate</small><b>›</b></a>
+        <article class="oh-card oh-tools"><header><div><h2>Work Management</h2><p>A clean workspace for customer quotes, dates, site checks, files and daily reports.</p></div></header><div class="oh-tools-grid oh-workspace-tools">
+          <button type="button" data-open-view="quotes"><span>▤</span><strong>Quotes</strong><small>Customer quote folders and files</small><b>›</b></button>
+          <button type="button" data-open-view="schedule"><span>□</span><strong>Schedule</strong><small>Calendar, calls and events</small><b>›</b></button>
+          <button type="button" data-open-view="checklists"><span>☷</span><strong>Checklists</strong><small>Site and permit checks</small><b>›</b></button>
+          <button type="button" data-open-view="documents"><span>▱</span><strong>Documents</strong><small>Organised company files</small><b>›</b></button>
+          <button type="button" data-open-view="reports"><span>▥</span><strong>Reports</strong><small>Team daily work reports</small><b>›</b></button>
         </div></article>
+      </section>
+
+      <section class="view ops-tool-view" data-view-panel="quotes" id="quotesView">
+        <div class="page-head"><div><div class="eyebrow">Customer records</div><h1>Quote Archive.</h1><p>Keep every quote already sent to a customer in a clear folder named by the customer and the type of work.</p></div><div class="page-actions"><button class="btn primary" id="opsNewQuoteFolder" type="button">New Quote Folder</button></div></div>
+        <div class="ops-kpis"><article><span>Customer folders</span><strong id="opsQuoteFolderCount">—</strong><small>Organised by customer</small></article><article><span>Quote files</span><strong id="opsQuoteFileCount">—</strong><small>Securely stored</small></article><article><span>Recently updated</span><strong id="opsQuoteRecentCount">—</strong><small>Last 30 days</small></article></div>
+        <div class="ops-library-layout">
+          <section class="ops-panel"><header><div><h2>Quote folders</h2><p>Customer name and work type are both free text.</p></div><input id="opsQuoteSearch" type="search" placeholder="Search customer or work type"></header><div class="ops-folder-grid" id="opsQuoteFolders"></div></section>
+          <aside class="ops-panel ops-folder-detail" id="opsQuoteDetail"><div class="ops-detail-empty"><span>▤</span><strong>Select a quote folder</strong><p>Choose a customer folder to view or upload quote files.</p></div></aside>
+        </div>
+      </section>
+
+      <section class="view ops-tool-view" data-view-panel="schedule" id="scheduleView">
+        <div class="page-head"><div><div class="eyebrow">Dates &amp; follow-ups</div><h1>Schedule.</h1><p>Plan calls, site visits, meetings and follow-ups in a clean calendar built for daily operations.</p></div><div class="page-actions"><button class="btn primary" id="opsNewEvent" type="button">New Event</button></div></div>
+        <div class="ops-calendar-layout">
+          <section class="ops-panel ops-calendar-panel"><header class="ops-calendar-toolbar"><div><button type="button" id="opsCalendarPrev" aria-label="Previous month">‹</button><button type="button" id="opsCalendarToday">Today</button><button type="button" id="opsCalendarNext" aria-label="Next month">›</button></div><h2 id="opsCalendarTitle">Month</h2><span id="opsCalendarCount">0 events</span></header><div class="ops-calendar-week"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="ops-calendar-grid" id="opsCalendarGrid"></div></section>
+          <aside class="ops-panel ops-day-panel"><header><div><span id="opsSelectedDayName">Selected day</span><h2 id="opsSelectedDayDate">Choose a date</h2></div><button type="button" id="opsAddSelectedEvent">＋</button></header><div class="ops-day-events" id="opsDayEvents"></div></aside>
+        </div>
+      </section>
+
+      <section class="view ops-tool-view" data-view-panel="checklists" id="checklistsView">
+        <div class="page-head"><div><div class="eyebrow">Quality &amp; compliance</div><h1>Checklists.</h1><p>Open the correct checklist without mixing site inspections with permit requirements.</p></div></div>
+        <div class="ops-checklist-grid">
+          <a class="ops-checklist-card primary" href="../checklist/index.html"><span class="ops-checklist-icon">✓</span><div><small>Site quality</small><h2>Site Supervisor Checklist</h2><p>Complete repeatable site checks, record progress and keep the inspection history.</p><strong>Open Site Checklist →</strong></div></a>
+          <a class="ops-checklist-card" href="../permit-checklist/index.html"><span class="ops-checklist-icon">⌂</span><div><small>Victoria permits</small><h2>Permit Checklist</h2><p>Review common permit steps and required documents with the existing council disclaimer.</p><strong>Open Permit Checklist →</strong></div></a>
+        </div>
+      </section>
+
+      <section class="view ops-tool-view" data-view-panel="documents" id="documentsView">
+        <div class="page-head"><div><div class="eyebrow">Company file library</div><h1>Documents.</h1><p>Create your own folders and store photos, PDFs, reports, drawings, spreadsheets or any other working file.</p></div><div class="page-actions"><button class="btn primary" id="opsNewDocumentFolder" type="button">New Folder</button></div></div>
+        <div class="ops-kpis"><article><span>Folders</span><strong id="opsDocumentFolderCount">—</strong><small>Custom organisation</small></article><article><span>Files</span><strong id="opsDocumentFileCount">—</strong><small>All supported file types</small></article><article><span>Storage</span><strong id="opsDocumentStorage">—</strong><small>Uploaded documents</small></article></div>
+        <div class="ops-library-layout">
+          <section class="ops-panel"><header><div><h2>Document folders</h2><p>Create, rename or delete folders whenever your system changes.</p></div><input id="opsDocumentSearch" type="search" placeholder="Search folders"></header><div class="ops-folder-grid" id="opsDocumentFolders"></div></section>
+          <aside class="ops-panel ops-folder-detail" id="opsDocumentDetail"><div class="ops-detail-empty"><span>▱</span><strong>Select a document folder</strong><p>Choose a folder to view, add or manage files.</p></div></aside>
+        </div>
+      </section>
+
+      <section class="view ops-tool-view" data-view-panel="reports" id="reportsView">
+        <div class="page-head"><div><div class="eyebrow">Daily team reporting</div><h1>Work Reports.</h1><p>Review what team members completed, what remains, problems or delays, and the notes left for tomorrow.</p></div><div class="page-actions"><button class="btn" id="opsOpenReportForm" type="button">Submit My Report</button></div></div>
+        <div class="ops-kpis"><article><span>Reports today</span><strong id="opsReportsToday">—</strong><small>Submitted by the team</small></article><article><span>This week</span><strong id="opsReportsWeek">—</strong><small>Daily progress records</small></article><article><span>Issues flagged</span><strong id="opsReportsIssues">—</strong><small>Reports needing attention</small></article></div>
+        <div class="ops-panel ops-reports-panel"><header><div><h2>Daily reports</h2><p>Live records from Team Management.</p></div><div class="ops-report-filters"><select id="opsReportProject"><option value="">All projects</option></select><select id="opsReportPerson"><option value="">All people</option></select><input id="opsReportDate" type="date"></div></header><div class="ops-report-list" id="opsReportList"></div></div>
       </section>
 
       <section class="view" data-view-panel="financial-data" id="financeView">
@@ -393,12 +429,44 @@
     </div><div class="finance-form-actions"><button class="btn" type="button" data-finance-payment-close>Cancel</button><button class="btn primary" type="submit">Record Payment</button></div></form>
   </div>
 </div>
+<div class="ops-modal" id="opsFolderModal" aria-hidden="true">
+  <div class="ops-modal-card">
+    <div class="ops-modal-head"><div><small id="opsFolderModalEyebrow">Workspace folder</small><h2 id="opsFolderModalTitle">New Folder</h2></div><button type="button" data-ops-folder-close aria-label="Close">×</button></div>
+    <form id="opsFolderForm">
+      <input id="opsFolderId" type="hidden"><input id="opsFolderModule" type="hidden">
+      <div class="ops-form-grid">
+        <label data-ops-quote-field>Customer name *<input id="opsFolderCustomer" maxlength="180" autocomplete="off" placeholder="e.g. Grace Williams"></label>
+        <label data-ops-quote-field>Type of work *<input id="opsFolderWorkType" maxlength="180" autocomplete="off" placeholder="Type anything, e.g. Home Extension"></label>
+        <label data-ops-document-field>Folder name *<input id="opsFolderName" maxlength="180" autocomplete="off" placeholder="e.g. Company Reports"></label>
+        <label class="wide">Notes<textarea id="opsFolderNotes" maxlength="2000" placeholder="Optional folder note"></textarea></label>
+      </div>
+      <div class="ops-modal-actions"><button class="btn" type="button" data-ops-folder-close>Cancel</button><button class="btn primary" type="submit">Save Folder</button></div>
+    </form>
+  </div>
+</div>
+<div class="ops-modal" id="opsEventModal" aria-hidden="true">
+  <div class="ops-modal-card">
+    <div class="ops-modal-head"><div><small>Schedule</small><h2 id="opsEventModalTitle">New Event</h2></div><button type="button" data-ops-event-close aria-label="Close">×</button></div>
+    <form id="opsEventForm">
+      <input id="opsEventId" type="hidden">
+      <div class="ops-form-grid">
+        <label class="wide">Event title *<input id="opsEventTitle" maxlength="180" required placeholder="Call Grace about project progress"></label>
+        <label>Date *<input id="opsEventDate" type="date" required></label>
+        <label>Time<input id="opsEventTime" type="time"></label>
+        <label>Project<select id="opsEventProject"><option value="">No project</option></select></label>
+        <label id="opsEventAssigneeField">Assigned to<select id="opsEventAssignee"><option value="">Myself</option></select></label>
+        <label class="wide">Description<textarea id="opsEventDescription" maxlength="4000" placeholder="Add the details, contact information or follow-up notes"></textarea></label>
+      </div>
+      <div class="ops-modal-actions"><button class="btn danger" id="opsDeleteEvent" type="button" hidden>Delete Event</button><span></span><button class="btn" type="button" data-ops-event-close>Cancel</button><button class="btn primary" type="submit">Save Event</button></div>
+    </form>
+  </div>
+</div>
 <div class="preview-note">Interactive design preview • sample company data only</div>
 <div class="pt-modal" id="ptPhotoModal"><div class="pt-modal-card"><div class="pt-modal-head"><h2 id="ptPhotoModalTitle">Add Photo Details</h2><button type="button" data-pt-close>×</button></div><div class="pt-modal-body"><div class="pt-upload-preview" id="ptUploadPreview" hidden><img id="ptPreviewImage" alt="Selected project photo"><div class="pt-upload-copy"><strong id="ptPreviewName">Project photo</strong><span id="ptPreviewMeta">Prepared for secure upload</span></div></div><form id="ptPhotoForm"><input id="ptPhotoId" type="hidden"><div class="pt-form-grid"><label class="pt-field"><span>Phase *</span><select id="ptPhotoPhase" required><option>Before</option><option selected>During</option><option>After</option></select></label><label class="pt-field"><span>Project stage</span><input id="ptPhotoStage" list="ptStages" maxlength="100" placeholder="Framing"></label><label class="pt-field"><span>Photo title</span><input id="ptPhotoTitle" maxlength="180"></label><label class="pt-field"><span>Photo date</span><input id="ptPhotoDate" type="date" required></label><label class="pt-field"><span>Area or location</span><input id="ptPhotoArea" list="ptAreas" maxlength="120" placeholder="Kitchen"></label><label class="pt-field"><span>Trade</span><input id="ptPhotoTrade" list="ptTrades" maxlength="120" placeholder="General Construction"></label><label class="pt-field pt-wide"><span>Description</span><textarea id="ptPhotoDescription" maxlength="3000"></textarea></label><label class="pt-field pt-wide"><span>Internal notes</span><textarea id="ptPhotoInternal" maxlength="3000" placeholder="Never included in customer or marketing PDFs"></textarea></label><label class="pt-field"><span>Privacy status</span><select id="ptPhotoPrivacy"><option>Internal Only</option><option>Client Visible</option><option>Approved for Marketing</option></select></label><label class="pt-field"><span>Display order</span><input id="ptPhotoOrder" type="number" min="0" max="9999" value="0"></label><label class="pt-field"><span><input id="ptPhotoFeatured" type="checkbox"> Featured photo</span></label><label class="pt-field"><span><input id="ptPhotoCover" type="checkbox"> Booklet cover photo</span></label></div><div class="pt-form-actions"><button class="btn" type="button" data-pt-close>Cancel</button><button class="btn primary" type="submit" id="ptPhotoSave">Save Photo</button></div></form></div></div></div>
 <div class="pt-modal" id="ptPdfModal"><div class="pt-modal-card pt-preview-card"><div class="pt-modal-head"><h2>Project Booklet Preview</h2><button type="button" data-pt-close-preview>×</button></div><iframe id="ptPdfFrame" title="Project booklet PDF preview"></iframe></div></div>
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=46"></script><script src="./team-management.js?v=46"></script><script src="./photo-timeline.js?v=40"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=45"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
+<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=40"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=40"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=47"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
 </body>
 </html>

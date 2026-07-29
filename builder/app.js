@@ -126,8 +126,22 @@
       ['3:30 PM','Client walkthrough','Rowville Renovation']
     ]:[];
     $('ohScheduleList').innerHTML=schedule.length?schedule.map(item=>`<div class="oh-schedule-item"><time>${esc(item[0])}</time><div><strong>${esc(item[1])}</strong><span>${esc(item[2])}</span></div></div>`).join(''):'<div class="empty">Assigned schedule items will appear here.</div>';
+    window.ACOperationToolsOverview?.render?.();
   }
 
+  let activeProjectImageUrl='',activeProjectImageId='';
+  async function loadActiveProjectImage(project){
+    const image=$('ohActiveProjectImage'),fallback='../assets/luxury-property.webp';if(!image)return;
+    image.alt=project?.name?`${project.name} project`:'Current construction project';
+    if(!project?.id||preview||!window.ACPhotoAPI){if(activeProjectImageUrl){URL.revokeObjectURL(activeProjectImageUrl);activeProjectImageUrl=''}activeProjectImageId='';image.src=fallback;return}
+    if(activeProjectImageId===project.id&&activeProjectImageUrl)return;const requested=project.id;activeProjectImageId=requested;
+    try{
+      const snapshot=await window.ACPhotoAPI.snapshot(requested),photos=Array.isArray(snapshot?.photos)?snapshot.photos:[],photo=photos.find(item=>item.cover_photo)||photos.find(item=>item.featured)||photos.find(item=>item.phase==='After')||photos[0];
+      if(!photo?.storage_path)throw new Error('No project cover photo');
+      const url=await window.ACPhotoAPI.privateObjectUrl('project-photos',photo.storage_path);if(activeProjectImageId!==requested){URL.revokeObjectURL(url);return}
+      if(activeProjectImageUrl)URL.revokeObjectURL(activeProjectImageUrl);activeProjectImageUrl=url;image.src=url;
+    }catch(_){if(activeProjectImageId===requested){if(activeProjectImageUrl){URL.revokeObjectURL(activeProjectImageUrl);activeProjectImageUrl=''}image.src=fallback}}
+  }
   function applyFinanceOverview(snapshot){
     if(!snapshot)return;
     const set=(id,value)=>{const node=$(id);if(node)node.textContent=value};
@@ -144,6 +158,7 @@
       const bar=$('ohActiveProjectBar');if(bar)bar.style.width=`${progress}%`;
       set('ohProjectStart',primary.start||'—');set('ohProjectFinish',primary.finish||'—');
     }
+    loadActiveProjectImage(primary);
     $('ohProjectProgressRows').innerHTML=projects.length?projects.slice(0,5).map(item=>{
       const progress=Math.max(0,Math.min(130,Number(item.progress)||0)),tone=progress>100?'delayed':progress>85?'risk':'',status=progress>100?'Over budget':progress>85?'At risk':'On track';
       return`<div class="oh-project-row ${tone}"><strong>${esc(item.name||'Project')}</strong><span>${Math.round(progress)}%</span><i><b style="width:${Math.min(100,progress)}%"></b></i><em>${status}</em></div>`;
@@ -162,7 +177,7 @@
     const approvalTotal=pending().length+Number(snapshot.approvalCount||0),critical=approvalTotal+Number(snapshot.overdueCount||0);
     set('pendingCount',approvalTotal);set('ohCriticalCount',critical);
   }
-  window.ACOperationsOverview={setFinance:applyFinanceOverview};
+  window.ACOperationsOverview={setFinance:applyFinanceOverview,setProjectImage:loadActiveProjectImage};
   function eventHtml(event){const info=eventInfo(event);return`<article class="event"><div class="event-icon ${info.tone}">${esc(info.icon)}</div><div class="event-copy"><strong>${esc(info.title)}</strong><span>${esc(memberName(event.actor_id))} • ${esc(info.detail)}</span></div><time>${esc(timeAgo(event.created_at))}</time></article>`}
   function renderTeam(){
     const query=$('teamSearch').value.toLowerCase().trim(),roleFilter=$('teamRoleFilter').value,status=$('teamStatusFilter').value;

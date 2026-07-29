@@ -210,7 +210,6 @@
     document.querySelectorAll('[data-finance-export]').forEach(item=>item.hidden=!p.can_export);
     document.querySelectorAll('[data-finance-actual-cost]').forEach(item=>item.hidden=role==='estimator');
     document.querySelectorAll('[data-overview-company-finance]').forEach(item=>item.hidden=!p.can_view_dashboard);
-    $('invoiceSideLink').hidden=!['owner','manager','estimator'].includes(role);
     window.ACRefreshSideGroups?.();
     $('financeProjectFilter').innerHTML='<option value="">All authorised projects</option>'+state.projects.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
     if(!p.can_view_dashboard&&state.tab==='overview')state.tab=role==='estimator'?'budgets':role==='manager'?'budgets':'expenses';

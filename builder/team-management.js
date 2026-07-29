@@ -99,7 +99,7 @@
     document.querySelectorAll('[data-view="overview"],[data-view="team"],[data-view="activity"],[data-view="messages"]').forEach(button=>button.hidden=!commandAccess);
     const requestedView=new URLSearchParams(location.search).get('view')||'';
     if(requestedView==='team-management')document.querySelector('[data-view="team-management"]')?.click();
-    if(!commandAccess&&!['financial-data','photo-timeline'].includes(requestedView)){document.querySelector('[data-view="team-management"]')?.click()}
+    if(!commandAccess&&!['financial-data','photo-timeline','schedule','checklists','reports'].includes(requestedView)){document.querySelector('[data-view="team-management"]')?.click()}
     window.ACRefreshSideGroups?.();
     const requestedTeamTab=new URLSearchParams(location.search).get('teamTab');
     switchTab(management&&['overview','members','tasks','timesheets','reports','history'].includes(requestedTeamTab)?requestedTeamTab:management?'overview':'tasks');
