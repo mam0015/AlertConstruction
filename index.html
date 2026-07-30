@@ -17,7 +17,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
-  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=53">
+  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=52">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html{scroll-behavior:smooth;background:#070807}
@@ -34,7 +34,7 @@
     html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
     html[data-ac-theme="light"] .brand-mark img{filter:none}
     .hero{min-height:0;background:var(--app-bg)}
-    .company-home{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,54px) 94px}
+    .company-home{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,54px) 94px;scroll-margin-top:72px}
     .trust-rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--app-border)}
     .trust-point{position:relative;min-height:112px;padding:29px 25px 25px 39px;border-right:1px solid var(--app-border)}
     .trust-point:last-child{border-right:0}
@@ -121,6 +121,7 @@
       </button>
       <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
         <a href="./" aria-current="page">Dashboard</a>
+        <a href="#about">About Us</a>
         <a href="./builder/index.html">Operation Hub</a>
         <div class="app-tools">
           <button class="app-tools-trigger" id="appToolsTrigger" type="button" aria-expanded="false" aria-controls="appToolsMenu">Tools
@@ -172,10 +173,10 @@
 
       <div class="company-home" id="about">
         <section class="trust-rail" aria-label="Why construction teams can trust Alert Tradie Pro">
-          <div class="trust-point"><strong>Construction-led</strong><span>Shaped around the way real building work is planned and delivered.</span></div>
-          <div class="trust-point"><strong>Clear company rates</strong><span>One controlled price source keeps estimates consistent.</span></div>
-          <div class="trust-point"><strong>Role-protected</strong><span>Each person sees only the tools approved for their responsibility.</span></div>
-          <div class="trust-point"><strong>One connected process</strong><span>From the first estimate through to project records and handover.</span></div>
+          <div class="trust-point"><strong>Built from real projects</strong><span>Developed around the estimating, site and office work handled by Alert Construction.</span></div>
+          <div class="trust-point"><strong>One price source</strong><span>Approved company rates flow into estimates instead of being copied between files.</span></div>
+          <div class="trust-point"><strong>Information follows the job</strong><span>Quotes, schedules, photos, invoices and reports stay connected to the right project.</span></div>
+          <div class="trust-point"><strong>Access follows responsibility</strong><span>Owners see the business while each team member sees only what their role needs.</span></div>
         </section>
 
         <section class="company-about" aria-labelledby="aboutTitle">
@@ -185,10 +186,10 @@
           </div>
           <div class="about-copy">
             <span class="section-kicker">Who we are</span>
-            <h2 id="aboutTitle">A construction company behind the software.</h2>
+            <h2 id="aboutTitle">Construction experience behind every tool.</h2>
             <div class="section-rule" aria-hidden="true"></div>
-            <p>Alert Construction is a Melbourne-based licensed builder working across new homes, extensions and renovations with in-house engineering and architectural support.</p>
-            <p>Alert Tradie Pro grew from that environment. It brings the information used across estimating, project delivery and business operations into one practical workspace, so the team can work with clearer records and fewer disconnected systems.</p>
+            <p>Alert Construction is a licensed unlimited builder based in Melbourne, delivering new homes, extensions and renovations from the first sketch to final handover. With engineering and architectural support working alongside construction, planning, compliance and delivery stay connected.</p>
+            <p>Alert Tradie Pro was created from the work behind those projects: setting company rates, preparing estimates, reviewing trade quotes, coordinating site teams and keeping reliable records. It brings that work into one practical platform, giving owners a clear business view while each team member sees only the tools needed for their role.</p>
             <div class="about-identity"><span class="identity-mark" aria-hidden="true"></span><div><strong>Alert Tradie Pro</strong><span>The operating platform · Powered by Alert Construction</span></div></div>
           </div>
         </section>
@@ -196,10 +197,10 @@
         <section class="services" id="what-we-do" aria-labelledby="servicesTitle">
           <div class="services-head">
             <div>
-              <span class="section-kicker">The construction workspace</span>
+              <span class="section-kicker">The work we bring together</span>
               <h2 id="servicesTitle">What We Do</h2>
               <div class="section-rule" aria-hidden="true"></div>
-              <div class="services-head-copy"><p>Choose an area to see the tools available for your signed-in role. The full catalogue stays out of the way until you need it.</p></div>
+              <div class="services-head-copy"><p>Alert Tradie Pro connects the commercial, project and site sides of construction. Choose the part of the job you need and the platform will open only the tools approved for your account.</p></div>
             </div>
             <button class="role-tools-open" type="button" data-open-tools="all">Open tools for my role</button>
           </div>
@@ -208,32 +209,32 @@
             <button class="service-card" type="button" data-open-tools="estimating" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/luxury-renovation.webp" alt=""></span>
               <strong>Estimate &amp; Price</strong>
-              <p>Prepare trade estimates, renovation budgets and consistent company rates.</p>
+              <p>Build electrical, plumbing, cladding and renovation estimates using the company’s active rates.</p>
             </button>
             <button class="service-card" type="button" data-open-tools="analysis" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/luxury-plans.webp" alt=""></span>
               <strong>Plans &amp; Quote Review</strong>
-              <p>Review plans, compare trade quotes and check the scope before approval.</p>
+              <p>Review plan quantities, compare incoming trade quotes and check costs before work is approved.</p>
             </button>
             <button class="service-card" type="button" data-open-tools="projects" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/luxury-property.webp" alt=""></span>
               <strong>Projects &amp; Scheduling</strong>
-              <p>Keep project information, follow-ups and upcoming work in one place.</p>
+              <p>Keep project details, schedules, follow-ups and documents tied to the right job.</p>
             </button>
             <button class="service-card" type="button" data-open-tools="site" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/luxury-site.webp" alt=""></span>
               <strong>Site &amp; Team Operations</strong>
-              <p>Coordinate checklists, daily work, team activity and project photos.</p>
+              <p>Run daily tasks, timesheets, checklists, end-of-day reports and dated project photo records.</p>
             </button>
             <button class="service-card" type="button" data-open-tools="commercial" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/luxury-builder-hero.webp" alt=""></span>
               <strong>Finance &amp; Invoicing</strong>
-              <p>Record financial data, review charts and manage client invoices.</p>
+              <p>Enter income and expenses, follow live charts and create professional client invoices.</p>
             </button>
             <button class="service-card" type="button" data-open-tools="records" aria-controls="roleToolsPanel">
               <span class="service-image"><img src="./assets/hero-house-complete.webp" alt=""></span>
               <strong>Records &amp; Reporting</strong>
-              <p>Keep documents, progress history and reports ready for the team.</p>
+              <p>Keep project history, handover records, photo booklets and reports ready when they are needed.</p>
             </button>
           </div>
 
@@ -269,7 +270,7 @@
         </section>
 
         <section class="company-cta" aria-label="Open Alert Tradie Pro">
-          <div><span class="section-kicker">One system. Clear access.</span><h3>Work from the first estimate to the final record.</h3><p>Owners keep the full business view. Estimators, managers, supervisors and workers open only the areas connected to their responsibilities.</p></div>
+          <div><span class="section-kicker">One job. One clear record.</span><h3>Keep the whole project connected.</h3><p>From the first estimate to site delivery, invoicing and handover, the right information stays with the right project and the right people.</p></div>
           <div class="company-cta-links"><a class="company-link primary" href="./builder/index.html">Open Operation Hub</a><a class="company-link" href="mailto:info@alertconstruction.com.au">Contact support</a></div>
         </section>
       </div>
@@ -283,8 +284,8 @@
   <script src="./shared/platform-config.js?v=43"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
-  <script src="./shared/dashboard-v43.js?v=53"></script>
-  <script src="./shared/product-shell-v43.js?v=53"></script>
+  <script src="./shared/dashboard-v43.js?v=52"></script>
+  <script src="./shared/product-shell-v43.js?v=52"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>
