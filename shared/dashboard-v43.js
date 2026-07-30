@@ -15,6 +15,15 @@
   var percent=document.getElementById('buildPercent');
   var state=document.getElementById('buildState');
   var hint=document.getElementById('scrollHint');
+  var roleToolsPanel=document.getElementById('roleToolsPanel');
+  var roleToolsClose=document.getElementById('roleToolsClose');
+  var roleToolsLabel=document.getElementById('roleToolsLabel');
+  var roleToolsTitle=document.getElementById('roleToolsTitle');
+  var roleToolsGuest=document.getElementById('roleToolsGuest');
+  var roleToolsEmpty=document.getElementById('roleToolsEmpty');
+  var roleToolsList=document.getElementById('roleToolsList');
+  var roleToolLinks=roleToolsPanel?[].slice.call(roleToolsPanel.querySelectorAll('.role-tool-link')):[];
+  var selectedToolArea='all';
   var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var ticking=false;
 
@@ -42,8 +51,65 @@
     if(!event.target.closest('.app-tools'))setTools(false);
     if(window.innerWidth<=850&&!event.target.closest('.app-topbar'))setMobileNav(false);
   });
+
+  function workAreaLabel(area){
+    return {
+      all:'Your approved workspace',
+      estimating:'Estimate & Price',
+      analysis:'Plans & Quote Review',
+      projects:'Projects & Scheduling',
+      site:'Site & Team Operations',
+      commercial:'Finance & Invoicing',
+      records:'Records & Reporting'
+    }[area]||'Your approved workspace';
+  }
+  async function refreshRoleTools(area,shouldScroll){
+    if(!roleToolsPanel)return;
+    selectedToolArea=area||selectedToolArea||'all';
+    if(window.ACAuth?.ready)await window.ACAuth.ready;
+    var active=window.ACAuth?.hasAccess?.()===true;
+    var profile=window.ACAuth?.profile?.();
+    var signedIn=window.ACAuth?.isSignedIn?.()===true;
+    var role=active?(window.ACAuth?.roleLabel?.(profile?.role)||'Team member'):'';
+    var visible=0;
+    roleToolLinks.forEach(function(link){
+      var inArea=selectedToolArea==='all'||link.dataset.toolArea===selectedToolArea;
+      var allowed=active&&window.ACAuth?.canUseTool?.(link.dataset.roleTool)===true;
+      link.hidden=!(inArea&&allowed);
+      if(!link.hidden)visible+=1;
+    });
+    roleToolsLabel.textContent=active?'Available to '+role:(signedIn?'Workspace access':'Role-based tools');
+    roleToolsTitle.textContent=workAreaLabel(selectedToolArea);
+    roleToolsGuest.hidden=active;
+    if(!active){
+      roleToolsGuest.firstChild.textContent=signedIn?'Your account is waiting for active workspace access. ':'Sign in to see the tools approved for your job. ';
+    }
+    roleToolsEmpty.hidden=!active||visible>0;
+    roleToolsList.hidden=!active||visible===0;
+    roleToolsPanel.hidden=false;
+    document.querySelectorAll('[data-open-tools]').forEach(function(button){
+      button.setAttribute('aria-expanded',String(button.dataset.openTools===selectedToolArea));
+    });
+    if(shouldScroll!==false){
+      roleToolsPanel.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
+      roleToolsClose.focus({preventScroll:true});
+    }
+  }
+  function closeRoleTools(){
+    if(!roleToolsPanel)return;
+    roleToolsPanel.hidden=true;
+    document.querySelectorAll('[data-open-tools]').forEach(function(button){button.setAttribute('aria-expanded','false')});
+  }
+  document.querySelectorAll('[data-open-tools]').forEach(function(button){
+    button.setAttribute('aria-expanded','false');
+    button.addEventListener('click',function(){refreshRoleTools(button.dataset.openTools||'all',true)});
+  });
+  roleToolsClose?.addEventListener('click',closeRoleTools);
+  window.addEventListener('ac-auth-ready',function(){if(roleToolsPanel&&!roleToolsPanel.hidden)refreshRoleTools(selectedToolArea,false)});
+  window.addEventListener('ac-auth-changed',function(){if(roleToolsPanel&&!roleToolsPanel.hidden)refreshRoleTools(selectedToolArea,false)});
+
   document.addEventListener('keydown',function(event){
-    if(event.key==='Escape'){setTools(false);setMobileNav(false)}
+    if(event.key==='Escape'){setTools(false);setMobileNav(false);closeRoleTools()}
   });
   globalNav?.querySelectorAll('a').forEach(function(link){
     link.addEventListener('click',function(){setTools(false);setMobileNav(false)});

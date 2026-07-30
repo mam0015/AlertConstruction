@@ -17,7 +17,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
-  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=52">
+  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=53">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html{scroll-behavior:smooth;background:#070807}
@@ -34,35 +34,79 @@
     html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
     html[data-ac-theme="light"] .brand-mark img{filter:none}
     .hero{min-height:0;background:var(--app-bg)}
-    .workspace{position:relative;z-index:5;max-width:1480px;margin:0 auto;padding:96px clamp(20px,5vw,84px) 82px}
-    .workspace-head{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.75fr);align-items:end;gap:clamp(34px,6vw,96px);margin-bottom:58px}
-    .workspace-kicker{color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}
-    .workspace h2{max-width:780px;margin:11px 0 0;font-size:clamp(42px,5.2vw,76px);line-height:.94;letter-spacing:-.055em;text-wrap:balance}
-    .workspace-head p{max-width:570px;margin:0;color:var(--app-muted);font-size:clamp(15px,1.35vw,18px);line-height:1.65}
-    .about-story{border-top:1px solid var(--app-border)}
-    .about-row{display:grid;grid-template-columns:120px minmax(220px,.62fr) minmax(0,1.25fr);gap:clamp(20px,4vw,72px);align-items:start;padding:clamp(32px,4vw,54px) 0;border-bottom:1px solid var(--app-border)}
-    .about-number{color:var(--app-gold);font-size:11px;font-weight:950;letter-spacing:.14em}
-    .about-row h3{margin:0;font-size:clamp(26px,3vw,42px);line-height:1;letter-spacing:-.045em}
-    .about-row p{max-width:720px;margin:0;color:var(--app-muted);font-size:15px;line-height:1.72}
-    .about-proof{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:50px;border-top:1px solid var(--app-border);border-bottom:1px solid var(--app-border)}
-    .proof-item{min-height:118px;padding:25px 22px;border-right:1px solid var(--app-border)}
-    .proof-item:last-child{border-right:0}
-    .proof-item strong,.proof-item span{display:block}
-    .proof-item strong{font-size:14px;letter-spacing:-.015em}
-    .proof-item span{margin-top:8px;color:var(--app-muted);font-size:11px;line-height:1.5}
-    .about-actions{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:34px}
-    .about-actions p{max-width:650px;margin:0;color:var(--app-muted);font-size:12px;line-height:1.6}
-    .about-links{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-    .about-link{display:inline-flex;align-items:center;justify-content:center;min-height:45px;padding:0 16px;border:1px solid var(--app-border);border-radius:11px;color:var(--app-text);font-size:11px;font-weight:900;transition:transform .2s,border-color .2s,background .2s}
-    .about-link.primary{border-color:var(--app-gold);background:var(--app-gold);color:#111}
-    .about-link:hover,.about-link:focus-visible{outline:none;transform:translateY(-2px);border-color:var(--app-gold)}
+    .company-home{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,54px) 94px}
+    .trust-rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--app-border)}
+    .trust-point{position:relative;min-height:112px;padding:29px 25px 25px 39px;border-right:1px solid var(--app-border)}
+    .trust-point:last-child{border-right:0}
+    .trust-point:before{content:"";position:absolute;left:19px;top:31px;width:7px;height:7px;border:2px solid var(--app-gold);border-radius:50%}
+    .trust-point strong,.trust-point span{display:block}
+    .trust-point strong{font-size:13px;letter-spacing:-.01em}
+    .trust-point span{max-width:230px;margin-top:7px;color:var(--app-muted);font-size:11px;line-height:1.5}
+    .company-about{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(38px,6vw,86px);padding:92px 0 84px}
+    .about-visual{position:relative;min-height:520px;overflow:hidden;background:#171817}
+    .about-visual img{display:block;width:100%;height:100%;min-height:520px;object-fit:cover;transition:transform .7s var(--app-ease)}
+    .about-visual:hover img{transform:scale(1.025)}
+    .about-visual:after{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.11);pointer-events:none}
+    .about-visual-note{position:absolute;left:0;bottom:0;max-width:310px;padding:18px 22px;background:var(--app-gold);color:#101110}
+    .about-visual-note strong,.about-visual-note span{display:block}
+    .about-visual-note strong{font-size:12px;letter-spacing:.01em}
+    .about-visual-note span{margin-top:5px;font-size:9px;font-weight:800;line-height:1.45;opacity:.72}
+    .section-kicker{display:block;margin-bottom:10px;color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
+    .company-about h2,.services-head h2{margin:0;font-size:clamp(38px,4.5vw,62px);line-height:.98;letter-spacing:-.05em;text-wrap:balance}
+    .section-rule{width:52px;height:3px;margin:20px 0 24px;background:var(--app-gold)}
+    .company-about p{margin:0 0 17px;color:var(--app-muted);font-size:15px;line-height:1.75}
+    .about-identity{display:flex;align-items:center;gap:13px;margin-top:29px;padding-top:21px;border-top:1px solid var(--app-border)}
+    .about-identity strong,.about-identity span{display:block}
+    .about-identity strong{font-size:12px}
+    .about-identity span{margin-top:4px;color:var(--app-muted);font-size:10px}
+    .identity-mark{width:36px;height:3px;background:var(--app-gold);flex:none}
+    .services{padding:0 0 88px}
+    .services-head{display:flex;align-items:end;justify-content:space-between;gap:36px;margin-bottom:31px;padding-top:8px}
+    .services-head-copy{max-width:520px}
+    .services-head-copy p{margin:0;color:var(--app-muted);font-size:13px;line-height:1.65}
+    .role-tools-open{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:0 18px;border:1px solid var(--app-gold);background:var(--app-gold);color:#111;font-size:11px;font-weight:950;cursor:pointer;white-space:nowrap;transition:transform .2s,background .2s}
+    .role-tools-open:after{content:"→";font-size:16px}
+    .role-tools-open:hover,.role-tools-open:focus-visible{outline:none;transform:translateY(-2px);background:var(--app-gold-soft)}
+    .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:38px 28px}
+    .service-card{display:block;width:100%;padding:0;border:0;background:transparent;color:var(--app-text);font:inherit;text-align:left;cursor:pointer}
+    .service-image{position:relative;display:block;aspect-ratio:1.48/1;overflow:hidden;background:#171817}
+    .service-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .55s var(--app-ease),filter .55s}
+    .service-image:after{content:"View tools";position:absolute;right:0;bottom:0;padding:10px 13px;background:rgba(8,9,8,.88);color:#fff;font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;transform:translateY(100%);transition:transform .28s var(--app-ease)}
+    .service-card:hover .service-image img,.service-card:focus-visible .service-image img{transform:scale(1.035);filter:brightness(.82)}
+    .service-card:hover .service-image:after,.service-card:focus-visible .service-image:after{transform:translateY(0)}
+    .service-card:focus-visible{outline:2px solid var(--app-gold);outline-offset:7px}
+    .service-card strong{display:block;margin-top:16px;font-size:14px;letter-spacing:-.01em}
+    .service-card p{margin:6px 0 0;color:var(--app-muted);font-size:11px;line-height:1.55}
+    .role-tools-panel{margin-top:45px;padding:31px clamp(20px,3vw,38px);border-top:3px solid var(--app-gold);background:color-mix(in srgb,var(--app-text) 5%,transparent);box-shadow:0 22px 60px rgba(0,0,0,.14)}
+    .role-tools-panel[hidden],.role-tool-link[hidden],.role-tools-message[hidden],.role-tools-list[hidden]{display:none!important}
+    .role-tools-head{display:flex;align-items:start;justify-content:space-between;gap:24px}
+    .role-tools-label{display:block;color:var(--app-gold);font-size:9px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
+    .role-tools-head h3{margin:8px 0 0;font-size:clamp(25px,3vw,38px);line-height:1;letter-spacing:-.04em}
+    .role-tools-close{display:grid;place-items:center;width:39px;height:39px;border:1px solid var(--app-border);background:transparent;color:var(--app-text);font-size:20px;cursor:pointer}
+    .role-tools-close:hover,.role-tools-close:focus-visible{outline:none;border-color:var(--app-gold);color:var(--app-gold)}
+    .role-tools-message{margin:20px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
+    .role-tools-message a{color:var(--app-gold);font-weight:900}
+    .role-tools-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:25px;background:var(--app-border);border:1px solid var(--app-border)}
+    .role-tool-link{position:relative;min-height:73px;padding:17px 44px 15px 17px;background:var(--app-bg);transition:background .2s,color .2s}
+    .role-tool-link strong,.role-tool-link span{display:block}
+    .role-tool-link strong{font-size:12px}
+    .role-tool-link span{margin-top:5px;color:var(--app-muted);font-size:9px;line-height:1.35}
+    .role-tool-link:after{content:"→";position:absolute;right:17px;top:23px;color:var(--app-gold);font-size:16px}
+    .role-tool-link:hover,.role-tool-link:focus-visible{outline:none;background:color-mix(in srgb,var(--app-gold) 9%,var(--app-bg))}
+    .company-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:30px;padding:38px 0 0;border-top:1px solid var(--app-border)}
+    .company-cta h3{margin:0;font-size:clamp(24px,3vw,38px);letter-spacing:-.035em}
+    .company-cta p{max-width:680px;margin:9px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
+    .company-cta-links{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+    .company-link{display:inline-flex;align-items:center;justify-content:center;min-height:45px;padding:0 16px;border:1px solid var(--app-border);color:var(--app-text);font-size:10px;font-weight:900;transition:transform .2s,border-color .2s}
+    .company-link.primary{border-color:var(--app-gold);background:var(--app-gold);color:#111}
+    .company-link:hover,.company-link:focus-visible{outline:none;transform:translateY(-2px);border-color:var(--app-gold)}
     .footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:25px clamp(20px,4vw,60px);border-top:1px solid var(--app-border);background:var(--app-bg);color:var(--app-muted);font-size:11px}
     .footer strong{color:var(--app-text)}
     .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
     .footer a:hover{color:var(--app-gold)}
-    @media(max-width:900px){.workspace-head{grid-template-columns:1fr}.about-row{grid-template-columns:70px minmax(180px,.6fr) minmax(0,1fr)}.about-proof{grid-template-columns:1fr 1fr}.proof-item:nth-child(2){border-right:0}.proof-item:nth-child(-n+2){border-bottom:1px solid var(--app-border)}}
-    @media(max-width:680px){.workspace{padding:70px 16px 58px}.workspace-head{gap:22px;margin-bottom:38px}.about-row{grid-template-columns:46px 1fr;gap:16px}.about-row p{grid-column:2;font-size:14px}.about-actions{align-items:flex-start;flex-direction:column}.about-links{justify-content:flex-start}.proof-item{min-height:108px;padding:20px 16px}}
-    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.about-proof{grid-template-columns:1fr}.proof-item{border-right:0;border-bottom:1px solid var(--app-border)!important}.proof-item:last-child{border-bottom:0!important}.footer-links{margin-left:0}}
+    @media(max-width:980px){.trust-rail{grid-template-columns:1fr 1fr}.trust-point:nth-child(2){border-right:0}.trust-point:nth-child(-n+2){border-bottom:1px solid var(--app-border)}.company-about{grid-template-columns:1fr;gap:42px}.about-visual,.about-visual img{min-height:460px}.service-grid{grid-template-columns:1fr 1fr}.role-tools-list{grid-template-columns:1fr 1fr}}
+    @media(max-width:680px){.company-home{padding:0 15px 64px}.trust-point{min-height:102px;padding:23px 16px 20px 34px}.trust-point:before{left:14px;top:25px}.company-about{padding:67px 0 62px}.about-visual,.about-visual img{min-height:360px}.about-visual-note{max-width:250px;padding:14px 17px}.company-about p{font-size:14px}.services{padding-bottom:62px}.services-head{align-items:flex-start;flex-direction:column;gap:22px}.role-tools-open{width:100%}.service-grid{grid-template-columns:1fr;gap:31px}.service-image{aspect-ratio:1.56/1}.service-image:after{transform:none}.role-tools-panel{margin-top:34px;padding:25px 17px}.role-tools-list{grid-template-columns:1fr}.company-cta{grid-template-columns:1fr}.company-cta-links{justify-content:flex-start}}
+    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.trust-rail{grid-template-columns:1fr}.trust-point{border-right:0;border-bottom:1px solid var(--app-border)!important}.trust-point:last-child{border-bottom:0!important}.about-visual,.about-visual img{min-height:300px}.footer-links{margin-left:0}}
   </style>
 </head>
 <body>
@@ -126,42 +170,109 @@
         </div>
       </section>
 
-      <section class="workspace" id="about">
-        <div class="workspace-head">
-          <div><div class="workspace-kicker">Powered by Alert Construction</div><h2>Built from real construction work.</h2></div>
-          <p>Alert Tradie Pro is a practical operating platform for builders and trade teams. It was shaped around the day-to-day needs of a working construction business—not a generic software template.</p>
-        </div>
-        <div class="about-story">
-          <article class="about-row">
-            <span class="about-number">01</span>
-            <h3>Who we are</h3>
-            <p>Alert Tradie Pro is the software platform. Alert Construction is the Melbourne construction company behind it. Together, the aim is simple: give construction teams a clearer way to run work from the first estimate through to the final handover.</p>
-          </article>
-          <article class="about-row">
-            <span class="about-number">02</span>
-            <h3>What we do</h3>
-            <p>We bring estimating, company pricing, quote review, project records, site tasks, finance, documents and reporting into one connected workspace. Owners keep the full business view, while each team member sees only what is relevant to their responsibility.</p>
-          </article>
-          <article class="about-row">
-            <span class="about-number">03</span>
-            <h3>Why trust us</h3>
-            <p>The platform is designed around real construction workflows, clear records and controlled access. Company rates stay consistent, saved estimates keep the prices used at the time, and role permissions protect sensitive project and financial information.</p>
-          </article>
-        </div>
-        <div class="about-proof" aria-label="Alert Tradie Pro trust points">
-          <div class="proof-item"><strong>Construction-led</strong><span>Built around the work teams already do.</span></div>
-          <div class="proof-item"><strong>Australian focus</strong><span>Created for local builders and tradies.</span></div>
-          <div class="proof-item"><strong>Role-based access</strong><span>People see the work they are approved to use.</span></div>
-          <div class="proof-item"><strong>Clear support</strong><span>info@alertconstruction.com.au</span></div>
-        </div>
-        <div class="about-actions">
-          <p>Alert Tradie Pro keeps the public home page simple. Your approved workspace and operational tools remain securely available after sign-in.</p>
-          <div class="about-links">
-            <a class="about-link primary" href="./builder/index.html">Open Operation Hub</a>
-            <a class="about-link" href="mailto:info@alertconstruction.com.au">Contact support</a>
+      <div class="company-home" id="about">
+        <section class="trust-rail" aria-label="Why construction teams can trust Alert Tradie Pro">
+          <div class="trust-point"><strong>Construction-led</strong><span>Shaped around the way real building work is planned and delivered.</span></div>
+          <div class="trust-point"><strong>Clear company rates</strong><span>One controlled price source keeps estimates consistent.</span></div>
+          <div class="trust-point"><strong>Role-protected</strong><span>Each person sees only the tools approved for their responsibility.</span></div>
+          <div class="trust-point"><strong>One connected process</strong><span>From the first estimate through to project records and handover.</span></div>
+        </section>
+
+        <section class="company-about" aria-labelledby="aboutTitle">
+          <div class="about-visual">
+            <img src="./assets/luxury-property.webp" alt="Completed Melbourne home representing Alert Construction project delivery">
+            <div class="about-visual-note"><strong>Built from construction experience</strong><span>Alert Tradie Pro · Powered by Alert Construction</span></div>
           </div>
-        </div>
-      </section>
+          <div class="about-copy">
+            <span class="section-kicker">Who we are</span>
+            <h2 id="aboutTitle">A construction company behind the software.</h2>
+            <div class="section-rule" aria-hidden="true"></div>
+            <p>Alert Construction is a Melbourne-based licensed builder working across new homes, extensions and renovations with in-house engineering and architectural support.</p>
+            <p>Alert Tradie Pro grew from that environment. It brings the information used across estimating, project delivery and business operations into one practical workspace, so the team can work with clearer records and fewer disconnected systems.</p>
+            <div class="about-identity"><span class="identity-mark" aria-hidden="true"></span><div><strong>Alert Tradie Pro</strong><span>The operating platform · Powered by Alert Construction</span></div></div>
+          </div>
+        </section>
+
+        <section class="services" id="what-we-do" aria-labelledby="servicesTitle">
+          <div class="services-head">
+            <div>
+              <span class="section-kicker">The construction workspace</span>
+              <h2 id="servicesTitle">What We Do</h2>
+              <div class="section-rule" aria-hidden="true"></div>
+              <div class="services-head-copy"><p>Choose an area to see the tools available for your signed-in role. The full catalogue stays out of the way until you need it.</p></div>
+            </div>
+            <button class="role-tools-open" type="button" data-open-tools="all">Open tools for my role</button>
+          </div>
+
+          <div class="service-grid">
+            <button class="service-card" type="button" data-open-tools="estimating" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/luxury-renovation.webp" alt=""></span>
+              <strong>Estimate &amp; Price</strong>
+              <p>Prepare trade estimates, renovation budgets and consistent company rates.</p>
+            </button>
+            <button class="service-card" type="button" data-open-tools="analysis" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/luxury-plans.webp" alt=""></span>
+              <strong>Plans &amp; Quote Review</strong>
+              <p>Review plans, compare trade quotes and check the scope before approval.</p>
+            </button>
+            <button class="service-card" type="button" data-open-tools="projects" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/luxury-property.webp" alt=""></span>
+              <strong>Projects &amp; Scheduling</strong>
+              <p>Keep project information, follow-ups and upcoming work in one place.</p>
+            </button>
+            <button class="service-card" type="button" data-open-tools="site" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/luxury-site.webp" alt=""></span>
+              <strong>Site &amp; Team Operations</strong>
+              <p>Coordinate checklists, daily work, team activity and project photos.</p>
+            </button>
+            <button class="service-card" type="button" data-open-tools="commercial" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/luxury-builder-hero.webp" alt=""></span>
+              <strong>Finance &amp; Invoicing</strong>
+              <p>Record financial data, review charts and manage client invoices.</p>
+            </button>
+            <button class="service-card" type="button" data-open-tools="records" aria-controls="roleToolsPanel">
+              <span class="service-image"><img src="./assets/hero-house-complete.webp" alt=""></span>
+              <strong>Records &amp; Reporting</strong>
+              <p>Keep documents, progress history and reports ready for the team.</p>
+            </button>
+          </div>
+
+          <section class="role-tools-panel" id="roleToolsPanel" aria-live="polite" aria-labelledby="roleToolsTitle" hidden>
+            <div class="role-tools-head">
+              <div><span class="role-tools-label" id="roleToolsLabel">Tools for your role</span><h3 id="roleToolsTitle">Your approved workspace</h3></div>
+              <button class="role-tools-close" id="roleToolsClose" type="button" aria-label="Close tools section">×</button>
+            </div>
+            <p class="role-tools-message" id="roleToolsGuest" hidden>Sign in to see the tools approved for your job. <a href="./login/index.html">Open Account &amp; Team →</a></p>
+            <p class="role-tools-message" id="roleToolsEmpty" hidden>No tools from this area are assigned to your current role. Choose another work area or ask the workspace Owner to review your access.</p>
+            <div class="role-tools-list" id="roleToolsList">
+              <a class="role-tool-link" data-role-tool="electrical" data-tool-area="estimating" href="./electrical/index.html"><strong>Electrical Estimate</strong><span>Build an electrical scope and estimate.</span></a>
+              <a class="role-tool-link" data-role-tool="plumbing" data-tool-area="estimating" href="./plumbing/index.html"><strong>Plumbing Estimate</strong><span>Price plumbing work with consistent rates.</span></a>
+              <a class="role-tool-link" data-role-tool="cladding" data-tool-area="estimating" href="./cladding/index.html"><strong>Cladding Estimate</strong><span>Prepare cladding quantities and pricing.</span></a>
+              <a class="role-tool-link" data-role-tool="renovation-budget" data-tool-area="estimating" href="./renovation-budget/index.html"><strong>Renovation Budget</strong><span>Plan renovation scope against budget.</span></a>
+              <a class="role-tool-link" data-role-tool="catalogue" data-tool-area="estimating" href="./catalogue/index.html"><strong>Company Pricing</strong><span>View or manage the active company rates.</span></a>
+              <a class="role-tool-link" data-role-tool="plan-ai" data-tool-area="analysis" href="./plan-ai/index.html"><strong>AI Plan Estimator</strong><span>Review plan quantities and line items.</span></a>
+              <a class="role-tool-link" data-role-tool="quote-analysis" data-tool-area="analysis" href="./quote-analysis/index.html"><strong>Quote Price Analysis</strong><span>Compare a trade quote with company rates.</span></a>
+              <a class="role-tool-link" data-role-tool="property-estimate" data-tool-area="analysis" href="./property-estimate/index.html"><strong>Property Value Guide</strong><span>Review indicative Victorian property evidence.</span></a>
+              <a class="role-tool-link" data-role-tool="permit-checklist" data-tool-area="analysis" href="./permit-checklist/index.html"><strong>Permit Checklist</strong><span>Prepare a likely permit and document list.</span></a>
+              <a class="role-tool-link" data-role-tool="projects" data-tool-area="projects" href="./projects/index.html"><strong>Projects &amp; Schedule</strong><span>Open project records and upcoming work.</span></a>
+              <a class="role-tool-link" data-role-tool="builder" data-tool-area="projects" href="./builder/index.html?view=work-management"><strong>Work Management</strong><span>Open quotes, schedules, documents and reports.</span></a>
+              <a class="role-tool-link" data-role-tool="checklist" data-tool-area="site" href="./checklist/index.html"><strong>Site Checklist</strong><span>Complete field and inspection checks.</span></a>
+              <a class="role-tool-link" data-role-tool="builder" data-tool-area="site" href="./builder/index.html?view=team-management"><strong>Team Management</strong><span>Open tasks, timesheets and daily reports.</span></a>
+              <a class="role-tool-link" data-role-tool="photo-timeline" data-tool-area="site" href="./builder/index.html?view=photo-timeline"><strong>Photo Timeline</strong><span>Review project photos grouped by date.</span></a>
+              <a class="role-tool-link" data-role-tool="finance" data-tool-area="commercial" href="./builder/index.html?view=financial-data"><strong>Financial Data</strong><span>Open business figures and live charts.</span></a>
+              <a class="role-tool-link" data-role-tool="invoice" data-tool-area="commercial" href="./invoice/index.html"><strong>Invoice Generator</strong><span>Create or review client invoices.</span></a>
+              <a class="role-tool-link" data-role-tool="builder" data-tool-area="records" href="./builder/index.html?view=reports"><strong>Reports</strong><span>Review project and daily reports.</span></a>
+              <a class="role-tool-link" data-role-tool="photo-timeline" data-tool-area="records" href="./builder/index.html?view=photo-timeline"><strong>Project Photo Records</strong><span>Open dated photos and booklet records.</span></a>
+              <a class="role-tool-link" data-role-tool="builder" data-tool-area="records" href="./builder/index.html?view=work-management"><strong>Documents</strong><span>Open organised project folders and files.</span></a>
+            </div>
+          </section>
+        </section>
+
+        <section class="company-cta" aria-label="Open Alert Tradie Pro">
+          <div><span class="section-kicker">One system. Clear access.</span><h3>Work from the first estimate to the final record.</h3><p>Owners keep the full business view. Estimators, managers, supervisors and workers open only the areas connected to their responsibilities.</p></div>
+          <div class="company-cta-links"><a class="company-link primary" href="./builder/index.html">Open Operation Hub</a><a class="company-link" href="mailto:info@alertconstruction.com.au">Contact support</a></div>
+        </section>
+      </div>
     </main>
 
     <footer class="footer">
@@ -172,8 +283,8 @@
   <script src="./shared/platform-config.js?v=43"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
-  <script src="./shared/dashboard-v43.js?v=52"></script>
-  <script src="./shared/product-shell-v43.js?v=52"></script>
+  <script src="./shared/dashboard-v43.js?v=53"></script>
+  <script src="./shared/product-shell-v43.js?v=53"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>
