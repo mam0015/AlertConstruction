@@ -15,7 +15,7 @@
     'permit-checklist':['owner','admin','estimator','manager'],
     projects:['owner','admin','estimator','manager','site_supervisor'],
     checklist:['owner','admin','manager','site_supervisor'],
-    catalogue:['owner','admin'],
+    catalogue:['owner','admin','estimator'],
     'photo-timeline':['owner','admin','manager','site_supervisor','estimator'],
     finance:['owner','admin','manager','estimator','site_supervisor','worker'],
     builder:['owner','admin','manager','site_supervisor','estimator','worker']

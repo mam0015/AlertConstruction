@@ -1,3 +1,155 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#050505"><title>Live Price Catalogue | Alert Tradie Pro</title><meta name="description" content="Secure editable Alert Tradie Pro trade price catalogue."><link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml"><style>
-:root{--bg:#050505;--panel:#111;--input:#202020;--line:#303030;--text:#f7f7f7;--muted:#aaa;--yellow:#f5b400;--green:#38d281;--red:#ff6c6c}*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select{font:inherit}.app{width:min(1450px,100%);margin:auto;padding:16px 18px 70px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.back{color:var(--muted);text-decoration:none;font-size:13px;font-weight:800}.brand{display:flex;align-items:center;gap:9px;font-weight:900}.logo{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--yellow);color:#050505}.hero{padding:25px;border:1px solid var(--line);border-radius:21px;background:linear-gradient(145deg,#161616,#090909);margin-bottom:14px}.hero h1{font-size:clamp(31px,5vw,54px);letter-spacing:-.05em;margin:0}.hero h1 span{color:var(--yellow)}.hero p{color:var(--muted);max-width:800px}.notice{padding:12px 14px;border:1px solid rgba(245,180,0,.4);border-radius:13px;background:rgba(245,180,0,.06);color:#f4d98c;font-size:12px;margin-bottom:13px}.controls{display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin-bottom:12px}.controls input,.controls select{min-height:48px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--input);color:var(--text)}.controls button{border:0;border-radius:11px;background:var(--yellow);color:#050505;font-weight:900;padding:0 14px}.table{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel)}.head,.row{display:grid;grid-template-columns:92px minmax(220px,1.4fr) 90px 130px 95px minmax(220px,1fr) 145px 82px;gap:9px;align-items:center;padding:11px 13px}.head{background:#191919;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase}.row{border-top:1px solid #292929}.row input,.row select{width:100%;min-height:42px;padding:8px;border:1px solid #343434;border-radius:9px;background:var(--input);color:var(--text)}.row button{min-height:40px;border:0;border-radius:9px;background:#282828;color:#fff;font-weight:900}.row button.changed{background:var(--yellow);color:#050505}.trade{color:var(--yellow);font-weight:900;text-transform:capitalize}.version{display:grid;gap:3px;font-size:10px;color:var(--muted)}.version strong{color:var(--green);font-size:11px}.empty{padding:35px;text-align:center;color:var(--muted)}.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);padding:11px 14px;border-radius:11px;background:#193823;color:#bdffd2;font-weight:800}.lock{display:none;padding:30px;border:1px solid var(--line);border-radius:18px;background:var(--panel);text-align:center}.lock.show{display:block}.lock a{display:inline-grid;place-items:center;min-height:48px;padding:0 16px;border-radius:12px;background:var(--yellow);color:#050505;text-decoration:none;font-weight:900}@media(max-width:1050px){.app{padding:10px 10px 65px}.controls{grid-template-columns:1fr}.controls button{min-height:46px}.head{display:none}.row{grid-template-columns:1fr 1fr}.row>*{min-width:0}.row>*:nth-child(2),.row>*:nth-child(6),.row>*:nth-child(7){grid-column:1/-1}.table{overflow:visible}.row{margin-bottom:9px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}}
-</style></head><body><main class="app"><header class="top"><a class="back" href="../index.html">← Dashboard</a><div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=42" alt="Alert Tradie Pro"></div><span>Live Price Catalogue</span></div></header><section class="hero"><h1>Update rates.<br><span>With a verifiable record.</span></h1><p>Approved Builder rates are delivered only after account, active-workspace and server RLS checks. Every save records the account, a new rate version, effective date and source reference. No protected rate is cached in public site files or browser storage.</p></section><div class="notice" id="status">Checking secure catalogue access…</div><section class="lock" id="lock"><h2>Sign in to manage internal prices</h2><p>Builder pricing is an internal business asset protected by Supabase Auth and row-level security.</p><a href="../login/index.html?next=/AlertConstruction/catalogue/">Open Secure Account</a></section><section id="workspace" hidden><div class="controls"><input id="search" type="search" placeholder="Search item name…"><select id="trade"><option value="">All trades</option><option value="electrical">Electrical</option><option value="plumbing">Plumbing</option><option value="cladding">Cladding</option><option value="tiling">Tiling</option><option value="carpentry">Carpentry</option><option value="cabinetry">Cabinetry</option><option value="waterproofing">Waterproofing</option><option value="demolition">Demolition</option><option value="painting">Painting</option><option value="flooring">Flooring</option><option value="plastering">Plastering</option><option value="fixtures">Fixtures</option><option value="benchtops">Benchtops</option><option value="roofing">Roofing</option><option value="windows_doors">Windows &amp; Doors</option><option value="landscaping">Landscaping</option><option value="concreting">Concreting</option><option value="hvac">Heating &amp; Cooling</option><option value="exterior">Exterior</option><option value="professional">Professional</option><option value="general">General</option></select><button id="addBtn" type="button">＋ New Item</button></div><div class="table"><div class="head"><span>Trade</span><span>Item</span><span>Unit</span><span>Builder ex GST</span><span>Margin %</span><span>Source reference</span><span>Version / effective</span><span>Save</span></div><div id="rows"></div></div></section></main><script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js"></script><script src="../shared/catalogue-defaults.js"></script><script src="../shared/catalogue-runtime.js"></script><script src="./app.js"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <title>Company Pricing | Alert Tradie Pro</title>
+  <meta name="description" content="Manage deterministic company rates used by every Alert Tradie Pro estimator.">
+  <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=51">
+</head>
+<body>
+  <main class="pricing-app">
+    <header class="top">
+      <a class="back" href="../index.html">← Dashboard</a>
+      <div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=51" alt="Alert Tradie Pro"></div><span>Company Pricing</span></div>
+    </header>
+
+    <section class="pricing-hero">
+      <div>
+        <span class="eyebrow">One source of truth</span>
+        <h1>Your rates.<br><em>Every estimate.</em></h1>
+        <p>Override the default catalogue with your company’s own prices. Electrical, Plumbing, Cladding, Renovation Budget and AI Plan Estimator all use the active list through the same fixed item codes.</p>
+      </div>
+      <div class="hero-summary" aria-label="Company pricing summary">
+        <div><span>Active list</span><strong id="activeListMetric">Checking…</strong></div>
+        <div><span>Custom rates</span><strong id="customRateMetric">—</strong></div>
+        <div><span>Catalogue items</span><strong id="catalogueItemMetric">—</strong></div>
+      </div>
+    </section>
+
+    <div class="status checking" id="status" role="status">Checking secure company pricing…</div>
+
+    <section class="lock" id="lock" hidden>
+      <span class="lock-icon">⌁</span>
+      <h2>Company Pricing is locked</h2>
+      <p>Sign in with an authorised Owner, Admin or Estimator account.</p>
+      <a href="../login/index.html?next=/AlertConstruction/catalogue/">Open Secure Account</a>
+    </section>
+
+    <section id="workspace" hidden>
+      <section class="list-console">
+        <div class="list-heading">
+          <div>
+            <span class="eyebrow">Price list</span>
+            <h2 id="selectedListName">Standard rates</h2>
+            <p id="lastUpdated">Loading update history…</p>
+          </div>
+          <span class="active-pill" id="activePill">Active for new estimates</span>
+        </div>
+        <div class="list-actions">
+          <label class="select-wrap"><span>View price list</span><select id="priceListSelect" aria-label="Select company price list"></select></label>
+          <button class="button secondary editor-only" id="newListBtn" type="button">＋ New List</button>
+          <button class="button secondary editor-only" id="activateListBtn" type="button">Activate List</button>
+          <button class="button danger editor-only" id="deactivateListBtn" type="button">Use Defaults</button>
+        </div>
+      </section>
+
+      <section class="action-grid">
+        <article>
+          <div class="action-icon">↓</div>
+          <div><strong>Download Template</strong><span>Every fixed item code, description, unit and default price.</span></div>
+          <button class="button secondary" id="downloadTemplateBtn" type="button">Download CSV</button>
+        </article>
+        <article class="editor-only">
+          <div class="action-icon">↑</div>
+          <div><strong>Import Prices</strong><span>Upload CSV or Excel. Invalid rows are skipped and shown before saving.</span></div>
+          <button class="button primary" id="importBtn" type="button">Choose File</button>
+          <input id="importFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        </article>
+        <article>
+          <div class="action-icon">↺</div>
+          <div><strong>Version History</strong><span>Every manual, bulk and imported save creates a full snapshot.</span></div>
+          <button class="button secondary" id="historyBtn" type="button">View History</button>
+        </article>
+      </section>
+
+      <section class="catalogue-toolbar">
+        <div class="filters">
+          <label><span>Search</span><input id="search" type="search" placeholder="Item code or description…"></label>
+          <label><span>Trade</span><select id="trade"><option value="">All trades</option></select></label>
+        </div>
+        <div class="bulk-tools editor-only">
+          <span id="selectionCount">0 selected</span>
+          <button class="button secondary" id="selectVisibleBtn" type="button">Select Visible</button>
+          <button class="button secondary" id="bulkAdjustBtn" type="button" disabled>Apply % Change</button>
+          <button class="button secondary" id="resetSelectedBtn" type="button" disabled>Reset Selected</button>
+        </div>
+      </section>
+
+      <div class="read-only-note" id="readOnlyNote" hidden>
+        <strong>Read-only access</strong>
+        <span>Estimators can see and use company rates, but only an Owner or Admin can change them.</span>
+      </div>
+
+      <section class="catalogue-groups" id="groups" aria-live="polite"></section>
+    </section>
+  </main>
+
+  <div class="save-bar" id="saveBar" hidden>
+    <div><strong id="saveCount">0 unsaved changes</strong><span>Nothing changes in estimators until you save.</span></div>
+    <button class="button secondary" id="discardBtn" type="button">Discard</button>
+    <button class="button primary" id="saveBtn" type="button">Save Changes</button>
+  </div>
+
+  <dialog class="modal" id="newListDialog">
+    <form method="dialog" class="modal-card" id="newListForm">
+      <div class="modal-head"><div><span class="eyebrow">New company rates</span><h2>Create Price List</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button></div>
+      <label class="field"><span>List name</span><input id="newListName" maxlength="80" placeholder="e.g. Standard 2027" required></label>
+      <label class="check-line"><input id="activateNewList" type="checkbox" checked><span>Make this the active list for new estimates</span></label>
+      <div class="modal-actions"><button class="button secondary" type="button" data-close-dialog>Cancel</button><button class="button primary" id="createListBtn" type="submit">Create List</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="bulkDialog">
+    <form method="dialog" class="modal-card wide" id="bulkForm">
+      <div class="modal-head"><div><span class="eyebrow">Preview before applying</span><h2>Bulk Price Adjustment</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button></div>
+      <label class="field"><span>Percentage change</span><div class="percent-input"><input id="bulkPercent" type="number" min="-99.99" max="1000" step="0.01" placeholder="+5 or -8" required><b>%</b></div></label>
+      <p class="modal-copy">The change is calculated from the currently displayed rate. You will still need to use Save Changes after applying this preview.</p>
+      <div class="preview-list" id="bulkPreview"></div>
+      <div class="modal-actions"><button class="button secondary" type="button" data-close-dialog>Cancel</button><button class="button primary" id="applyBulkBtn" type="submit">Apply to Draft</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="importDialog">
+    <form method="dialog" class="modal-card wide" id="importForm">
+      <div class="modal-head"><div><span class="eyebrow">Strict item-code matching</span><h2>Import Preview</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button></div>
+      <div class="import-summary" id="importSummary"></div>
+      <div class="import-errors" id="importErrors"></div>
+      <div class="preview-list" id="importPreview"></div>
+      <div class="modal-actions"><button class="button secondary" type="button" data-close-dialog>Cancel</button><button class="button primary" id="confirmImportBtn" type="submit">Confirm Import</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="historyDialog">
+    <div class="modal-card wide">
+      <div class="modal-head"><div><span class="eyebrow">Audit trail</span><h2>Version History</h2></div><button class="icon-button" id="closeHistoryBtn" type="button" aria-label="Close">×</button></div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" hidden role="status"></div>
+
+  <script src="../shared/platform-config.js?v=51"></script>
+  <script src="../shared/auth.js?v=51"></script>
+  <script src="../shared/catalogue-defaults.js?v=51"></script>
+  <script src="../shared/catalogue-runtime.js?v=51"></script>
+  <script src="../vendor/xlsx.full.min.js?v=51"></script>
+  <script src="./app.js?v=51"></script>
+  <script src="../shared/product-shell.js?v=51"></script>
+  <script src="../shared/global-shell-v43.js?v=51"></script>
+</body>
+</html>

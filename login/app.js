@@ -31,9 +31,9 @@
     const org=await organisation(profile);$('accountCompany').textContent=profileActive?(org?.name||user.user_metadata?.organisation_name||'Workspace'):pending?'Requested team workspace':rejected?'No active team workspace':'Choose individual or team';
     $('workspaceAccess').textContent=active?'Active • role protected':pending?'Waiting for Owner decision':rejected?'Request declined':'Setup required';$('workspaceAccess').className=active?'status-good':'status-bad';
     $('cloudState').textContent=active?'Connected with RLS':pending?'Locked until approval':rejected?'Request declined':'Ready to create workspace';
-    $('catalogueState').textContent=active&&profile.role==='owner'?'Owner edit access':active&&profile.role==='estimator'?'Approved rates • read only':active?'Not included in this role':pending?'Locked until role approval':'Available after workspace setup';
+    $('catalogueState').textContent=active&&['owner','admin'].includes(profile.role)?'Company rates • edit access':active&&profile.role==='estimator'?'Company rates • read only':active?'Not included in this role':pending?'Locked until role approval':'Available after workspace setup';
     $('pendingRequests').textContent=String(ACAuth.pendingJoinCount?.()||0);$('pendingRequests').className=(ACAuth.pendingJoinCount?.()||0)>0?'status-bad':'';
-    $('teamArea').hidden=false;$('personalChoice').hidden=profileActive||pending;$('joinChoice').hidden=profileActive||pending;$('builderControlLink').hidden=!(active&&ACAuth.canUseTool?.('builder'));
+    $('teamArea').hidden=false;$('personalChoice').hidden=profileActive||pending;$('joinChoice').hidden=profileActive||pending;$('builderControlLink').hidden=!(active&&ACAuth.canUseTool?.('builder'));$('companyPricingLink').hidden=!(active&&ACAuth.canUseTool?.('catalogue'));
     if(active&&profile.role==='owner'&&org?.join_code){$('ownerCode').hidden=false;$('teamCode').textContent=org.join_code;$('codeAge').textContent=org.join_code_rotated_at?`Rotated ${new Date(org.join_code_rotated_at).toLocaleString('en-AU')}`:''}else $('ownerCode').hidden=true;
     $('teamMembers').innerHTML=active&&profile.role==='owner'?'<div class="activity-row"><strong>Manage staff in Operations Hub</strong><span>Approve requests, assign roles, review attendance and send messages from the secure operations workspace.</span></div>':'';
   }

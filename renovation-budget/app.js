@@ -13,12 +13,14 @@
   function syncLiveRates(){
     if(!window.ACPriceCatalogue)return;
     ['electrical','plumbing','cladding'].forEach(trade=>Object.values(R.verified[trade]||{}).forEach((item,index)=>{
-      const rate=window.ACPriceCatalogue.effectiveRate(trade,index);
-      item.rate=rate==null?null:Number(rate);
+      const row=window.ACPriceCatalogue.rowAt(trade,index);
+      item.rate=row?Number(row.builder_rate):null;
+      item.pricing=row?{item_code:row.item_code,default_price:Number(row.default_price),custom_price:row.custom_price==null?null:Number(row.custom_price),is_custom:row.is_custom===true,price_source:row.is_custom?'custom':'default',price_list_id:row.active_price_list_id||null,price_list_name:row.active_price_list_name||null}:null;
     }));
     Object.entries(R.allowances).forEach(([group,items])=>Object.entries(items).forEach(([key,item])=>{
       const row=window.ACPriceCatalogue.list().find(value=>value.item_key===`renovation:${group}:${key}`);
-      if(row&&row.verification_status==='approved')item.rate=Number(row.builder_rate);
+      item.rate=row?Number(row.builder_rate):null;
+      item.pricing=row?{item_code:row.item_code,default_price:Number(row.default_price),custom_price:row.custom_price==null?null:Number(row.custom_price),is_custom:row.is_custom===true,price_source:row.is_custom?'custom':'default',price_list_id:row.active_price_list_id||null,price_list_name:row.active_price_list_name||null}:null;
     }));
   }
   if(window.ACPriceCatalogue){window.ACPriceCatalogue.ready.then(syncLiveRates);window.addEventListener('ac-catalogue-changed',syncLiveRates)}
@@ -205,11 +207,11 @@
     const priority=scope=>state.priorities[scope]||defaultPriority(scope);
     function add(scope,trade,item,qty,source,options={}){
       qty=number(qty);if(!qty)return;
-      if(source==='ac'&&(item.rate==null||!Number.isFinite(Number(item.rate)))){
-        throw new Error(`Verified ${trade} pricing has not loaded. No estimate was calculated and no fallback price was used.`);
+      if(item.rate==null||!Number.isFinite(Number(item.rate))||!item.pricing?.item_code){
+        throw new Error(`Company Pricing has not loaded a fixed item code for ${item.name}. No estimate was calculated and no fallback price was used.`);
       }
       const rate=Number(item.rate)*(source==='allowance'&&options.finishSensitive?qualityFactor:1),builder=rate*qty;
-      lines.push({id:`${scope}_${trade}_${lines.length}`,scope,trade,name:item.name,qty,unit:item.unit,rate,builder,source,priority:priority(scope),critical:!!options.critical,note:options.note||''});
+      lines.push({id:`${scope}_${trade}_${lines.length}`,scope,trade,item_code:item.pricing.item_code,name:item.name,qty,unit:item.unit,rate,rateUsed:rate,defaultPrice:item.pricing.default_price,customPrice:item.pricing.custom_price,priceSource:item.pricing.price_source,priceListId:item.pricing.price_list_id,priceListName:item.pricing.price_list_name,builder,source:item.pricing.is_custom?'custom':'default',priority:priority(scope),critical:!!options.critical,note:options.note||'',capturedAt:new Date().toISOString()});
     }
     const ac=(scope,trade,item,qty,options)=>add(scope,trade,item,qty,'ac',options);
     const allowance=(scope,trade,item,qty,options)=>add(scope,trade,item,qty,'allowance',options);
@@ -295,15 +297,15 @@
     const groups={};lines.forEach(line=>(groups[line.trade]||(groups[line.trade]=[])).push(line));
     const groupHtml=Object.entries(groups).map(([trade,items])=>{
       const total=items.reduce((sum,line)=>sum+line.builder*(1+R.customerMargin)*(1+R.gst),0);
-      return `<section class="trade-group"><div class="trade-title"><span>${esc(trade)}</span><strong>${money(total)}</strong></div>${items.map(line=>`<div class="line-item"><div><strong>${esc(line.name)}</strong><small>${line.source==='ac'?'<span class="chip ac">Verified company rate</span>':'<span class="chip allowance">Planning allowance</span>'} · ${esc(scopeInfo[line.scope]?.name||line.scope)} · ${esc(line.priority==='must'?'Must Have':line.priority==='important'?'Important':'Optional')}</small></div><div class="qty">${Number(line.qty).toLocaleString('en-AU')} ${esc(line.unit)}</div><div class="money">${money(line.builder*(1+R.customerMargin)*(1+R.gst))}</div></div>`).join('')}</section>`;
+      return `<section class="trade-group"><div class="trade-title"><span>${esc(trade)}</span><strong>${money(total)}</strong></div>${items.map(line=>`<div class="line-item"><div><strong>${esc(line.name)}</strong><small>${line.priceSource==='custom'?'<span class="chip ac">Your rate</span>':'<span class="chip allowance">Default catalogue</span>'} · ${esc(line.item_code)} · ${esc(scopeInfo[line.scope]?.name||line.scope)} · ${esc(line.priority==='must'?'Must Have':line.priority==='important'?'Important':'Optional')}</small></div><div class="qty">${Number(line.qty).toLocaleString('en-AU')} ${esc(line.unit)}</div><div class="money">${money(line.builder*(1+R.customerMargin)*(1+R.gst))}</div></div>`).join('')}</section>`;
     }).join('');
     const saving=Math.max(0,totals.grand-result.essentialTotal),alternative=!good&&state.project.quality!=='essential'&&saving>500?` Changing all allowance-based finishes to Essential could reduce this planning total by approximately <strong>${money(saving)}</strong>.`:'';
     $('results').innerHTML=`
       <div class="result-top"><section class="total-card"><div class="total-label">Estimated renovation total inc GST and contingency</div><div class="grand-total">${money(totals.grand)}</div><div class="total-note">${esc(quality)} finish · ${state.project.contingency}% contingency · ${lines.length} priced items</div><div class="total-note">Protected catalogue: ${esc(catalogueVersion)} · server access verified at calculation time</div></section><section class="budget-card"><div class="budget-grid"><div class="budget-stat"><span>Available budget</span><strong>${money(totals.budget)}</strong></div><div class="budget-stat ${good?'good':'bad'}"><span>${good?'Remaining':'Over budget'}</span><strong>${money(good?totals.remaining:totals.over)}</strong></div><div class="budget-stat"><span>Works inc GST</span><strong>${money(totals.worksInc)}</strong></div><div class="budget-stat"><span>Contingency</span><strong>${money(totals.contingency)}</strong></div></div></section></div>
       <div class="result-banner ${good?'good':'bad'}"><strong>${good?'The selected renovation fits within the entered budget.':'The selected renovation is currently over budget.'}</strong>${good?`The planner leaves approximately ${money(totals.remaining)} after the selected work and contingency.`:`You would need approximately ${money(totals.over)} more, or you can move lower-priority work to a later stage.`}${alternative}</div>
       <div class="recommend-grid"><section class="recommend now"><h3>Do Now</h3><div class="recommend-list">${recHtml(recommendation.now,'No non-optional items fit within the entered budget yet.')}</div></section><section class="recommend later"><h3>Do Later</h3><div class="recommend-list">${recHtml(recommendation.later,'All selected Must Have and Important work fits within the budget.')}</div></section><section class="recommend optional"><h3>Optional Upgrades</h3><div class="recommend-list">${recHtml(recommendation.optional,'No areas were marked Optional.')}</div></section></div>
-      <section class="breakdown"><div class="breakdown-head"><h3>Itemised Cost Breakdown</h3><div class="legend"><span class="chip ac">Verified company rate</span><span class="chip allowance">Planning allowance</span></div></div>${groupHtml}<div class="cost-footer"><span>Builder catalogue / allowance subtotal ex GST</span><strong>${money(totals.builderEx)}</strong><span>Customer margin (20%)</span><strong>${money(totals.margin)}</strong><span>GST (10%)</span><strong>${money(totals.gst)}</strong><span>Contingency (${state.project.contingency}%)</span><strong>${money(totals.contingency)}</strong><span class="final">Estimated total</span><strong class="final">${money(totals.grand)}</strong></div></section>
-      <section class="missing"><h3>Rates still requiring company trade data</h3><p>The planner works without AI. Electrical, Plumbing and Thermory Cladding use the existing verified company calculator rates. The categories below currently use editable planning allowances and should be replaced when your real invoices or trade price lists are available.</p><div class="missing-list">${R.missingVerifiedCatalogues.map(item=>`<span>${esc(item)}</span>`).join('')}</div></section>`;
+      <section class="breakdown"><div class="breakdown-head"><h3>Itemised Cost Breakdown</h3><div class="legend"><span class="chip ac">Your rate</span><span class="chip allowance">Default catalogue</span></div></div>${groupHtml}<div class="cost-footer"><span>Company pricing subtotal ex GST</span><strong>${money(totals.builderEx)}</strong><span>Customer margin (20%)</span><strong>${money(totals.margin)}</strong><span>GST (10%)</span><strong>${money(totals.gst)}</strong><span>Contingency (${state.project.contingency}%)</span><strong>${money(totals.contingency)}</strong><span class="final">Estimated total</span><strong class="final">${money(totals.grand)}</strong></div></section>
+      <section class="missing"><h3>Deterministic company pricing</h3><p>Every line above was loaded by its fixed item code. A <strong>Your rate</strong> tag means the active company price list supplied the amount; <strong>Default catalogue</strong> means no company override was set for that item. No AI, description matching or document parsing was used to choose these prices.</p></section>`;
   }
 
   function saveDraft(showMessage=true){

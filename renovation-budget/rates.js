@@ -155,6 +155,11 @@
     }
   };
 
+  // Prices are intentionally cleared after the public item schema is defined.
+  // The estimator receives every effective amount from the V51 company-pricing
+  // lookup; it never calculates from a public hardcoded fallback.
+  Object.values(allowances).forEach(group=>Object.values(group).forEach(item=>{item.rate=null}));
+
   global.ACRenovationRates={
     verified,
     allowances,
@@ -164,6 +169,4 @@
     qualityLabels:{essential:'Essential / Budget',standard:'Standard',premium:'Premium',luxury:'Luxury'},
     missingVerifiedCatalogues:['Tiling','Carpentry & framing','Cabinetry & joinery','Waterproofing','Demolition','Painting','Flooring','Roofing','Windows & doors','Landscaping','Concreting','Heating & cooling','Permits & design']
   };
-  const catalogue=global.AC_CATALOGUE_DEFAULTS||(global.AC_CATALOGUE_DEFAULTS=[]),tradeMap={demolition:'demolition',waterproofing:'waterproofing',tiling:'tiling',cabinetry:'cabinetry',benchtop:'benchtops',fixtures:'fixtures',carpentry:'carpentry',plastering:'plastering',painting:'painting',flooring:'flooring',exterior:'exterior',professional:'professional'};
-  Object.entries(allowances).forEach(([group,items])=>Object.entries(items).forEach(([key,item],index)=>catalogue.push({item_key:`renovation:${group}:${key}`,trade:tradeMap[group]||'general',sort_order:index,name:item.name,builder_rate:Number(item.rate),unit:item.unit,customer_margin:20,active:true,source:'planning-allowance'})));
 })(window);

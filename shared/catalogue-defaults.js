@@ -12,8 +12,10 @@
   */
   const rows=[];
   function add(trade,items){
+    const prefix={electrical:'ELEC',plumbing:'PLMB',cladding:'CLAD'}[trade]||'GEN';
     items.forEach((item,index)=>rows.push({
       item_key:`${trade}:${index}`,
+      item_code:`${prefix}-${String(index+1).padStart(3,'0')}`,
       trade,
       sort_order:index,
       name:item[0],

@@ -1,4 +1,4 @@
-const CACHE='alert-tradie-pro-v50';
+const CACHE='alert-tradie-pro-v51';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
@@ -10,12 +10,12 @@ const ASSETS=[
   './plan-ai/','./plan-ai/index.html','./plan-ai/styles.css','./plan-ai/config.js','./plan-ai/app.js',
   './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
   './invoice/','./invoice/index.html','./invoice/styles.css','./invoice/calculations.js','./invoice/api.js','./invoice/pdf.js',
-  './vendor/jspdf.umd.min.js','./vendor/jspdf.plugin.autotable.min.js','./vendor/DejaVuSans.ttf','./vendor/DejaVuSans-Bold.ttf','./vendor/LICENSE.dejavu-fonts.txt','./assets/invoice-logo.png',
+  './vendor/jspdf.umd.min.js','./vendor/jspdf.plugin.autotable.min.js','./vendor/DejaVuSans.ttf','./vendor/DejaVuSans-Bold.ttf','./vendor/LICENSE.dejavu-fonts.txt','./vendor/xlsx.full.min.js','./vendor/LICENSE.xlsx.txt','./assets/invoice-logo.png',
   './projects/','./projects/index.html','./projects/app.js',
   './login/','./login/index.html','./login/app.js',
   './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js','./builder/photo-timeline.css','./builder/photo-timeline-api.js','./builder/photo-timeline.js','./builder/booklet-pdf.js','./builder/finance.css','./builder/finance-api.js','./builder/finance.js','./builder/operation-overview.css','./builder/operation-tools.css','./builder/operation-tools-api.js','./builder/operation-tools.js',
   './legal/privacy.html','./legal/terms.html','./legal/support.html',
-  './catalogue/','./catalogue/index.html','./catalogue/app.js',
+  './catalogue/','./catalogue/index.html','./catalogue/styles.css','./catalogue/app.js',
   './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
   './shared/product-shell.js','./shared/product-shell-v43.js','./shared/global-shell-v43.js','./shared/global-shell-v43.css','./shared/dashboard-v43.js','./shared/dashboard-v43.css','./shared/team-chat.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
 ];
