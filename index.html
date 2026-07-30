@@ -17,7 +17,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/alert-tradie-pro-apple-touch.png">
-  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=44">
+  <link rel="stylesheet" href="./shared/dashboard-v43.css?v=52">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html{scroll-behavior:smooth;background:#070807}
@@ -34,30 +34,35 @@
     html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
     html[data-ac-theme="light"] .brand-mark img{filter:none}
     .hero{min-height:0;background:var(--app-bg)}
-    .workspace{position:relative;z-index:5;max-width:1480px;margin:0 auto;padding:86px clamp(20px,5vw,84px) 74px}
-    .workspace-head{display:flex;justify-content:space-between;align-items:end;gap:28px;margin-bottom:26px}
+    .workspace{position:relative;z-index:5;max-width:1480px;margin:0 auto;padding:96px clamp(20px,5vw,84px) 82px}
+    .workspace-head{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.75fr);align-items:end;gap:clamp(34px,6vw,96px);margin-bottom:58px}
     .workspace-kicker{color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}
-    .workspace h2{margin:9px 0 0;font-size:clamp(34px,4vw,58px);line-height:.98;letter-spacing:-.05em}
-    .workspace-head p{max-width:540px;margin:0;color:var(--app-muted);font-size:14px;line-height:1.6}
-    .category-strip{display:flex;gap:8px;overflow:auto;padding:2px 0 17px;scrollbar-width:thin}
-    .category-chip{flex:none;min-height:42px;padding:0 14px;border:1px solid var(--app-border);border-radius:999px;background:var(--app-surface);color:var(--app-text);font-size:11px;font-weight:850;cursor:pointer}
-    .category-chip[aria-pressed="true"]{background:var(--app-gold);border-color:var(--app-gold);color:#111}
-    .tool-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    .tool-card{position:relative;min-height:210px;display:flex;flex-direction:column;padding:21px;border:1px solid var(--app-border);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb,var(--app-text) 7%,var(--app-bg)),var(--app-surface));overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .2s}
-    .tool-card:before{content:"";position:absolute;right:-50px;top:-72px;width:150px;height:150px;border:1px solid color-mix(in srgb,var(--app-gold) 25%,transparent);transform:rotate(45deg)}
-    .tool-card:hover,.tool-card:focus-visible{outline:none;transform:translateY(-4px);border-color:var(--app-gold);box-shadow:0 24px 60px rgba(0,0,0,.24)}
-    .tool-card[hidden]{display:none}
-    .tool-category{position:relative;color:var(--app-gold);font-size:9px;font-weight:950;letter-spacing:.13em;text-transform:uppercase}
-    .tool-card h3{position:relative;margin:35px 0 9px;font-size:22px;line-height:1.02;letter-spacing:-.035em}
-    .tool-card p{position:relative;margin:0;color:var(--app-muted);font-size:12px;line-height:1.5}
-    .tool-open{position:relative;margin-top:auto;padding-top:18px;color:var(--app-gold);font-size:11px;font-weight:900}
+    .workspace h2{max-width:780px;margin:11px 0 0;font-size:clamp(42px,5.2vw,76px);line-height:.94;letter-spacing:-.055em;text-wrap:balance}
+    .workspace-head p{max-width:570px;margin:0;color:var(--app-muted);font-size:clamp(15px,1.35vw,18px);line-height:1.65}
+    .about-story{border-top:1px solid var(--app-border)}
+    .about-row{display:grid;grid-template-columns:120px minmax(220px,.62fr) minmax(0,1.25fr);gap:clamp(20px,4vw,72px);align-items:start;padding:clamp(32px,4vw,54px) 0;border-bottom:1px solid var(--app-border)}
+    .about-number{color:var(--app-gold);font-size:11px;font-weight:950;letter-spacing:.14em}
+    .about-row h3{margin:0;font-size:clamp(26px,3vw,42px);line-height:1;letter-spacing:-.045em}
+    .about-row p{max-width:720px;margin:0;color:var(--app-muted);font-size:15px;line-height:1.72}
+    .about-proof{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:50px;border-top:1px solid var(--app-border);border-bottom:1px solid var(--app-border)}
+    .proof-item{min-height:118px;padding:25px 22px;border-right:1px solid var(--app-border)}
+    .proof-item:last-child{border-right:0}
+    .proof-item strong,.proof-item span{display:block}
+    .proof-item strong{font-size:14px;letter-spacing:-.015em}
+    .proof-item span{margin-top:8px;color:var(--app-muted);font-size:11px;line-height:1.5}
+    .about-actions{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:34px}
+    .about-actions p{max-width:650px;margin:0;color:var(--app-muted);font-size:12px;line-height:1.6}
+    .about-links{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .about-link{display:inline-flex;align-items:center;justify-content:center;min-height:45px;padding:0 16px;border:1px solid var(--app-border);border-radius:11px;color:var(--app-text);font-size:11px;font-weight:900;transition:transform .2s,border-color .2s,background .2s}
+    .about-link.primary{border-color:var(--app-gold);background:var(--app-gold);color:#111}
+    .about-link:hover,.about-link:focus-visible{outline:none;transform:translateY(-2px);border-color:var(--app-gold)}
     .footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:25px clamp(20px,4vw,60px);border-top:1px solid var(--app-border);background:var(--app-bg);color:var(--app-muted);font-size:11px}
     .footer strong{color:var(--app-text)}
     .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
     .footer a:hover{color:var(--app-gold)}
-    @media(max-width:1080px){.tool-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    @media(max-width:780px){.workspace-head{display:block}.workspace-head p{margin-top:14px}.tool-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:560px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.workspace{padding:64px 14px 52px}.tool-card-grid{grid-template-columns:1fr}.footer-links{margin-left:0}}
+    @media(max-width:900px){.workspace-head{grid-template-columns:1fr}.about-row{grid-template-columns:70px minmax(180px,.6fr) minmax(0,1fr)}.about-proof{grid-template-columns:1fr 1fr}.proof-item:nth-child(2){border-right:0}.proof-item:nth-child(-n+2){border-bottom:1px solid var(--app-border)}}
+    @media(max-width:680px){.workspace{padding:70px 16px 58px}.workspace-head{gap:22px;margin-bottom:38px}.about-row{grid-template-columns:46px 1fr;gap:16px}.about-row p{grid-column:2;font-size:14px}.about-actions{align-items:flex-start;flex-direction:column}.about-links{justify-content:flex-start}.proof-item{min-height:108px;padding:20px 16px}}
+    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.about-proof{grid-template-columns:1fr}.proof-item{border-right:0;border-bottom:1px solid var(--app-border)!important}.proof-item:last-child{border-bottom:0!important}.footer-links{margin-left:0}}
   </style>
 </head>
 <body>
@@ -109,7 +114,7 @@
             <p>Scroll to complete the build, then manage estimates, projects, site operations and reporting from one connected workspace.</p>
             <div class="build-actions">
               <a class="build-button primary" href="./builder/index.html">Open Operation Hub</a>
-              <a class="build-button" href="#tools">Explore Tools</a>
+              <a class="build-button" href="#about">Who we are</a>
             </div>
           </div>
           <div class="scroll-hint" id="scrollHint"><span>Scroll to build</span><i></i></div>
@@ -121,33 +126,40 @@
         </div>
       </section>
 
-      <section class="workspace" id="tools">
+      <section class="workspace" id="about">
         <div class="workspace-head">
-          <div><div class="workspace-kicker">Your building clinic</div><h2>Everything in its place.</h2></div>
-          <p id="roleToolSummary" aria-live="polite">Open the job you need without digging through the app. Your approved role controls which tools appear here.</p>
+          <div><div class="workspace-kicker">Powered by Alert Construction</div><h2>Built from real construction work.</h2></div>
+          <p>Alert Tradie Pro is a practical operating platform for builders and trade teams. It was shaped around the day-to-day needs of a working construction business—not a generic software template.</p>
         </div>
-        <div class="category-strip" aria-label="Filter tools">
-          <button class="category-chip" type="button" data-filter="all" aria-pressed="true">All tools</button>
-          <button class="category-chip" type="button" data-filter="estimating" aria-pressed="false">Estimating</button>
-          <button class="category-chip" type="button" data-filter="analysis" aria-pressed="false">Analysis &amp; AI</button>
-          <button class="category-chip" type="button" data-filter="site" aria-pressed="false">Projects &amp; Site</button>
-          <button class="category-chip" type="button" data-filter="business" aria-pressed="false">Business</button>
+        <div class="about-story">
+          <article class="about-row">
+            <span class="about-number">01</span>
+            <h3>Who we are</h3>
+            <p>Alert Tradie Pro is the software platform. Alert Construction is the Melbourne construction company behind it. Together, the aim is simple: give construction teams a clearer way to run work from the first estimate through to the final handover.</p>
+          </article>
+          <article class="about-row">
+            <span class="about-number">02</span>
+            <h3>What we do</h3>
+            <p>We bring estimating, company pricing, quote review, project records, site tasks, finance, documents and reporting into one connected workspace. Owners keep the full business view, while each team member sees only what is relevant to their responsibility.</p>
+          </article>
+          <article class="about-row">
+            <span class="about-number">03</span>
+            <h3>Why trust us</h3>
+            <p>The platform is designed around real construction workflows, clear records and controlled access. Company rates stay consistent, saved estimates keep the prices used at the time, and role permissions protect sensitive project and financial information.</p>
+          </article>
         </div>
-        <div class="tool-card-grid">
-          <a class="tool-card" data-category="estimating" data-role-tool="electrical" href="./electrical/index.html"><span class="tool-category">Estimating</span><h3>Electrical Estimate</h3><p>Build a detailed electrical scope and estimate.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" data-role-tool="plumbing" href="./plumbing/index.html"><span class="tool-category">Estimating</span><h3>Plumbing Estimate</h3><p>Price plumbing work with a clear item breakdown.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" data-role-tool="cladding" href="./cladding/index.html"><span class="tool-category">Estimating</span><h3>Cladding Estimate</h3><p>Plan quantities, waste and installation costs.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="estimating" data-role-tool="renovation-budget" href="./renovation-budget/index.html"><span class="tool-category">Estimating</span><h3>Renovation Budget</h3><p>Shape a renovation budget before work begins.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" data-role-tool="plan-ai" href="./plan-ai/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>AI Plan Estimator</h3><p>Review drawings and prepare a checked estimate.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" data-role-tool="quote-analysis" href="./quote-analysis/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Quote Price Analysis</h3><p>Compare quote pricing and identify gaps quickly.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="analysis" data-role-tool="property-estimate" href="./property-estimate/index.html"><span class="tool-category">Analysis &amp; AI</span><h3>Property Value Guide</h3><p>Guide property value with local sales evidence.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" data-role-tool="projects" href="./projects/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Projects &amp; Schedule</h3><p>Keep projects, tasks, files and dates together.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" data-role-tool="checklist" href="./checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Site Checklist</h3><p>Complete clear, repeatable site checks.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="site" data-role-tool="permit-checklist" href="./permit-checklist/index.html"><span class="tool-category">Projects &amp; Site</span><h3>Permit Checklist</h3><p>Track permit tasks and required documents.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" data-role-tool="invoice" href="./invoice/index.html"><span class="tool-category">Business</span><h3>Invoice Generator</h3><p>Create a simple professional GST invoice.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" data-role-tool="finance" href="./builder/index.html?view=financial-data"><span class="tool-category">Business</span><h3>Financial Data</h3><p>Track cash flow, project budgets, costs and approvals.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" data-role-tool="photo-timeline" href="./builder/index.html?view=photo-timeline"><span class="tool-category">Business</span><h3>Project Photo Timeline</h3><p>Open project folders, review dated photos and prepare visual records.</p><span class="tool-open">Open tool →</span></a>
-          <a class="tool-card" data-category="business" data-role-tool="catalogue" href="./catalogue/index.html"><span class="tool-category">Business</span><h3>Company Pricing</h3><p>Set your company rates once and use them across every estimate.</p><span class="tool-open">Open tool →</span></a>
+        <div class="about-proof" aria-label="Alert Tradie Pro trust points">
+          <div class="proof-item"><strong>Construction-led</strong><span>Built around the work teams already do.</span></div>
+          <div class="proof-item"><strong>Australian focus</strong><span>Created for local builders and tradies.</span></div>
+          <div class="proof-item"><strong>Role-based access</strong><span>People see the work they are approved to use.</span></div>
+          <div class="proof-item"><strong>Clear support</strong><span>info@alertconstruction.com.au</span></div>
+        </div>
+        <div class="about-actions">
+          <p>Alert Tradie Pro keeps the public home page simple. Your approved workspace and operational tools remain securely available after sign-in.</p>
+          <div class="about-links">
+            <a class="about-link primary" href="./builder/index.html">Open Operation Hub</a>
+            <a class="about-link" href="mailto:info@alertconstruction.com.au">Contact support</a>
+          </div>
         </div>
       </section>
     </main>
@@ -160,55 +172,8 @@
   <script src="./shared/platform-config.js?v=43"></script>
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
-  <script>
-    (function(){
-      var buttons=Array.prototype.slice.call(document.querySelectorAll('.category-chip'));
-      var cards=Array.prototype.slice.call(document.querySelectorAll('.tool-card'));
-      var activeFilter='all';
-      function render(){
-        cards.forEach(function(card){
-          card.hidden=card.dataset.roleHidden==='true'||(activeFilter!=='all'&&card.dataset.category!==activeFilter);
-        });
-        buttons.forEach(function(button){
-          var category=button.dataset.filter;
-          var available=category==='all'||cards.some(function(card){return card.dataset.category===category&&card.dataset.roleHidden!=='true'});
-          button.hidden=!available;
-        });
-      }
-      async function applyRole(){
-        if(!window.ACAuth)return;
-        await window.ACAuth.ready;
-        var active=window.ACAuth.hasAccess&&window.ACAuth.hasAccess();
-        cards.forEach(function(card){
-          var allowed=!active||window.ACAuth.canUseTool(card.dataset.roleTool);
-          card.dataset.roleHidden=String(!allowed);
-        });
-        if(activeFilter!=='all'&&!cards.some(function(card){return card.dataset.category===activeFilter&&card.dataset.roleHidden!=='true'})){
-          activeFilter='all';
-          buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item.dataset.filter==='all'))});
-        }
-        var profile=window.ACAuth.profile&&window.ACAuth.profile();
-        var summary=document.getElementById('roleToolSummary');
-        if(summary&&active){
-          var count=cards.filter(function(card){return card.dataset.roleHidden!=='true'}).length;
-          summary.textContent='Showing '+count+' tool'+(count===1?'':'s')+' approved for '+window.ACAuth.roleLabel(profile&&profile.role)+'. Tools outside this role stay hidden.';
-        }
-        render();
-      }
-      buttons.forEach(function(button){
-        button.addEventListener('click',function(){
-          activeFilter=button.dataset.filter;
-          buttons.forEach(function(item){item.setAttribute('aria-pressed',String(item===button))});
-          render();
-        });
-      });
-      window.addEventListener('ac-auth-ready',applyRole);
-      window.addEventListener('ac-auth-changed',applyRole);
-      applyRole();
-    })();
-  </script>
-  <script src="./shared/dashboard-v43.js?v=44"></script>
-  <script src="./shared/product-shell-v43.js?v=44"></script>
+  <script src="./shared/dashboard-v43.js?v=52"></script>
+  <script src="./shared/product-shell-v43.js?v=52"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>
