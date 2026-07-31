@@ -15,11 +15,8 @@
     const rect=story.getBoundingClientRect();
     const distance=Math.max(1,story.offsetHeight-window.innerHeight);
     const progress=clamp(-rect.top/distance,0,1);
-    sticky.style.setProperty('--about-position',`${(24+progress*54).toFixed(2)}%`);
-    sticky.style.setProperty('--about-position-mobile',`${(34+progress*45).toFixed(2)}%`);
-    sticky.style.setProperty('--about-scale',(1.09-progress*.025).toFixed(4));
-    sticky.style.setProperty('--about-saturate',(.72+progress*.24).toFixed(3));
-    sticky.style.setProperty('--about-brightness',(.76+progress*.1).toFixed(3));
+    sticky.style.setProperty('--about-reveal',`${(progress*100).toFixed(2)}%`);
+    sticky.style.setProperty('--about-scale',(1.035-progress*.015).toFixed(4));
     sticky.style.setProperty('--scan-left',`${(progress*100).toFixed(2)}%`);
     sticky.style.setProperty('--scan-opacity',String(clamp(progress*(1-progress)*4,0,1)));
     sticky.style.setProperty('--before-opacity',String(clamp(1-progress*2.25,0,1)));

@@ -47,18 +47,23 @@
     <main>
       <section class="transform-story" id="transformStory" aria-label="From project overload to organised construction management">
         <div class="transform-sticky">
-          <img class="transform-image" id="transformImage" src="../assets/about-chaos-control.webp" alt="A construction manager moving from a busy disorganised project workspace to a clean managed project through a digital platform">
+          <div class="transform-stage" aria-hidden="true">
+            <img class="transform-image transform-image-before" src="../assets/about-project-overload.webp" alt="">
+            <div class="transform-image-reveal" id="transformImageReveal">
+              <img class="transform-image transform-image-after" src="../assets/about-project-control.webp" alt="">
+            </div>
+          </div>
           <div class="transform-vignette" aria-hidden="true"></div>
           <div class="transform-scan" id="transformScan" aria-hidden="true"></div>
           <div class="transform-copy transform-copy-before" id="transformBefore">
             <span class="hero-kicker">The problem behind the platform</span>
             <h1>Too many projects.<br>Too many moving parts.</h1>
-            <p>Plans in one place, prices in another, site updates in messages and important decisions buried between them.</p>
+            <p>Plans, prices, calls and site updates scattered everywhere.</p>
           </div>
           <div class="transform-copy transform-copy-after" id="transformAfter">
             <span class="hero-kicker">Open Alert Tradie Pro</span>
             <h2>One clear view.<br>Work under control.</h2>
-            <p>Estimates, project work, site records, finance and reporting become one manageable system built around the job.</p>
+            <p>Estimates, projects, site updates and finance in one clear workspace.</p>
             <div class="hero-actions"><a class="hero-button primary" href="../builder/index.html">Open Operation Hub</a><a class="hero-button" href="#who-we-are">Meet the team behind it</a></div>
           </div>
           <div class="transform-status">
@@ -74,11 +79,10 @@
         <div class="intro-label"><span>01</span><strong>Who We Are</strong></div>
         <div class="intro-copy">
           <span class="section-kicker">Construction first. Technology with a purpose.</span>
-          <h2 id="whoTitle">Built by people who understand the job beyond the screen.</h2>
+          <h2 id="whoTitle">Construction experience, built into one clear platform.</h2>
           <div class="gold-rule" aria-hidden="true"></div>
-          <p class="lead">Alert Construction is a Melbourne building company working across new homes, extensions and renovations. Our projects bring builders, engineers, estimators, trades, site teams and clients into the same delivery process.</p>
-          <p>Alert Tradie Pro grew from that work. It was created to solve the practical problems that appear every day: inconsistent rates, slow estimating, scattered documents, missed follow-ups, unclear responsibilities and project information that is difficult to find when it matters.</p>
-          <p>The platform is not designed as another generic office system. It follows the way construction work actually moves—from the first plan and estimate, through site delivery, to invoicing, reporting and handover.</p>
+          <p class="lead">Alert Construction is a Melbourne builder working across new homes, extensions and renovations. We built Alert Tradie Pro from the problems we face on real projects.</p>
+          <p>It keeps estimates, projects, site work, finance and records connected—from the first plan to final handover.</p>
           <div class="identity-line"><span></span><div><strong>Alert Tradie Pro</strong><small>A construction operating platform · Powered by Alert Construction</small></div></div>
         </div>
       </section>
@@ -86,23 +90,23 @@
       <section class="work-section" id="what-we-do" aria-labelledby="workTitle">
         <header class="section-heading">
           <div><span class="section-kicker">One connected project record</span><h2 id="workTitle">What We Do</h2></div>
-          <p>We bring the commercial, project and site sides of construction together without giving every person access to everything.</p>
+          <p>One place to price, plan, build and report—with access matched to each role.</p>
         </header>
         <div class="work-list">
           <article class="work-row">
             <div class="work-image"><img src="../assets/what-we-do-estimating.webp" alt="Construction plans and calculator used for project estimating" loading="lazy"></div>
             <div class="work-number">01</div>
-            <div class="work-copy"><span>Before work starts</span><h3>Estimate with consistent company rates.</h3><p>Prepare electrical, plumbing, cladding and renovation estimates, analyse trade quotes and review plan quantities. Each estimator uses the active company price list, so the same item is not priced differently across different tools.</p><a href="../catalogue/index.html" data-role-tool="catalogue">Open Company Pricing →</a></div>
+            <div class="work-copy"><span>Price</span><h3>Estimate with confidence.</h3><p>Build estimates, check trade quotes and use one company price list across every tool.</p><a href="../catalogue/index.html" data-role-tool="catalogue">Open Company Pricing →</a></div>
           </article>
           <article class="work-row">
             <div class="work-image"><img src="../assets/what-we-do-site.webp" alt="Construction site team coordinating work on an active project" loading="lazy"></div>
             <div class="work-number">02</div>
-            <div class="work-copy"><span>While the project is moving</span><h3>Keep the office and site working from the same plan.</h3><p>Create projects, manage schedules, assign daily tasks, complete checklists, record timesheets and capture end-of-day updates. Project photos stay organised by job and date instead of disappearing inside message threads.</p><a href="../builder/index.html?view=team-management" data-role-tool="builder">Open Team Management →</a></div>
+            <div class="work-copy"><span>Manage</span><h3>Run projects clearly.</h3><p>Plan schedules, assign tasks, complete checklists and keep site updates organised.</p><a href="../builder/index.html?view=team-management" data-role-tool="builder">Open Team Management →</a></div>
           </article>
           <article class="work-row">
             <div class="work-image"><img src="../assets/what-we-do-finance.webp" alt="Finance reports and calculator used to manage project costs" loading="lazy"></div>
             <div class="work-number">03</div>
-            <div class="work-copy"><span>From approval to handover</span><h3>Connect financial decisions to the work behind them.</h3><p>Record approved income, expenses and payments, follow live company charts, manage project budgets, create invoices and keep reports ready for the people who need them. Saved records remain tied to the correct project.</p><a href="../builder/index.html?view=financial-data" data-role-tool="finance">Open Financial Data →</a></div>
+            <div class="work-copy"><span>Track</span><h3>See the business clearly.</h3><p>Track income, expenses and cash flow, create invoices and keep project reports ready.</p><a href="../builder/index.html?view=financial-data" data-role-tool="finance">Open Financial Data →</a></div>
           </article>
         </div>
       </section>
@@ -110,14 +114,14 @@
       <section class="why-section" id="why-choose-us" aria-labelledby="whyTitle">
         <div class="why-heading">
           <span class="section-kicker">Why choose us</span>
-          <h2 id="whyTitle">Practical control without making the work harder.</h2>
-          <p>The value is not in adding more software. It is in reducing the gaps between estimating, project delivery, site records and business decisions.</p>
+          <h2 id="whyTitle">Built for the way construction actually works.</h2>
+          <p>Simple tools, clear responsibility and one connected project history.</p>
         </div>
         <div class="why-list">
-          <article><span>Built from real construction workflows</span><p>The structure follows work Alert Construction already performs—not a generic template adapted after the fact.</p></article>
-          <article><span>Company pricing stays consistent</span><p>Fixed item codes and an active company rate list give estimators one source of truth without fuzzy matching or silent guesses.</p></article>
-          <article><span>Access follows responsibility</span><p>Owners keep full control while Admins, Managers, Estimators, Site Supervisors and Workers see only the information needed for their job.</p></article>
-          <article><span>Project history stays traceable</span><p>Quotes, schedules, photos, finance entries, approvals and reports remain connected to the right company and project.</p></article>
+          <article><span>Real construction logic</span><p>Built around Alert Construction’s estimating, site and handover workflows.</p></article>
+          <article><span>One price source</span><p>Company rates stay consistent across every estimator.</p></article>
+          <article><span>Role-based access</span><p>Each person sees only the tools and records needed for their job.</p></article>
+          <article><span>A connected history</span><p>Plans, costs, photos and approvals stay with the right project.</p></article>
         </div>
       </section>
 
