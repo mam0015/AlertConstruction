@@ -1,9 +1,10 @@
-const CACHE='alert-tradie-pro-v52-real-what-we-do-photos';
+const CACHE='alert-tradie-pro-v52-live-finance-about-page';
 const ASSETS=[
   './','./index.html','./offline.html','./manifest.webmanifest',
   './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
   './assets/luxury-builder-hero.webp','./assets/hero-house-construction.webp','./assets/hero-house-complete.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
-  './assets/what-we-do-estimating.webp','./assets/what-we-do-plans.webp','./assets/what-we-do-projects.webp','./assets/what-we-do-site.webp','./assets/what-we-do-finance.webp','./assets/what-we-do-records.webp',
+  './assets/what-we-do-estimating.webp','./assets/what-we-do-plans.webp','./assets/what-we-do-projects.webp','./assets/what-we-do-site.webp','./assets/what-we-do-finance.webp','./assets/what-we-do-records.webp','./assets/about-chaos-control.webp',
+  './about/','./about/index.html','./about/styles.css','./about/app.js',
   './electrical/','./plumbing/','./cladding/','./checklist/',
   './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
   './property-estimate/','./property-estimate/index.html','./property-estimate/victoria-sales-data.js','./property-estimate/app.js',

@@ -11,7 +11,7 @@
   <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./team-management.css?v=46">
   <link rel="stylesheet" href="./photo-timeline.css?v=48">
-  <link rel="stylesheet" href="./finance.css?v=44">
+  <link rel="stylesheet" href="./finance.css?v=52-live">
   <link rel="stylesheet" href="./operation-overview.css?v=45">
   <link rel="stylesheet" href="./operation-tools.css?v=47">
   <style>
@@ -233,10 +233,10 @@
             <button class="finance-card" id="financeForecastCard" type="button" data-finance-open="budgets"><small>Forecast Profit</small><strong id="financeForecast">—</strong><span id="financeForecastMeta">Revenue less forecast final cost</span></button>
           </div>
           <div class="finance-overview-grid">
-            <section class="finance-panel"><div class="finance-panel-head"><div><h2>Cash-flow trend</h2><p>Actual payments received and made · GST inclusive</p></div><div class="finance-legend"><span><i class="income"></i>Cash In</span><span><i class="expense"></i>Cash Out</span></div></div><div class="finance-chart" id="financeCashChart"></div></section>
+            <section class="finance-panel"><div class="finance-panel-head"><div><h2>Income &amp; expense trend</h2><p>Approved entries by transaction date · GST exclusive</p><span class="finance-live-status" id="financeChartUpdated">Loading live data…</span></div><div class="finance-legend"><span><i class="income"></i>Income</span><span><i class="expense"></i>Expenses</span></div></div><div class="finance-chart" id="financeCashChart"></div></section>
             <section class="finance-panel"><div class="finance-panel-head"><div><h2>Expense breakdown</h2><p>Approved costs · GST exclusive</p></div></div><div class="finance-donut-layout"><div class="finance-donut" id="financeDonut"></div><div class="finance-expense-legend" id="financeExpenseLegend"></div></div></section>
           </div>
-          <section class="finance-panel"><div class="finance-panel-head"><div><h2>Income vs expenses</h2><p>Monthly earned revenue and incurred cost · GST exclusive</p></div></div><div class="finance-chart" id="financeCompareChart"></div></section>
+          <section class="finance-panel"><div class="finance-panel-head"><div><h2>Cash received vs paid</h2><p>Recorded payments by payment date · GST inclusive</p></div><div class="finance-legend"><span><i class="income"></i>Received</span><span><i class="expense"></i>Paid</span></div></div><div class="finance-chart" id="financeCompareChart"></div></section>
           <section class="finance-panel finance-profit-panel"><div class="finance-panel-head"><div><h2>Project profitability</h2><p>Forecast revenue and costs · GST exclusive</p></div><button class="btn" type="button" data-finance-open="budgets">Open budgets</button></div><div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Project</th><th>Forecast Revenue</th><th>Forecast Cost</th><th>Forecast Profit</th><th>Margin</th></tr></thead><tbody id="financeProfitRows"></tbody></table></div></section>
         </div>
 
@@ -475,6 +475,6 @@
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=50"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
+<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=52-live"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="../shared/product-shell.js?v=42"></script><script src="../shared/global-shell-v43.js?v=44"></script>
 </body>
 </html>

@@ -97,8 +97,16 @@
 
   function approved(){return state.transactions.filter(item=>item.status==='Approved')}
   function inPeriod(value){return Boolean(value&&String(value).slice(0,10)>=state.from&&String(value).slice(0,10)<=state.to)}
+  function effectivePayments(){
+    const rows=[...state.payments];
+    approved().forEach(item=>{
+      if(number(item.paid_amount_inc_gst)<=0||!item.payment_date||rows.some(payment=>payment.transaction_id===item.id))return;
+      rows.push({id:`transaction-paid-${item.id}`,transaction_id:item.id,project_id:item.project_id,entry_kind:item.entry_kind,amount_inc_gst:number(item.paid_amount_inc_gst),payment_date:item.payment_date,payment_method:item.payment_method||'',reference_no:item.reference_no||''});
+    });
+    return rows;
+  }
   function summary(){
-    const rows=approved().filter(item=>inPeriod(item.transaction_date)),income=rows.filter(item=>item.entry_kind==='income'),expenses=rows.filter(item=>item.entry_kind==='expense'),cashRows=state.payments.filter(item=>inPeriod(item.payment_date));
+    const rows=approved().filter(item=>inPeriod(item.transaction_date)),income=rows.filter(item=>item.entry_kind==='income'),expenses=rows.filter(item=>item.entry_kind==='expense'),cashRows=effectivePayments().filter(item=>inPeriod(item.payment_date));
     const revenue=income.reduce((sum,item)=>sum+number(item.amount_ex_gst),0);
     const expense=expenses.reduce((sum,item)=>sum+number(item.amount_ex_gst),0);
     const cashIn=cashRows.filter(item=>item.entry_kind==='income').reduce((sum,item)=>sum+number(item.amount_inc_gst),0);
@@ -117,28 +125,57 @@
     $('financeNetCashCard').classList.toggle('negative',data.netCash<0);$('financeForecastCard').classList.toggle('negative',data.forecastProfit<0);
   }
   function monthKey(value){return String(value||'').slice(0,7)}
-  function monthLabel(key){return new Date(`${key}-01T00:00:00`).toLocaleDateString('en-AU',{month:'short'})}
-  function monthlySeries(){
-    const keys=[],start=new Date(`${state.from}T00:00:00`),end=new Date(`${state.to}T00:00:00`);
-    start.setDate(1);let guard=0;
-    while(start<=end&&guard++<18){keys.push(start.toISOString().slice(0,7));start.setMonth(start.getMonth()+1)}
-    const active=keys.length>12?keys.slice(-12):keys;
-    return active.map(key=>{const rows=approved(),income=rows.filter(item=>item.entry_kind==='income'&&monthKey(item.transaction_date)===key).reduce((sum,item)=>sum+number(item.amount_ex_gst),0),expense=rows.filter(item=>item.entry_kind==='expense'&&monthKey(item.transaction_date)===key).reduce((sum,item)=>sum+number(item.amount_ex_gst),0),cashIn=state.payments.filter(item=>item.entry_kind==='income'&&monthKey(item.payment_date)===key).reduce((sum,item)=>sum+number(item.amount_inc_gst),0),cashOut=state.payments.filter(item=>item.entry_kind==='expense'&&monthKey(item.payment_date)===key).reduce((sum,item)=>sum+number(item.amount_inc_gst),0);return{key,label:monthLabel(key),income,expense,cashIn,cashOut,net:cashIn-cashOut}});
+  function monthParts(value){
+    const match=String(value||'').match(/^(\d{4})-(\d{2})/);
+    return match?{year:Number(match[1]),month:Number(match[2])}:null;
   }
+  function monthToken(year,month){return`${year}-${String(month).padStart(2,'0')}`}
+  function nextMonth(value){
+    const parts=monthParts(value);if(!parts)return'';
+    const month=parts.month===12?1:parts.month+1,year=parts.month===12?parts.year+1:parts.year;
+    return monthToken(year,month);
+  }
+  function monthLabel(key){
+    const parts=monthParts(key);
+    return parts?new Intl.DateTimeFormat('en-AU',{month:'short',timeZone:'UTC'}).format(new Date(Date.UTC(parts.year,parts.month-1,1))):key;
+  }
+  function monthlySeries(){
+    const keys=[],end=monthKey(state.to);let cursor=monthKey(state.from),guard=0;
+    while(cursor&&cursor<=end&&guard++<18){keys.push(cursor);cursor=nextMonth(cursor)}
+    const active=keys.length>12?keys.slice(-12):keys;
+    const rows=approved(),payments=effectivePayments().filter(item=>inPeriod(item.payment_date));
+    return active.map(key=>{const income=rows.filter(item=>item.entry_kind==='income'&&monthKey(item.transaction_date)===key).reduce((sum,item)=>sum+number(item.amount_ex_gst),0),expense=rows.filter(item=>item.entry_kind==='expense'&&monthKey(item.transaction_date)===key).reduce((sum,item)=>sum+number(item.amount_ex_gst),0),cashIn=payments.filter(item=>item.entry_kind==='income'&&monthKey(item.payment_date)===key).reduce((sum,item)=>sum+number(item.amount_inc_gst),0),cashOut=payments.filter(item=>item.entry_kind==='expense'&&monthKey(item.payment_date)===key).reduce((sum,item)=>sum+number(item.amount_inc_gst),0);return{key,label:monthLabel(key),income,expense,cashIn,cashOut,net:cashIn-cashOut}});
+  }
+  function niceMaximum(values){
+    const highest=Math.max(0,...values);if(highest<=0)return 0;
+    const magnitude=10**Math.floor(Math.log10(highest)),normalised=highest/magnitude;
+    const step=normalised<=1?1:normalised<=2?2:normalised<=5?5:10;
+    return step*magnitude;
+  }
+  function axisMoney(value){
+    if(value>=1000000)return`$${(value/1000000).toFixed(value>=10000000?0:1)}m`;
+    if(value>=1000)return`$${(value/1000).toFixed(value>=10000?0:1)}k`;
+    return money(value);
+  }
+  function emptyChart(message){return`<div class="finance-chart-empty"><strong>No chart data yet</strong><span>${esc(message)}</span></div>`}
   function lineChart(data){
-    const width=760,height=260,pad=32,values=data.flatMap(item=>[item.cashIn,item.cashOut]),max=Math.max(1,...values),x=index=>pad+(width-pad*2)*(data.length===1?.5:index/(data.length-1)),y=value=>height-pad-(height-pad*2)*value/max;
+    const values=data.flatMap(item=>[item.income,item.expense]),max=niceMaximum(values);
+    if(!max)return emptyChart('Add and approve an income or expense entry in this reporting period.');
+    const width=760,height=260,padLeft=58,padRight=26,padTop=20,padBottom=34,x=index=>padLeft+(width-padLeft-padRight)*(data.length===1?.5:index/(data.length-1)),y=value=>height-padBottom-(height-padTop-padBottom)*value/max;
     const line=key=>data.map((item,index)=>`${index?'L':'M'}${x(index).toFixed(1)},${y(item[key]).toFixed(1)}`).join(' ');
-    const grid=[0,.25,.5,.75,1].map(ratio=>`<line x1="${pad}" y1="${(height-pad-(height-pad*2)*ratio).toFixed(1)}" x2="${width-pad}" y2="${(height-pad-(height-pad*2)*ratio).toFixed(1)}"></line>`).join('');
-    const labels=data.map((item,index)=>`<text x="${x(index)}" y="${height-7}" text-anchor="middle">${esc(item.label)}</text>`).join('');
-    const points=key=>data.map((item,index)=>`<circle cx="${x(index)}" cy="${y(item[key])}" r="3"></circle>`).join('');
-    return`<svg class="finance-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Cash in and cash out trend"><g class="finance-grid">${grid}</g><g class="finance-axis">${labels}</g><path class="finance-line income" d="${line('cashIn')}"></path><path class="finance-line expense" d="${line('cashOut')}"></path><g class="finance-points income">${points('cashIn')}</g><g class="finance-points expense">${points('cashOut')}</g></svg>`;
+    const grid=[0,.25,.5,.75,1].map(ratio=>{const gridY=y(max*ratio);return`<line x1="${padLeft}" y1="${gridY.toFixed(1)}" x2="${width-padRight}" y2="${gridY.toFixed(1)}"></line><text x="${padLeft-8}" y="${(gridY+3).toFixed(1)}" text-anchor="end">${esc(axisMoney(max*ratio))}</text>`}).join('');
+    const labels=data.map((item,index)=>`<text x="${x(index)}" y="${height-8}" text-anchor="middle">${esc(item.label)}</text>`).join('');
+    const points=key=>data.map((item,index)=>`<circle cx="${x(index)}" cy="${y(item[key])}" r="3"><title>${esc(item.label)} · ${key==='income'?'Income':'Expenses'} ${esc(moneyFull(item[key]))}</title></circle>`).join('');
+    return`<svg class="finance-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Approved income and expense trend"><g class="finance-grid">${grid}</g><g class="finance-axis">${labels}</g><path class="finance-line income" d="${line('income')}"></path><path class="finance-line expense" d="${line('expense')}"></path><g class="finance-points income">${points('income')}</g><g class="finance-points expense">${points('expense')}</g></svg>`;
   }
   function barChart(data){
-    const max=Math.max(1,...data.flatMap(item=>[item.income,item.expense]));
-    return`<div class="finance-bars">${data.map(item=>`<div class="finance-bar-group"><div class="finance-bar-pair"><i class="income" style="height:${Math.max(2,item.income/max*100)}%" title="Income ${esc(moneyFull(item.income))}"></i><i class="expense" style="height:${Math.max(2,item.expense/max*100)}%" title="Expenses ${esc(moneyFull(item.expense))}"></i></div><span>${esc(item.label)}</span></div>`).join('')}</div>`;
+    const max=niceMaximum(data.flatMap(item=>[item.cashIn,item.cashOut]));
+    if(!max)return emptyChart('Record a payment against an approved income or expense entry to update cash flow.');
+    return`<div class="finance-bars">${data.map(item=>`<div class="finance-bar-group"><div class="finance-bar-pair"><i class="income" style="height:${item.cashIn?Math.max(2,item.cashIn/max*100):0}%" title="Cash received ${esc(moneyFull(item.cashIn))}"></i><i class="expense" style="height:${item.cashOut?Math.max(2,item.cashOut/max*100):0}%" title="Cash paid ${esc(moneyFull(item.cashOut))}"></i></div><span>${esc(item.label)}</span><small>${item.cashIn||item.cashOut?`${esc(money(item.cashIn))} / ${esc(money(item.cashOut))}`:'—'}</small></div>`).join('')}</div>`;
   }
   function renderCharts(){
     const data=monthlySeries();$('financeCashChart').innerHTML=lineChart(data);$('financeCompareChart').innerHTML=barChart(data);
+    const updated=$('financeChartUpdated');if(updated)updated.textContent=`Live data · updated ${new Date().toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})}`;
     const categories=new Map();approved().filter(item=>item.entry_kind==='expense'&&inPeriod(item.transaction_date)).forEach(item=>categories.set(item.category||'Other',(categories.get(item.category||'Other')||0)+number(item.amount_ex_gst)));
     const rows=[...categories.entries()].sort((a,b)=>b[1]-a[1]),total=rows.reduce((sum,row)=>sum+row[1],0),colours=['#f5b400','#ff7b72','#83b7ff','#40d18a','#b48cff','#f29f67','#9fa4a2'];
     let start=0;const stops=rows.map((row,index)=>{const end=start+(total?row[1]/total*100:0),value=`${colours[index%colours.length]} ${start.toFixed(2)}% ${end.toFixed(2)}%`;start=end;return value});
