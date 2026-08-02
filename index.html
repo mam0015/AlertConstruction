@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="./shared/dashboard-v43.css?v=52">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    .app-global-nav a[hidden],.app-tools[hidden]{display:none!important}
     html{scroll-behavior:smooth;background:#070807}
     body{margin:0;min-height:100vh;background:var(--app-bg);color:var(--app-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
     a{color:inherit;text-decoration:none}
@@ -64,35 +65,12 @@
     .services-head{display:flex;align-items:end;justify-content:space-between;gap:36px;margin-bottom:31px;padding-top:8px}
     .services-head-copy{max-width:520px}
     .services-head-copy p{margin:0;color:var(--app-muted);font-size:13px;line-height:1.65}
-    .role-tools-open{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:0 18px;border:1px solid var(--app-gold);background:var(--app-gold);color:#111;font-size:11px;font-weight:950;cursor:pointer;white-space:nowrap;transition:transform .2s,background .2s}
-    .role-tools-open:after{content:"→";font-size:16px}
-    .role-tools-open:hover,.role-tools-open:focus-visible{outline:none;transform:translateY(-2px);background:var(--app-gold-soft)}
-    .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:38px 28px}
-    .service-card{display:block;width:100%;padding:0;border:0;background:transparent;color:var(--app-text);font:inherit;text-align:left;cursor:pointer}
-    .service-image{position:relative;display:block;aspect-ratio:1.48/1;overflow:hidden;background:#171817}
-    .service-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .55s var(--app-ease),filter .55s}
-    .service-image:after{content:"View tools";position:absolute;right:0;bottom:0;padding:10px 13px;background:rgba(8,9,8,.88);color:#fff;font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;transform:translateY(100%);transition:transform .28s var(--app-ease)}
-    .service-card:hover .service-image img,.service-card:focus-visible .service-image img{transform:scale(1.035);filter:brightness(.82)}
-    .service-card:hover .service-image:after,.service-card:focus-visible .service-image:after{transform:translateY(0)}
-    .service-card:focus-visible{outline:2px solid var(--app-gold);outline-offset:7px}
-    .service-card strong{display:block;margin-top:16px;font-size:14px;letter-spacing:-.01em}
+    .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px 28px}
+    .service-card{padding:26px 24px;border:1px solid var(--app-border);background:transparent}
+    .service-icon{display:grid;place-items:center;width:44px;height:44px;margin-bottom:16px;border-radius:11px;background:color-mix(in srgb,var(--app-gold) 14%,transparent);color:var(--app-gold)}
+    .service-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+    .service-card strong{display:block;font-size:14px;letter-spacing:-.01em}
     .service-card p{margin:6px 0 0;color:var(--app-muted);font-size:11px;line-height:1.55}
-    .role-tools-panel{margin-top:45px;padding:31px clamp(20px,3vw,38px);border-top:3px solid var(--app-gold);background:color-mix(in srgb,var(--app-text) 5%,transparent);box-shadow:0 22px 60px rgba(0,0,0,.14)}
-    .role-tools-panel[hidden],.role-tool-link[hidden],.role-tools-message[hidden],.role-tools-list[hidden]{display:none!important}
-    .role-tools-head{display:flex;align-items:start;justify-content:space-between;gap:24px}
-    .role-tools-label{display:block;color:var(--app-gold);font-size:9px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
-    .role-tools-head h3{margin:8px 0 0;font-size:clamp(25px,3vw,38px);line-height:1;letter-spacing:-.04em}
-    .role-tools-close{display:grid;place-items:center;width:39px;height:39px;border:1px solid var(--app-border);background:transparent;color:var(--app-text);font-size:20px;cursor:pointer}
-    .role-tools-close:hover,.role-tools-close:focus-visible{outline:none;border-color:var(--app-gold);color:var(--app-gold)}
-    .role-tools-message{margin:20px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
-    .role-tools-message a{color:var(--app-gold);font-weight:900}
-    .role-tools-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:25px;background:var(--app-border);border:1px solid var(--app-border)}
-    .role-tool-link{position:relative;min-height:73px;padding:17px 44px 15px 17px;background:var(--app-bg);transition:background .2s,color .2s}
-    .role-tool-link strong,.role-tool-link span{display:block}
-    .role-tool-link strong{font-size:12px}
-    .role-tool-link span{margin-top:5px;color:var(--app-muted);font-size:9px;line-height:1.35}
-    .role-tool-link:after{content:"→";position:absolute;right:17px;top:23px;color:var(--app-gold);font-size:16px}
-    .role-tool-link:hover,.role-tool-link:focus-visible{outline:none;background:color-mix(in srgb,var(--app-gold) 9%,var(--app-bg))}
     .company-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:30px;padding:38px 0 0;border-top:1px solid var(--app-border)}
     .company-cta h3{margin:0;font-size:clamp(24px,3vw,38px);letter-spacing:-.035em}
     .company-cta p{max-width:680px;margin:9px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
@@ -104,8 +82,8 @@
     .footer strong{color:var(--app-text)}
     .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
     .footer a:hover{color:var(--app-gold)}
-    @media(max-width:980px){.trust-rail{grid-template-columns:1fr 1fr}.trust-point:nth-child(2){border-right:0}.trust-point:nth-child(-n+2){border-bottom:1px solid var(--app-border)}.company-about{grid-template-columns:1fr;gap:42px}.about-visual,.about-visual img{min-height:460px}.service-grid{grid-template-columns:1fr 1fr}.role-tools-list{grid-template-columns:1fr 1fr}}
-    @media(max-width:680px){.company-home{padding:0 15px 64px}.trust-point{min-height:102px;padding:23px 16px 20px 34px}.trust-point:before{left:14px;top:25px}.company-about{padding:67px 0 62px}.about-visual,.about-visual img{min-height:360px}.about-visual-note{max-width:250px;padding:14px 17px}.company-about p{font-size:14px}.services{padding-bottom:62px}.services-head{align-items:flex-start;flex-direction:column;gap:22px}.role-tools-open{width:100%}.service-grid{grid-template-columns:1fr;gap:31px}.service-image{aspect-ratio:1.56/1}.service-image:after{transform:none}.role-tools-panel{margin-top:34px;padding:25px 17px}.role-tools-list{grid-template-columns:1fr}.company-cta{grid-template-columns:1fr}.company-cta-links{justify-content:flex-start}}
+    @media(max-width:980px){.trust-rail{grid-template-columns:1fr 1fr}.trust-point:nth-child(2){border-right:0}.trust-point:nth-child(-n+2){border-bottom:1px solid var(--app-border)}.company-about{grid-template-columns:1fr;gap:42px}.about-visual,.about-visual img{min-height:460px}.service-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:680px){.company-home{padding:0 15px 64px}.trust-point{min-height:102px;padding:23px 16px 20px 34px}.trust-point:before{left:14px;top:25px}.company-about{padding:67px 0 62px}.about-visual,.about-visual img{min-height:360px}.about-visual-note{max-width:250px;padding:14px 17px}.company-about p{font-size:14px}.services{padding-bottom:62px}.services-head{align-items:flex-start;flex-direction:column;gap:22px}.service-grid{grid-template-columns:1fr;gap:20px}.company-cta{grid-template-columns:1fr}.company-cta-links{justify-content:flex-start}}
     @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.trust-rail{grid-template-columns:1fr}.trust-point{border-right:0;border-bottom:1px solid var(--app-border)!important}.trust-point:last-child{border-bottom:0!important}.about-visual,.about-visual img{min-height:300px}.footer-links{margin-left:0}}
   </style>
 </head>
@@ -120,8 +98,13 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
       </button>
       <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
-        <a href="./" aria-current="page">Dashboard</a>
+        <a href="./" aria-current="page">Home</a>
         <a href="./about/">About Us</a>
+        <a href="#what-we-do">Services</a>
+        <a href="./request-a-job/index.html" style="color:var(--app-gold);font-weight:950">Request a Job</a>
+        <a href="./customer/index.html">Customer Sign In</a>
+        <a href="./login/index.html">Team Sign In</a>
+        <!-- Internal-only items below stay in the markup so signed-in staff keep their full navigation, but shared/product-shell-v43.js hides every one of them (and the Tools trigger) unless ACAuth reports an active, permitted staff role. Public visitors and signed-in customers never see this block. -->
         <a href="./builder/index.html">Operation Hub</a>
         <div class="app-tools">
           <button class="app-tools-trigger" id="appToolsTrigger" type="button" aria-expanded="false" aria-controls="appToolsMenu">Tools
@@ -134,9 +117,8 @@
             <div class="app-tools-group"><strong>Business</strong><a data-role-tool="finance" href="./builder/index.html?view=financial-data">Financial Data</a><a data-role-tool="invoice" href="./invoice/index.html">Invoice Generator</a><a data-role-tool="photo-timeline" href="./builder/index.html?view=photo-timeline">Photo Timeline</a><a data-role-tool="catalogue" href="./catalogue/index.html">Company Pricing</a></div>
           </div>
         </div>
-        <a href="./projects/index.html">Projects</a>
+        <a data-role-tool="projects" href="./projects/index.html">Projects</a>
         <a data-role-tool="builder" href="./builder/index.html?view=reports">Reports</a>
-        <a href="./legal/support.html">Support</a>
       </nav>
     </header>
 
@@ -158,8 +140,9 @@
             <h1>From first frame<br>to final handover.</h1>
             <p>Scroll to complete the build, then manage estimates, projects, site operations and reporting from one connected workspace.</p>
             <div class="build-actions">
-              <a class="build-button primary" href="./builder/index.html">Open Operation Hub</a>
-              <a class="build-button" href="./about/#who-we-are">Who we are</a>
+              <a class="build-button primary" href="./request-a-job/index.html">Request a Job</a>
+              <a class="build-button" href="./customer/index.html">Customer Sign In</a>
+              <a class="build-button" href="./login/index.html">Team Sign In</a>
             </div>
           </div>
           <div class="scroll-hint" id="scrollHint"><span>Scroll to build</span><i></i></div>
@@ -197,81 +180,55 @@
         <section class="services" id="what-we-do" aria-labelledby="servicesTitle">
           <div class="services-head">
             <div>
-              <span class="section-kicker">The work we bring together</span>
+              <span class="section-kicker">What we build</span>
               <h2 id="servicesTitle">What We Do</h2>
               <div class="section-rule" aria-hidden="true"></div>
-              <div class="services-head-copy"><p>Alert Tradie Pro connects the commercial, project and site sides of construction. Choose the part of the job you need and the platform will open only the tools approved for your account.</p></div>
+              <div class="services-head-copy"><p>Alert Construction brings in-house engineering, architectural design and hands-on building experience together, so every renovation, extension or new home is planned and delivered by one accountable team.</p></div>
             </div>
-            <button class="role-tools-open" type="button" data-open-tools="all">Open tools for my role</button>
           </div>
 
           <div class="service-grid">
-            <button class="service-card" type="button" data-open-tools="estimating" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-estimating.webp" alt="Construction plans being reviewed with a calculator for project pricing" loading="lazy" decoding="async"></span>
-              <strong>Estimate &amp; Price</strong>
-              <p>Build electrical, plumbing, cladding and renovation estimates using the company’s active rates.</p>
-            </button>
-            <button class="service-card" type="button" data-open-tools="analysis" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-plans.webp" alt="Architectural house plans beside a laptop ready for review" loading="lazy" decoding="async"></span>
-              <strong>Plans &amp; Quote Review</strong>
-              <p>Review plan quantities, compare incoming trade quotes and check costs before work is approved.</p>
-            </button>
-            <button class="service-card" type="button" data-open-tools="projects" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-projects.webp" alt="Aerial view of new homes under construction in Western Australia" loading="lazy" decoding="async"></span>
-              <strong>Projects &amp; Scheduling</strong>
-              <p>Keep project details, schedules, follow-ups and documents tied to the right job.</p>
-            </button>
-            <button class="service-card" type="button" data-open-tools="site" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-site.webp" alt="Construction workers completing site work from scaffolding" loading="lazy" decoding="async"></span>
-              <strong>Site &amp; Team Operations</strong>
-              <p>Run daily tasks, timesheets, checklists, end-of-day reports and dated project photo records.</p>
-            </button>
-            <button class="service-card" type="button" data-open-tools="commercial" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-finance.webp" alt="Calculator, reports and laptop used for project financial management" loading="lazy" decoding="async"></span>
-              <strong>Finance &amp; Invoicing</strong>
-              <p>Enter income and expenses, follow live charts and create professional client invoices.</p>
-            </button>
-            <button class="service-card" type="button" data-open-tools="records" aria-controls="roleToolsPanel">
-              <span class="service-image"><img src="./assets/what-we-do-records.webp" alt="Professional reviewing project documents and reports at a desk" loading="lazy" decoding="async"></span>
-              <strong>Records &amp; Reporting</strong>
-              <p>Keep project history, handover records, photo booklets and reports ready when they are needed.</p>
-            </button>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9h16M8 9V6a4 4 0 0 1 8 0v3M6 9l1 10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-10"/></svg></span>
+              <strong>Kitchen Renovations</strong>
+              <p>Kitchens designed and built around how your household actually cooks and lives.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM7 12V7a2 2 0 0 1 4 0"/></svg></span>
+              <strong>Bathroom Renovations</strong>
+              <p>Bathroom renovations built for lasting style, durability and everyday use.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></svg></span>
+              <strong>Home Renovations</strong>
+              <p>Full or partial renovations that lift comfort, function and long-term value.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9M12 14v4m-2-2h4"/></svg></span>
+              <strong>New Homes</strong>
+              <p>Custom new home builds delivered end-to-end by a licensed, in-house team.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h6v-6H3v6ZM9 20h9V10l-4.5-4L9 10"/></svg></span>
+              <strong>Home Extensions</strong>
+              <p>Seamless extensions that add real space without compromising the existing home.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m20 20-5.2-5.2"/></svg></span>
+              <strong>Building Inspections</strong>
+              <p>Professional building and structural inspections, backed by qualified engineers.</p>
+            </article>
+            <article class="service-card">
+              <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4 6 20h3l1.2-3h3.6L15 20h3L12 4Z"/><path d="M9.7 14h4.6"/></svg></span>
+              <strong>Engineering Services</strong>
+              <p>Structural assessments and certified engineering design for renovations, extensions and new builds.</p>
+            </article>
           </div>
-
-          <section class="role-tools-panel" id="roleToolsPanel" aria-live="polite" aria-labelledby="roleToolsTitle" hidden>
-            <div class="role-tools-head">
-              <div><span class="role-tools-label" id="roleToolsLabel">Tools for your role</span><h3 id="roleToolsTitle">Your approved workspace</h3></div>
-              <button class="role-tools-close" id="roleToolsClose" type="button" aria-label="Close tools section">×</button>
-            </div>
-            <p class="role-tools-message" id="roleToolsGuest" hidden>Sign in to see the tools approved for your job. <a href="./login/index.html">Open Account &amp; Team →</a></p>
-            <p class="role-tools-message" id="roleToolsEmpty" hidden>No tools from this area are assigned to your current role. Choose another work area or ask the workspace Owner to review your access.</p>
-            <div class="role-tools-list" id="roleToolsList">
-              <a class="role-tool-link" data-role-tool="electrical" data-tool-area="estimating" href="./electrical/index.html"><strong>Electrical Estimate</strong><span>Build an electrical scope and estimate.</span></a>
-              <a class="role-tool-link" data-role-tool="plumbing" data-tool-area="estimating" href="./plumbing/index.html"><strong>Plumbing Estimate</strong><span>Price plumbing work with consistent rates.</span></a>
-              <a class="role-tool-link" data-role-tool="cladding" data-tool-area="estimating" href="./cladding/index.html"><strong>Cladding Estimate</strong><span>Prepare cladding quantities and pricing.</span></a>
-              <a class="role-tool-link" data-role-tool="renovation-budget" data-tool-area="estimating" href="./renovation-budget/index.html"><strong>Renovation Budget</strong><span>Plan renovation scope against budget.</span></a>
-              <a class="role-tool-link" data-role-tool="catalogue" data-tool-area="estimating" href="./catalogue/index.html"><strong>Company Pricing</strong><span>View or manage the active company rates.</span></a>
-              <a class="role-tool-link" data-role-tool="plan-ai" data-tool-area="analysis" href="./plan-ai/index.html"><strong>AI Plan Estimator</strong><span>Review plan quantities and line items.</span></a>
-              <a class="role-tool-link" data-role-tool="quote-analysis" data-tool-area="analysis" href="./quote-analysis/index.html"><strong>Quote Price Analysis</strong><span>Compare a trade quote with company rates.</span></a>
-              <a class="role-tool-link" data-role-tool="property-estimate" data-tool-area="analysis" href="./property-estimate/index.html"><strong>Property Value Guide</strong><span>Review indicative Victorian property evidence.</span></a>
-              <a class="role-tool-link" data-role-tool="permit-checklist" data-tool-area="analysis" href="./permit-checklist/index.html"><strong>Permit Checklist</strong><span>Prepare a likely permit and document list.</span></a>
-              <a class="role-tool-link" data-role-tool="projects" data-tool-area="projects" href="./projects/index.html"><strong>Projects &amp; Schedule</strong><span>Open project records and upcoming work.</span></a>
-              <a class="role-tool-link" data-role-tool="builder" data-tool-area="projects" href="./builder/index.html?view=work-management"><strong>Work Management</strong><span>Open quotes, schedules, documents and reports.</span></a>
-              <a class="role-tool-link" data-role-tool="checklist" data-tool-area="site" href="./checklist/index.html"><strong>Site Checklist</strong><span>Complete field and inspection checks.</span></a>
-              <a class="role-tool-link" data-role-tool="builder" data-tool-area="site" href="./builder/index.html?view=team-management"><strong>Team Management</strong><span>Open tasks, timesheets and daily reports.</span></a>
-              <a class="role-tool-link" data-role-tool="photo-timeline" data-tool-area="site" href="./builder/index.html?view=photo-timeline"><strong>Photo Timeline</strong><span>Review project photos grouped by date.</span></a>
-              <a class="role-tool-link" data-role-tool="finance" data-tool-area="commercial" href="./builder/index.html?view=financial-data"><strong>Financial Data</strong><span>Open business figures and live charts.</span></a>
-              <a class="role-tool-link" data-role-tool="invoice" data-tool-area="commercial" href="./invoice/index.html"><strong>Invoice Generator</strong><span>Create or review client invoices.</span></a>
-              <a class="role-tool-link" data-role-tool="builder" data-tool-area="records" href="./builder/index.html?view=reports"><strong>Reports</strong><span>Review project and daily reports.</span></a>
-              <a class="role-tool-link" data-role-tool="photo-timeline" data-tool-area="records" href="./builder/index.html?view=photo-timeline"><strong>Project Photo Records</strong><span>Open dated photos and booklet records.</span></a>
-              <a class="role-tool-link" data-role-tool="builder" data-tool-area="records" href="./builder/index.html?view=work-management"><strong>Documents</strong><span>Open organised project folders and files.</span></a>
-            </div>
-          </section>
         </section>
 
-        <section class="company-cta" aria-label="Open Alert Tradie Pro">
-          <div><span class="section-kicker">One job. One clear record.</span><h3>Keep the whole project connected.</h3><p>From the first estimate to site delivery, invoicing and handover, the right information stays with the right project and the right people.</p></div>
-          <div class="company-cta-links"><a class="company-link primary" href="./builder/index.html">Open Operation Hub</a><a class="company-link" href="mailto:info@alertconstruction.com.au">Contact support</a></div>
+        <section class="company-cta" aria-label="Start your project with Alert Construction">
+          <div><span class="section-kicker">Ready when you are</span><h3>Ready to start your project?</h3><p>Tell us what you need and our team will be in touch to arrange a site visit and quote.</p></div>
+          <div class="company-cta-links"><a class="company-link primary" href="./request-a-job/index.html">Request a Job</a><a class="company-link" href="mailto:info@alertconstruction.com.au">Contact us</a></div>
         </section>
       </div>
     </main>
@@ -285,7 +242,7 @@
   <script src="./shared/auth.js"></script>
   <script src="./shared/project-store.js"></script>
   <script src="./shared/dashboard-v43.js?v=52"></script>
-  <script src="./shared/product-shell-v43.js?v=52"></script>
+  <script src="./shared/product-shell-v43.js?v=54"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>

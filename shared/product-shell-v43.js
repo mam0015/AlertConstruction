@@ -77,7 +77,7 @@
   profileToggle.addEventListener('click',event=>{event.stopPropagation();setProfileMenu(profileMenu.hidden)});document.addEventListener('click',event=>{if(!profileMenu.hidden&&!tools.contains(event.target))setProfileMenu(false)});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!profileMenu.hidden){setProfileMenu(false);profileToggle.focus()}});
   tools.querySelector('[data-ac-theme-toggle]').addEventListener('click',()=>applyTheme(document.documentElement.dataset.acTheme==='light'?'dark':'light'));
   function initials(value){return String(value||'AT').trim().split(/\s+/).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'AT'}
-  function updateAccount(){const user=window.ACAuth?.user?.(),profile=window.ACAuth?.profile?.(),workspace=window.ACAuth?.workspace?.(),active=window.ACAuth?.hasAccess?.(),role=window.ACAuth?.roleLabel?.(profile?.role)||String(profile?.role||'Guest').replace(/_/g,' '),requests=window.ACAuth?.pendingJoinCount?.()||0,name=profile?.full_name||workspace?.name||(user?'Alert Tradie Pro account':'Alert Tradie Pro'),email=user?.email||'Sign in to your workspace',builder=tools.querySelector('[data-ac-builder]'),pricing=tools.querySelector('[data-ac-company-pricing]'),badge=tools.querySelector('.ac-profile-badge'),teamCode=tools.querySelector('[data-ac-team-code]');tools.querySelector('[data-ac-profile-name]').textContent=name;tools.querySelector('[data-ac-profile-email]').textContent=email;tools.querySelector('[data-ac-profile-role]').textContent=user?(active?role:window.ACAuth?.isPending?.()?'Approval pending':'Access inactive'):'Guest';tools.querySelector('[data-ac-profile-avatar]').textContent=initials(profile?.full_name||user?.email||'AT');tools.querySelector('[data-ac-account-copy]').textContent=user?'Email, security and workspace details':'Sign in, security and team details';builder.hidden=false;pricing.hidden=!(active&&window.ACAuth?.canUseTool?.('catalogue'));tools.querySelector('[data-ac-builder-copy]').textContent=requests?`${requests} join request${requests===1?'':'s'} waiting`:(['owner','manager'].includes(profile?.role)?'Team management and project operations':'Open project and team operations');teamCode.hidden=!(active&&workspace?.join_code);tools.querySelector('[data-ac-team-code-value]').textContent=workspace?.join_code||'';tools.querySelector('[data-ac-workspace-name]').textContent=workspace?.name||'Secure workspace';badge.textContent=String(requests);badge.classList.toggle('show',requests>0);profileToggle.title=requests?`${requests} team request${requests===1?'':'s'} waiting`:(user?'Open account menu':'Sign in');tools.querySelector('.ac-signout').hidden=!user}
+  function updateAccount(){const user=window.ACAuth?.user?.(),profile=window.ACAuth?.profile?.(),workspace=window.ACAuth?.workspace?.(),active=window.ACAuth?.hasAccess?.(),role=window.ACAuth?.roleLabel?.(profile?.role)||String(profile?.role||'Guest').replace(/_/g,' '),requests=window.ACAuth?.pendingJoinCount?.()||0,name=profile?.full_name||workspace?.name||(user?'Alert Tradie Pro account':'Alert Tradie Pro'),email=user?.email||'Sign in to your workspace',builder=tools.querySelector('[data-ac-builder]'),pricing=tools.querySelector('[data-ac-company-pricing]'),badge=tools.querySelector('.ac-profile-badge'),teamCode=tools.querySelector('[data-ac-team-code]');tools.querySelector('[data-ac-profile-name]').textContent=name;tools.querySelector('[data-ac-profile-email]').textContent=email;tools.querySelector('[data-ac-profile-role]').textContent=user?(active?role:window.ACAuth?.isPending?.()?'Approval pending':'Access inactive'):'Guest';tools.querySelector('[data-ac-profile-avatar]').textContent=initials(profile?.full_name||user?.email||'AT');tools.querySelector('[data-ac-account-copy]').textContent=user?'Email, security and workspace details':'Sign in, security and team details';builder.hidden=!(active&&window.ACAuth?.canUseTool?.('builder'));pricing.hidden=!(active&&window.ACAuth?.canUseTool?.('catalogue'));tools.querySelector('[data-ac-builder-copy]').textContent=requests?`${requests} join request${requests===1?'':'s'} waiting`:(['owner','manager'].includes(profile?.role)?'Team management and project operations':'Open project and team operations');teamCode.hidden=!(active&&workspace?.join_code);tools.querySelector('[data-ac-team-code-value]').textContent=workspace?.join_code||'';tools.querySelector('[data-ac-workspace-name]').textContent=workspace?.name||'Secure workspace';badge.textContent=String(requests);badge.classList.toggle('show',requests>0);profileToggle.title=requests?`${requests} team request${requests===1?'':'s'} waiting`:(user?'Open account menu':'Sign in');tools.querySelector('.ac-signout').hidden=!user}
   window.addEventListener('ac-auth-ready',updateAccount);window.addEventListener('ac-auth-changed',updateAccount);updateAccount();
   tools.querySelector('.ac-signout').addEventListener('click',async()=>{if(!confirm('Sign out of Alert Tradie Pro on this device?'))return;setProfileMenu(false);await window.ACAuth?.signOut();location.href=new URL('',base).href});
   function syncState(value,message){const dot=tools.querySelector('.ac-sync-dot'),label=tools.querySelector('.ac-sync-label'),row=tools.querySelector('[data-ac-sync]');dot.className='ac-sync-dot '+(value||'');const fallback={online:'Synced now',syncing:'Syncing…',error:'Sync unavailable'}[value]||'Local only';label.textContent=message||fallback;row.title=message||{online:'Projects synced',syncing:'Syncing projects',error:'Sync unavailable'}[value]||'Projects saved locally'}
@@ -114,9 +114,10 @@
     const active=window.ACAuth.hasAccess?.()===true;
     document.querySelectorAll('.app-global-nav a,.at-global-nav a').forEach(link=>{
       const tool=navigationTool(link);
-      if(tool)link.hidden=active&&!window.ACAuth.canUseTool?.(tool);
+      if(tool)link.hidden=!active||!window.ACAuth.canUseTool?.(tool);
     });
     document.querySelectorAll('.app-tools-group,.at-global-tools-group').forEach(group=>{group.hidden=!group.querySelector('a:not([hidden])')});
+    document.querySelectorAll('.app-tools,.at-global-tools').forEach(container=>{container.hidden=!container.querySelector('a:not([hidden])')});
   }
   window.ACApplyRoleNavigation=updateRoleNavigation;
   async function updatePermissionUI(){
@@ -168,7 +169,7 @@
   const TRAVEL_KEY='ac_travel_mode_v1';
   const css=document.createElement('link');
   css.rel='stylesheet';
-  css.href=new URL('shared/global-shell-v43.css?v=44',base).href;
+  css.href=new URL('shared/global-shell-v43.css?v=54',base).href;
   document.head.appendChild(css);
 
   function brand(){
@@ -184,7 +185,7 @@
     nav.className='at-global-nav';
     nav.setAttribute('aria-label','App navigation');
     nav.innerHTML=`
-      <a href="${new URL('',base).href}">Dashboard</a>
+      <a href="${new URL('',base).href}">Home</a>
       <a href="${new URL('builder/',base).href}">Operation Hub</a>
       <details class="at-global-tools"><summary>Tools <span aria-hidden="true">⌄</span></summary><div class="at-global-tools-menu">
         <div class="at-global-tools-group"><strong>Estimating</strong><a href="${new URL('electrical/',base).href}">Electrical Estimate</a><a href="${new URL('plumbing/',base).href}">Plumbing Estimate</a><a href="${new URL('cladding/',base).href}">Cladding Estimate</a><a href="${new URL('renovation-budget/',base).href}">Renovation Budget</a></div>

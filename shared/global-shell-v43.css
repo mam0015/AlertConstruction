@@ -22,6 +22,7 @@
   background:transparent;color:#e7e7e3;text-decoration:none;font-size:11px;font-weight:850;white-space:nowrap;cursor:pointer;list-style:none
 }
 .at-global-nav summary::-webkit-details-marker{display:none}
+.at-global-nav a[hidden]{display:none!important}
 .at-global-nav>a:hover,.at-global-nav>a:focus-visible,.at-global-nav summary:hover,.at-global-nav summary:focus-visible{outline:none;background:#222522;color:#fff}
 .at-global-tools{position:relative}.at-global-tools[open] summary{background:#222522;color:#f6c64c}
 .at-global-tools-menu{

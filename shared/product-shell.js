@@ -114,9 +114,10 @@
     const active=window.ACAuth.hasAccess?.()===true;
     document.querySelectorAll('.app-global-nav a,.at-global-nav a').forEach(link=>{
       const tool=navigationTool(link);
-      if(tool)link.hidden=active&&!window.ACAuth.canUseTool?.(tool);
+      if(tool)link.hidden=!active||!window.ACAuth.canUseTool?.(tool);
     });
     document.querySelectorAll('.app-tools-group,.at-global-tools-group').forEach(group=>{group.hidden=!group.querySelector('a:not([hidden])')});
+    document.querySelectorAll('.app-tools,.at-global-tools').forEach(container=>{container.hidden=!container.querySelector('a:not([hidden])')});
   }
   window.ACApplyRoleNavigation=updateRoleNavigation;
   async function updatePermissionUI(){
