@@ -2,203 +2,222 @@
 <html lang="en" data-ac-theme="dark">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070807">
-  <meta name="description" content="Customer form for repair, renovation and building job requests through Alert Tradie Pro.">
+  <meta name="description" content="Send the details of your repair, renovation, inspection or building job to Alert Construction.">
   <title>Request Form | Alert Tradie Pro</title>
-  <link rel="icon" href="../assets/alert-tradie-pro-logo.png">
-  <link rel="stylesheet" href="../shared/alert-request.css">
+  <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/dashboard-v43.css?v=52">
+  <style>
+    :root{--surface:color-mix(in srgb,var(--app-text) 4%,transparent);--surface-2:color-mix(in srgb,var(--app-text) 7%,transparent);--input:color-mix(in srgb,var(--app-bg) 88%,var(--app-text) 12%);--danger:#ff6c6c;--green:#38d281;--radius:10px}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html{scroll-behavior:smooth;background:#070807}
+    body{margin:0;min-height:100vh;background:var(--app-bg);color:var(--app-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+    .shell{min-height:100vh}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;flex:none}
+    .brand-mark{display:grid;place-items:center;width:46px;height:46px;padding:7px;border:1px solid rgba(255,255,255,.17);border-radius:12px;background:#101211;overflow:hidden}
+    .brand-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
+    .brand-wordmark{display:grid;gap:3px;line-height:1}
+    .brand-wordmark strong{color:var(--app-text);font-size:17px;font-weight:950;letter-spacing:-.035em}
+    .brand-wordmark small{color:var(--app-muted);font-size:8px;font-weight:800;letter-spacing:.045em}
+    html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
+    html[data-ac-theme="light"] .brand-mark img{filter:none}
+
+    .form-hero{position:relative;min-height:360px;display:grid;align-items:end;padding:132px clamp(16px,4vw,56px) 56px;overflow:hidden;isolation:isolate;background:#080908}
+    .form-hero:before,.form-hero:after{content:"";position:absolute;inset:0}
+    .form-hero:before{z-index:-2;background:url("../assets/request-hero-project.jpeg") center/cover no-repeat;opacity:.7}
+    .form-hero:after{z-index:-1;background:linear-gradient(180deg,rgba(4,5,4,.5),rgba(4,5,4,.12) 44%,rgba(4,5,4,.92)),linear-gradient(90deg,rgba(4,5,4,.76),rgba(4,5,4,.2) 62%,rgba(4,5,4,.5))}
+    html[data-ac-theme="light"] .form-hero:after{background:linear-gradient(180deg,rgba(244,241,234,.4),rgba(244,241,234,.1) 44%,rgba(244,241,234,.92)),linear-gradient(90deg,rgba(244,241,234,.82),rgba(244,241,234,.22) 62%,rgba(244,241,234,.5))}
+    .form-hero .inner{width:min(900px,100%)}
+    .form-hero .hero-kicker{display:block;margin-bottom:12px;color:#f5b400;font-size:10px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}
+    .form-hero h1{max-width:640px;margin:0;color:#fff;font-family:Georgia,"Times New Roman",serif;font-size:clamp(36px,5vw,64px);font-weight:500;line-height:.98;letter-spacing:-.05em;text-wrap:balance}
+    .form-hero p{max-width:560px;margin:16px 0 0;color:rgba(255,255,255,.82);font-size:clamp(13px,1.2vw,16px);line-height:1.6}
+    html[data-ac-theme="light"] .form-hero h1{color:#fff}
+    html[data-ac-theme="light"] .form-hero p{color:rgba(255,255,255,.85)}
+
+    .content-band{max-width:900px;margin:0 auto;padding:54px clamp(16px,4vw,56px) 100px}
+    .message{display:none;padding:12px 14px;margin-bottom:16px;border-radius:var(--radius);font-size:12px}
+    .message.show{display:block}
+    .message.error{background:rgba(255,108,108,.1);color:#ffc2c2;border:1px solid rgba(255,108,108,.4)}
+    .message.good{background:rgba(56,210,129,.08);color:#baffd2;border:1px solid rgba(56,210,129,.4)}
+    .request-form{padding:clamp(18px,3vw,30px);border:1px solid var(--app-border);border-radius:var(--radius);background:var(--surface)}
+    .form-section{margin:0;padding:0 0 28px;border:0;border-bottom:1px solid var(--app-border)}
+    .form-section+.form-section{padding-top:28px}
+    .form-section:last-of-type{border-bottom:0}
+    .form-section legend{margin:0 0 18px;padding:0;color:var(--app-text);font-size:17px;font-weight:900;letter-spacing:-.02em}
+    .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .field{display:grid;gap:7px}
+    .field.full{grid-column:1/-1}
+    .field label{color:var(--app-text);opacity:.82;font-size:12px;font-weight:900}
+    .field small{color:var(--app-muted);font-size:11px;line-height:1.35}
+    .field input,.field select,.field textarea{width:100%;min-height:48px;padding:11px 12px;border:1px solid var(--app-border);border-radius:var(--radius);background:var(--input);color:var(--app-text)}
+    .field input[type=file]::file-selector-button{min-height:34px;margin-right:10px;padding:0 11px;border:0;border-radius:7px;background:var(--app-gold);color:#111;cursor:pointer;font-size:12px;font-weight:900}
+    .field textarea{min-height:120px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--app-gold);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--app-gold) 18%,transparent)}
+    .field.is-invalid input,.field.is-invalid select,.field.is-invalid textarea,.check-row.is-invalid{border-color:var(--danger)}
+    .error-message{display:none;color:var(--danger);font-size:11px;font-weight:850}
+    .field.is-invalid .error-message,.check-row.is-invalid .error-message{display:block}
+    .check-row{display:flex;align-items:flex-start;gap:12px;margin-top:18px;padding:14px;border:1px solid var(--app-border);border-radius:var(--radius);background:var(--surface-2)}
+    .check-row input{width:22px;height:22px;margin:2px 0 0;accent-color:var(--app-gold);flex:none}
+    .check-row span{color:var(--app-text);opacity:.85;font-size:12px;font-weight:800}
+    .check-row p{margin:4px 0 0;color:var(--app-muted);font-size:11px;line-height:1.45;font-weight:400}
+    .submit-status{min-height:20px;margin-top:14px;color:var(--app-muted);font-size:12px;font-weight:850}
+    .form-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:50px;padding:0 20px;border:1px solid var(--app-border);border-radius:var(--radius);background:transparent;color:var(--app-text);cursor:pointer;font-size:12px;font-weight:900;transition:transform .18s,border-color .18s}
+    .btn.primary{border-color:var(--app-gold);background:var(--app-gold);color:#111}
+    .btn:hover,.btn:focus-visible{outline:0;transform:translateY(-2px);border-color:var(--app-gold)}
+    .btn:disabled{cursor:not-allowed;opacity:.5;transform:none}
+    .gate,.confirm{display:none}
+    .gate.show,.confirm.show{display:block}
+    .gate{padding:40px 24px;text-align:center;color:var(--app-muted);font-size:13px}
+    .confirm{text-align:center;padding:48px 24px;border:1px solid var(--app-border);border-radius:var(--radius);background:var(--surface)}
+    .confirm .mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:rgba(56,210,129,.12);color:var(--green);font-size:28px}
+    .confirm h2{margin:0 0 8px}
+    .confirm p{color:var(--app-muted)}
+    .number-row{display:inline-flex;align-items:center;gap:8px;margin:14px 0}
+    .confirm .number{margin:0;display:inline-block;padding:10px 18px;border-radius:var(--radius);background:var(--input);font-weight:900;letter-spacing:.03em}
+    .copy-btn{min-height:44px;padding:0 16px;border:1px solid var(--app-border);border-radius:var(--radius);background:transparent;color:var(--app-text);font-weight:900;cursor:pointer}
+    .copy-btn:hover{border-color:var(--app-gold)}
+    .footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:25px clamp(20px,4vw,60px);border-top:1px solid var(--app-border);background:var(--app-bg);color:var(--app-muted);font-size:11px}
+    .footer strong{color:var(--app-text)}
+    .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
+    .footer a:hover{color:var(--app-gold)}
+    @media(max-width:680px){.field-grid{grid-template-columns:1fr}.form-actions{flex-direction:column-reverse}.form-actions .btn{width:100%}.content-band{padding:44px 15px 80px}}
+  </style>
 </head>
 <body>
-  <a class="skip-link" href="#requestFormSection">Skip to form</a>
-  <div class="app-shell">
-    <header class="app-topbar" id="appTopbar">
-      <a class="brand" href="../index.html" aria-label="Alert Tradie Pro preview home">
-        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png" alt=""></span>
-        <span class="brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
+  <div class="shell">
+    <header class="topbar app-topbar" id="appTopbar">
+      <a class="brand" href="../" aria-label="Alert Tradie Pro home">
+        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt=""></span>
+        <span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
       </a>
-      <nav class="app-nav" aria-label="Request form navigation">
-        <a href="../index.html">Home</a>
-        <a href="../request-a-job/index.html">Request Panel</a>
-        <a href="./index.html" aria-current="page">Request Form</a>
-        <a href="../project-status/index.html">Project Situation</a>
-      </nav>
-      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
-      </button>
-      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+      <button class="app-nav-toggle" id="appNavToggle" type="button" aria-label="Open navigation" aria-expanded="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
       </button>
+      <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
+        <a href="../">Dashboard</a>
+        <a href="../customer/index.html">Customer Sign In</a>
+        <a href="../request-a-job/index.html" style="color:var(--app-gold);font-weight:950">Request a Job</a>
+        <a href="../login/index.html">Team Sign In</a>
+        <a href="../legal/support.html">Support</a>
+      </nav>
     </header>
 
-    <main id="main" class="request-main form-page">
+    <main>
       <section class="form-hero">
         <div class="inner">
-          <span class="story-kicker">Customer request form</span>
+          <span class="hero-kicker">Customer request form</span>
           <h1>Send the job details.</h1>
-          <p>Fill out the important information for repair, renovation, inspection or building work. After submit, the app creates your private Alert code.</p>
+          <p>Fill out the important information below. After you submit, you'll get your private Alert code straight away.</p>
         </div>
       </section>
 
-      <section class="content-band" id="requestFormSection">
-        <div class="inner">
-          <div class="request-layout form-only">
-            <form class="request-form" id="customerRequestForm" novalidate>
-              <fieldset class="form-section">
-                <legend>Customer information</legend>
-                <div class="field-grid">
-                  <div class="field">
-                    <label for="customerName">Full name *</label>
-                    <input id="customerName" name="customerName" type="text" autocomplete="name" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="phone">Phone number *</label>
-                    <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="email">Email *</label>
-                    <input id="email" name="email" type="email" autocomplete="email" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="contactPreference">Preferred contact *</label>
-                    <select id="contactPreference" name="contactPreference" required>
-                      <option value="">Select one</option>
-                      <option>Phone</option>
-                      <option>Email</option>
-                      <option>SMS</option>
-                    </select>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
+      <div class="content-band">
+        <section id="gate" class="gate">Checking your account…</section>
+        <div class="message" id="message"></div>
+
+        <div id="formArea" style="display:none">
+          <form class="request-form" id="requestForm" novalidate>
+            <fieldset class="form-section">
+              <legend>Your details</legend>
+              <div class="field-grid">
+                <div class="field"><label for="customerName">Full name *</label><input id="customerName" autocomplete="name" required><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="phone">Phone number</label><input id="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="email">Email *</label><input id="email" type="email" autocomplete="email" required><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="contactPreference">Preferred contact</label>
+                  <select id="contactPreference"><option value="email">Email</option><option value="phone">Phone</option><option value="sms">SMS</option></select>
                 </div>
-              </fieldset>
-
-              <fieldset class="form-section">
-                <legend>Location</legend>
-                <div class="field-grid">
-                  <div class="field full">
-                    <label for="address">Project address *</label>
-                    <input id="address" name="address" type="text" autocomplete="street-address" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="suburb">Suburb *</label>
-                    <input id="suburb" name="suburb" type="text" autocomplete="address-level2" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="postcode">Postcode *</label>
-                    <input id="postcode" name="postcode" type="text" inputmode="numeric" autocomplete="postal-code" required>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                </div>
-              </fieldset>
-
-              <fieldset class="form-section">
-                <legend>Job details</legend>
-                <div class="field-grid">
-                  <div class="field">
-                    <label for="projectType">Job type *</label>
-                    <select id="projectType" name="projectType" required>
-                      <option value="">Select one</option>
-                      <option>Repair work</option>
-                      <option>Bathroom renovation</option>
-                      <option>Kitchen renovation</option>
-                      <option>Full home renovation</option>
-                      <option>Home extension</option>
-                      <option>New home</option>
-                      <option>Building inspection</option>
-                      <option>Engineering service</option>
-                      <option>Other construction work</option>
-                    </select>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="projectStage">Current stage *</label>
-                    <select id="projectStage" name="projectStage" required>
-                      <option value="">Select one</option>
-                      <option>Something needs repair</option>
-                      <option>Just starting</option>
-                      <option>Need a site visit</option>
-                      <option>Have drawings or plans</option>
-                      <option>Need engineering advice</option>
-                      <option>Ready for quote</option>
-                      <option>Work already started</option>
-                    </select>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                  <div class="field">
-                    <label for="budget">Budget range</label>
-                    <select id="budget" name="budget">
-                      <option value="">Not sure yet</option>
-                      <option>Under $20k</option>
-                      <option>$20k to $50k</option>
-                      <option>$50k to $100k</option>
-                      <option>$100k to $250k</option>
-                      <option>Over $250k</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="timeframe">Ideal timeframe</label>
-                    <select id="timeframe" name="timeframe">
-                      <option value="">Flexible</option>
-                      <option>Urgent repair</option>
-                      <option>Next 1 to 3 months</option>
-                      <option>Next 3 to 6 months</option>
-                      <option>Planning for later</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="visitPreference">Site visit preference</label>
-                    <input id="visitPreference" name="visitPreference" type="text" placeholder="Example: weekday morning">
-                  </div>
-                  <div class="field">
-                    <label for="projectFiles">Photos, plans or documents</label>
-                    <input id="projectFiles" name="projectFiles" type="file" multiple>
-                    <small>Preview stores file names only.</small>
-                  </div>
-                  <div class="field full">
-                    <label for="description">Important information *</label>
-                    <textarea id="description" name="description" required placeholder="Tell us what needs repair, what has changed, access issues, damage, preferred finishes or anything urgent."></textarea>
-                    <span class="error-message" aria-live="polite"></span>
-                  </div>
-                </div>
-              </fieldset>
-
-              <label class="check-row">
-                <input id="consent" name="consent" type="checkbox" required>
-                <span>
-                  I confirm the information is correct and the Alert team can contact me about this request.
-                  <p>For the preview, the request is saved only in this browser.</p>
-                  <span class="error-message" aria-live="polite"></span>
-                </span>
-              </label>
-
-              <div class="form-actions">
-                <button class="btn primary" id="submitRequest" type="submit">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-                  Submit Request
-                </button>
-                <a class="btn" href="../request-a-job/index.html">Back to Request Panel</a>
               </div>
-              <div class="submit-status" id="submitStatus" aria-live="polite"></div>
-            </form>
-          </div>
+            </fieldset>
+
+            <fieldset class="form-section">
+              <legend>Location</legend>
+              <div class="field-grid">
+                <div class="field full"><label for="address">Project address *</label><input id="address" autocomplete="street-address" required><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="suburb">Suburb *</label><input id="suburb" autocomplete="address-level2" required><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="postcode">Postcode *</label><input id="postcode" inputmode="numeric" autocomplete="postal-code" required><span class="error-message" aria-live="polite"></span></div>
+                <div class="field"><label for="propertyType">Property type</label>
+                  <select id="propertyType"><option value="">Select…</option><option>House</option><option>Townhouse</option><option>Apartment / Unit</option><option>Commercial</option><option>Other</option></select>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="form-section">
+              <legend>Job details</legend>
+              <div class="field-grid">
+                <div class="field"><label for="projectType">Job type *</label>
+                  <select id="projectType" required>
+                    <option value="">Select one</option>
+                    <option>Repair work</option><option>Bathroom renovation</option><option>Kitchen renovation</option>
+                    <option>Full home renovation</option><option>Home extension</option><option>New home</option>
+                    <option>Building inspection</option><option>Engineering service</option><option>Other construction work</option>
+                  </select>
+                  <span class="error-message" aria-live="polite"></span>
+                </div>
+                <div class="field"><label for="projectStage">Current stage</label>
+                  <select id="projectStage">
+                    <option value="">Select one</option>
+                    <option>Something needs repair</option><option>Just starting</option><option>Need a site visit</option>
+                    <option>Have drawings or plans</option><option>Need engineering advice</option><option>Ready for quote</option><option>Work already started</option>
+                  </select>
+                </div>
+                <div class="field"><label for="budget">Budget range</label>
+                  <select id="budget"><option value="">Not sure yet</option><option>Under $20k</option><option>$20k to $50k</option><option>$50k to $100k</option><option>$100k to $250k</option><option>Over $250k</option></select>
+                </div>
+                <div class="field"><label for="timeframe">Ideal timeframe</label>
+                  <select id="timeframe"><option value="">Flexible</option><option>Urgent repair</option><option>Next 1 to 3 months</option><option>Next 3 to 6 months</option><option>Planning for later</option></select>
+                </div>
+                <div class="field"><label for="visitPreference">Site visit preference</label><input id="visitPreference" placeholder="Example: weekday morning"></div>
+                <div class="field"><label for="projectFiles">Photos, plans or documents</label><input id="projectFiles" type="file" multiple><small>Up to 20MB per file.</small></div>
+                <div class="field full"><label for="description">Important information *</label>
+                  <textarea id="description" required placeholder="Tell us what needs repair, what has changed, access issues, damage, preferred finishes or anything urgent."></textarea>
+                  <span class="error-message" aria-live="polite"></span>
+                </div>
+              </div>
+            </fieldset>
+
+            <label class="check-row">
+              <input id="consent" type="checkbox" required>
+              <span>I confirm the information is correct and the Alert team can contact me about this request.
+                <p>Your request is saved to your account and only visible to you and the Alert team.</p>
+                <span class="error-message" aria-live="polite"></span>
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button class="btn primary" id="submitRequest" type="submit">Submit Request</button>
+              <a class="btn" href="../request-a-job/index.html">Back to Request Panel</a>
+            </div>
+            <div class="submit-status" id="submitStatus" aria-live="polite"></div>
+          </form>
         </div>
-      </section>
+
+        <section id="confirm" class="confirm">
+          <div class="mark">✓</div>
+          <h2>Request received</h2>
+          <p>Your request number is</p>
+          <div class="number-row"><div class="number" id="confirmNumber"></div><button type="button" class="copy-btn" id="copyNumberBtn">Copy</button></div>
+          <p>Our team will review your request and be in touch. You can follow its progress any time from your dashboard.</p>
+          <a class="btn primary" style="display:inline-flex;margin-top:10px" href="../customer/dashboard/index.html">Open My Dashboard</a>
+        </section>
+      </div>
     </main>
 
-    <footer class="site-footer">
-      <div><strong>Alert Tradie Pro</strong> - Powered by Alert Construction</div>
-      <div class="footer-links">
-        <a href="../request-a-job/index.html">Request Panel</a>
-        <a href="../project-status/index.html">Project Situation</a>
-      </div>
+    <footer class="footer">
+      <strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span>
+      <span class="footer-links"><a href="../legal/terms.html">Terms</a><a href="../legal/support.html">Support</a></span>
     </footer>
   </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="../shared/alert-request.js"></script>
+  <script src="../shared/platform-config.js?v=43"></script>
+  <script src="../shared/auth.js?v=44"></script>
+  <script src="../shared/customer-auth.js?v=53"></script>
+  <script src="../shared/dashboard-v43.js?v=52"></script>
+  <script src="../shared/product-shell-v43.js?v=56"></script>
+  <script src="./app.js?v=1"></script>
 </body>
 </html>

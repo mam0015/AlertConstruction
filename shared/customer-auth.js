@@ -1,0 +1,58 @@
+(function(global){
+  'use strict';
+  const config=global.AC_PLATFORM_CONFIG||{},SESSION_KEY='ac_customer_session_v1';
+  let session=readSession(),customer=null,profileError='',readyResolve;
+  const ready=new Promise(resolve=>readyResolve=resolve);
+
+  function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
+  function saveSession(value){session=value||null;if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY);global.dispatchEvent(new CustomEvent('ac-customer-auth-changed',{detail:{session,customer,profileError}}))}
+  function base(){return String(config.supabaseUrl||'').replace(/\/$/,'')}
+  function appRoot(){const marker='/customer/',index=location.pathname.indexOf(marker),path=index>=0?location.pathname.slice(0,index+1):location.pathname.replace(/[^/]*$/,'');return new URL(path||'/',location.origin)}
+  function authRedirect(){return new URL('customer/',appRoot()).href}
+  function publicHeaders(extra={}){return{apikey:config.publishableKey||'','Content-Type':'application/json',...extra}}
+  async function request(path,options={}){
+    if(!base()||!config.publishableKey)throw new Error('Account service is not configured.');
+    const response=await fetch(base()+path,{...options,headers:publicHeaders(options.headers||{})}),data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.msg||data.error_description||data.message||data.error||`Account service error (${response.status}).`);
+    return data;
+  }
+  async function fetchUser(accessToken){return request('/auth/v1/user',{headers:{Authorization:`Bearer ${accessToken}`}})}
+  async function consumeAuthRedirect(){
+    const hashParams=new URLSearchParams(String(location.hash||'').replace(/^#/,'')),queryParams=new URLSearchParams(location.search),params=hashParams.has('access_token')?hashParams:queryParams;
+    const redirectError=params.get('error_description')||params.get('error');
+    if(redirectError){history.replaceState(null,'',location.pathname);throw new Error(String(redirectError).replace(/\+/g,' '))}
+    const accessToken=params.get('access_token');if(!accessToken)return'';
+    const user=await fetchUser(accessToken),expiresIn=Number(params.get('expires_in')||3600);
+    saveSession({access_token:accessToken,refresh_token:params.get('refresh_token')||'',token_type:params.get('token_type')||'bearer',expires_in:expiresIn,expires_at:Math.floor(Date.now()/1000)+expiresIn,user});
+    const type=params.get('type')||'';history.replaceState(null,'',location.pathname);return type;
+  }
+  async function signIn(email,password){const data=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});saveSession(data);await loadCustomer();return data}
+  async function signUp(email,password,fullName,phone){
+    const redirect=authRedirect(),data=await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email,password,data:{account_type:'customer',full_name:fullName||'',phone:phone||''}})});
+    if(data.access_token)saveSession(data);
+    await loadCustomer();return data;
+  }
+  async function refresh(){if(!session?.refresh_token)return null;try{const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});saveSession(data);return data}catch(_){customer=null;saveSession(null);return null}}
+  async function signOut(){try{if(session?.access_token)await request('/auth/v1/logout',{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})}catch(_){}customer=null;profileError='';saveSession(null)}
+  async function ensure(){if(!session)return null;const expires=Number(session.expires_at||0)*1000;if(expires&&expires<Date.now()+60000)await refresh();return session}
+  async function headers(){const current=await ensure();return current?.access_token?{Authorization:`Bearer ${current.access_token}`}:{}}
+  async function loadCustomer(){
+    customer=null;profileError='';const current=await ensure();if(!current?.user?.id)return null;
+    try{
+      const response=await fetch(`${base()}/rest/v1/customers?id=eq.${encodeURIComponent(current.user.id)}&select=id,full_name,email,phone,created_at`,{headers:publicHeaders({Authorization:`Bearer ${current.access_token}`})});
+      if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.message||`Customer account check failed (${response.status}).`)}
+      const rows=await response.json();customer=rows[0]||null;
+      if(!customer)profileError='This sign-in is not a customer account. Use Team Sign In instead if you are a staff member.';
+    }catch(error){profileError=error.message||'The customer account could not be checked.'}
+    global.dispatchEvent(new CustomEvent('ac-customer-auth-changed',{detail:{session,customer,profileError}}));return customer;
+  }
+  function user(){return session?.user||null}
+  function currentCustomer(){return customer}
+  function hasAccess(){return!!session&&!!customer}
+  async function requestPasswordReset(email){const redirect=authRedirect();return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({email})})}
+  async function resendVerification(email){const redirect=authRedirect();return request(`/auth/v1/resend?redirect_to=${encodeURIComponent(redirect)}`,{method:'POST',body:JSON.stringify({type:'signup',email})})}
+  async function init(){let redirectType='';try{redirectType=await consumeAuthRedirect()}catch(error){profileError=error.message||'The secure email link could not be opened.'}await ensure();if(session)await loadCustomer();readyResolve(session);global.dispatchEvent(new CustomEvent('ac-customer-auth-ready',{detail:{session,customer,profileError,redirectType}}))}
+
+  global.ACCustomerAuth={ready,signIn,signUp,signOut,refresh,headers,user,customer:currentCustomer,hasAccess,isSignedIn:()=>!!session,profileError:()=>profileError,loadCustomer,requestPasswordReset,resendVerification,config};
+  init();
+})(window);
