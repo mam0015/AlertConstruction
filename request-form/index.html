@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-ac-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070807">
+  <meta name="description" content="Customer form for repair, renovation and building job requests through Alert Tradie Pro.">
+  <title>Request Form | Alert Tradie Pro</title>
+  <link rel="icon" href="../assets/alert-tradie-pro-logo.png">
+  <link rel="stylesheet" href="../shared/alert-request.css">
+</head>
+<body>
+  <a class="skip-link" href="#requestFormSection">Skip to form</a>
+  <div class="app-shell">
+    <header class="app-topbar" id="appTopbar">
+      <a class="brand" href="../index.html" aria-label="Alert Tradie Pro preview home">
+        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png" alt=""></span>
+        <span class="brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
+      </a>
+      <nav class="app-nav" aria-label="Request form navigation">
+        <a href="../index.html">Home</a>
+        <a href="../request-a-job/index.html">Request Panel</a>
+        <a href="./index.html" aria-current="page">Request Form</a>
+        <a href="../project-status/index.html">Project Situation</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+      </button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+    </header>
+
+    <main id="main" class="request-main form-page">
+      <section class="form-hero">
+        <div class="inner">
+          <span class="story-kicker">Customer request form</span>
+          <h1>Send the job details.</h1>
+          <p>Fill out the important information for repair, renovation, inspection or building work. After submit, the app creates your private Alert code.</p>
+        </div>
+      </section>
+
+      <section class="content-band" id="requestFormSection">
+        <div class="inner">
+          <div class="request-layout form-only">
+            <form class="request-form" id="customerRequestForm" novalidate>
+              <fieldset class="form-section">
+                <legend>Customer information</legend>
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="customerName">Full name *</label>
+                    <input id="customerName" name="customerName" type="text" autocomplete="name" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="phone">Phone number *</label>
+                    <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="email">Email *</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="contactPreference">Preferred contact *</label>
+                    <select id="contactPreference" name="contactPreference" required>
+                      <option value="">Select one</option>
+                      <option>Phone</option>
+                      <option>Email</option>
+                      <option>SMS</option>
+                    </select>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="form-section">
+                <legend>Location</legend>
+                <div class="field-grid">
+                  <div class="field full">
+                    <label for="address">Project address *</label>
+                    <input id="address" name="address" type="text" autocomplete="street-address" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="suburb">Suburb *</label>
+                    <input id="suburb" name="suburb" type="text" autocomplete="address-level2" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="postcode">Postcode *</label>
+                    <input id="postcode" name="postcode" type="text" inputmode="numeric" autocomplete="postal-code" required>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="form-section">
+                <legend>Job details</legend>
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="projectType">Job type *</label>
+                    <select id="projectType" name="projectType" required>
+                      <option value="">Select one</option>
+                      <option>Repair work</option>
+                      <option>Bathroom renovation</option>
+                      <option>Kitchen renovation</option>
+                      <option>Full home renovation</option>
+                      <option>Home extension</option>
+                      <option>New home</option>
+                      <option>Building inspection</option>
+                      <option>Engineering service</option>
+                      <option>Other construction work</option>
+                    </select>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="projectStage">Current stage *</label>
+                    <select id="projectStage" name="projectStage" required>
+                      <option value="">Select one</option>
+                      <option>Something needs repair</option>
+                      <option>Just starting</option>
+                      <option>Need a site visit</option>
+                      <option>Have drawings or plans</option>
+                      <option>Need engineering advice</option>
+                      <option>Ready for quote</option>
+                      <option>Work already started</option>
+                    </select>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                  <div class="field">
+                    <label for="budget">Budget range</label>
+                    <select id="budget" name="budget">
+                      <option value="">Not sure yet</option>
+                      <option>Under $20k</option>
+                      <option>$20k to $50k</option>
+                      <option>$50k to $100k</option>
+                      <option>$100k to $250k</option>
+                      <option>Over $250k</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="timeframe">Ideal timeframe</label>
+                    <select id="timeframe" name="timeframe">
+                      <option value="">Flexible</option>
+                      <option>Urgent repair</option>
+                      <option>Next 1 to 3 months</option>
+                      <option>Next 3 to 6 months</option>
+                      <option>Planning for later</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="visitPreference">Site visit preference</label>
+                    <input id="visitPreference" name="visitPreference" type="text" placeholder="Example: weekday morning">
+                  </div>
+                  <div class="field">
+                    <label for="projectFiles">Photos, plans or documents</label>
+                    <input id="projectFiles" name="projectFiles" type="file" multiple>
+                    <small>Preview stores file names only.</small>
+                  </div>
+                  <div class="field full">
+                    <label for="description">Important information *</label>
+                    <textarea id="description" name="description" required placeholder="Tell us what needs repair, what has changed, access issues, damage, preferred finishes or anything urgent."></textarea>
+                    <span class="error-message" aria-live="polite"></span>
+                  </div>
+                </div>
+              </fieldset>
+
+              <label class="check-row">
+                <input id="consent" name="consent" type="checkbox" required>
+                <span>
+                  I confirm the information is correct and the Alert team can contact me about this request.
+                  <p>For the preview, the request is saved only in this browser.</p>
+                  <span class="error-message" aria-live="polite"></span>
+                </span>
+              </label>
+
+              <div class="form-actions">
+                <button class="btn primary" id="submitRequest" type="submit">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                  Submit Request
+                </button>
+                <a class="btn" href="../request-a-job/index.html">Back to Request Panel</a>
+              </div>
+              <div class="submit-status" id="submitStatus" aria-live="polite"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div><strong>Alert Tradie Pro</strong> - Powered by Alert Construction</div>
+      <div class="footer-links">
+        <a href="../request-a-job/index.html">Request Panel</a>
+        <a href="../project-status/index.html">Project Situation</a>
+      </div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="../shared/alert-request.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+ALERT TRADIE PRO V52 — COMPLETE PUBLIC + PRIVATE PACKAGE
+========================================================
+
+This release combines the complete, latest Alert Tradie Pro V52 files.
+
+PACKAGE CONTENTS
+----------------
+
+1. PUBLIC-WEBSITE/
+   Complete GitHub Pages website files.
+
+2. PRIVATE-SUPABASE/
+   Supabase migrations, configuration, deployment notes, and the latest
+   analyse-plan Edge Function source.
+
+IMPORTANT SEPARATION
+--------------------
+
+- Upload only the contents of PUBLIC-WEBSITE to the GitHub repository root.
+- Never upload PRIVATE-SUPABASE to GitHub Pages or any public website folder.
+- Keep the private folder as the backend/deployment copy.
+
+PUBLIC WEBSITE INSTALLATION
+---------------------------
+
+1. Unzip the complete package.
+2. Open PUBLIC-WEBSITE.
+3. Upload its contents to the GitHub repository root, preserving every folder.
+4. Replace matching files.
+5. GitHub's browser uploader accepts no more than 100 files at once. Upload the
+   public files in two batches if you use the browser interface.
+6. Wait for GitHub Pages to finish deploying.
+7. Close old app tabs, open a private/incognito window, and hard-refresh.
+
+PRIVATE SUPABASE INSTALLATION
+-----------------------------
+
+For an existing database, do not rerun migrations that were already installed.
+Run only missing migrations, in the release order below:
+
+1.  20260714_product_foundation.sql
+2.  20260714_security_audit_hardening.sql
+3.  20260715_optional_team_code.sql
+4.  20260715_privacy_analytics.sql
+5.  20260722_invoice_generator_v38.sql
+6.  20260723_project_photo_booklet_v39.sql
+7.  20260727_reliable_files_chat_v40.sql
+8.  20260729_operation_hub_finance_v44.sql
+9.  20260729_operation_hub_workspace_tools_v47.sql
+10. 20260729_project_photo_timeline_v48.sql
+11. 20260730_finance_snapshot_repair_v50.sql
+12. 20260730_company_pricing_v51.sql
+
+After the required migrations are installed, deploy:
+
+PRIVATE-SUPABASE/supabase/functions/analyse-plan/index.ts
+
+as the Supabase analyse-plan Edge Function.
+
+WHAT THIS COMPLETE V52 INCLUDES
+-------------------------------
+
+- Electrical, plumbing, cladding, renovation, quote, and plan estimators
+- Deterministic Company Pricing with CSV/XLSX import and item_code matching
+- Operation Hub, Finance, Team Management, workspace tools, and role access
+- Finance charts driven by saved approved entries and payments
+- Projects, schedules, files, team chat, invoice generator, and checklists
+- Project Photo Timeline and booklet/report support
+- Home-page 3D house slider and real What We Do photographs
+- Separate, shortened About Us page with the two-scene 3D scroll reveal
+- Who We Are, What We Do, and Why Choose Us content
+
+DATA SAFETY
+-----------
+
+Replacing public files does not delete Supabase data. The included migrations
+are designed as the complete backend history, but an existing installation
+should run only migrations that have not already been applied.
+

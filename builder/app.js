@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),config=window.AC_PLATFORM_CONFIG||{},apiBase=String(config.supabaseUrl||'').replace(/\/$/,''),params=new URLSearchParams(location.search),preview=params.get('preview')==='1',previewRole=params.get('role')||'owner',MAX_FILE=10*1024*1024;
-  let state={organisation:null,members:[],sessions:[],events:[],messages:[],selectedMember:'',selectedChat:'',messageRows:[]};
+  let state={organisation:null,members:[],sessions:[],events:[],messages:[],invitations:[],selectedMember:'',selectedChat:'',messageRows:[]};
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const initials=value=>String(value||'AT').split(/[\s@._-]+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')||'AT';
   const roleLabel=value=>({owner:'Owner',admin:'Admin',estimator:'Estimator',manager:'Project Manager',site_supervisor:'Site Supervisor',worker:'Worker',pending:'Pending approval',rejected:'Declined'})[value]||String(value||'Team member').replace(/_/g,' ');
@@ -53,24 +53,30 @@
       {id:'m3',sender_id:'owner-preview',recipient_id:'mohammad-preview',body:'Mohammad, please follow up the electrical quote and flag any item over our catalogue rate.',created_at:iso(3200000)},
       {id:'m4',sender_id:'mohammad-preview',recipient_id:'owner-preview',body:'Done — I saved the analysis and marked two items for review.',attachment_name:'Electrical_quote_review.pdf',attachment_path:'preview/file2',created_at:iso(1800000)}
     ];
-    return{organisation:{id:'org-preview',name:'Alert Construction',join_code:'ATP-7K9M2P',join_code_rotated_at:iso(8*86400000)},members,sessions,events,messages};
+    const invitations=[
+      {id:'invite-1',email:'reza.builder@example.com',role:'worker',expires_at:iso(-5*86400000),used_at:null,revoked_at:null,created_at:iso(6*86400000)},
+      {id:'invite-2',email:'',role:'site_supervisor',used_at:iso(2*86400000),revoked_at:null,expires_at:iso(-2*86400000),created_at:iso(9*86400000)}
+    ];
+    return{organisation:{id:'org-preview',name:'Alert Construction',join_code:'ATP-7K9M2P',join_code_rotated_at:iso(8*86400000)},members,sessions,events,messages,invitations};
   }
   async function loadProduction(){
     await ACAuth.ready;const profile=ACAuth.profile();if(!ACAuth.hasAccess()||!ACAuth.canUseTool('builder'))throw new Error('Operations Hub is not available for this account.');
-    const org=encodeURIComponent(profile.organisation_id),headers=await apiHeaders();
-    if(profile?.role!=='owner'){const [members,messages]=await Promise.all([
+    const org=encodeURIComponent(profile.organisation_id),headers=await apiHeaders(),canInvite=['owner','admin'].includes(profile.role);
+    if(profile?.role!=='owner'){const [members,messages,invitations]=await Promise.all([
       fetch(`${apiBase}/rest/v1/profiles?organisation_id=eq.${org}&active=eq.true&select=id,email,full_name,role,active,created_at,updated_at&order=full_name`,{headers}).then(r=>r.ok?r.json():[profile]),
-      fetch(`${apiBase}/rest/v1/ac_team_messages?organisation_id=eq.${org}&deleted_at=is.null&select=id,sender_id,recipient_id,body,attachment_name,attachment_path,attachment_type,attachment_size,read_at,created_at&order=created_at.asc&limit=500`,{headers}).then(r=>r.ok?r.json():[])
-    ]);return{organisation:ACAuth.workspace()||null,members,sessions:[],events:[],messages}}
-    const [organisations,members,sessions,events,messages,usage]=await Promise.all([
+      fetch(`${apiBase}/rest/v1/ac_team_messages?organisation_id=eq.${org}&deleted_at=is.null&select=id,sender_id,recipient_id,body,attachment_name,attachment_path,attachment_type,attachment_size,read_at,created_at&order=created_at.asc&limit=500`,{headers}).then(r=>r.ok?r.json():[]),
+      canInvite?rpc('list_ac_team_invitations').catch(()=>[]):Promise.resolve([])
+    ]);return{organisation:ACAuth.workspace()||null,members,sessions:[],events:[],messages,invitations}}
+    const [organisations,members,sessions,events,messages,usage,invitations]=await Promise.all([
       fetch(`${apiBase}/rest/v1/organisations?id=eq.${org}&select=id,name,join_code,join_code_rotated_at`,{headers}).then(r=>r.ok?r.json():[]),
       fetch(`${apiBase}/rest/v1/profiles?organisation_id=eq.${org}&select=id,email,full_name,role,active,created_at,updated_at&order=created_at`,{headers}).then(r=>r.ok?r.json():[]),
       fetch(`${apiBase}/rest/v1/ac_staff_sessions?organisation_id=eq.${org}&select=session_id,user_id,started_at,last_seen_at,ended_at,end_reason,device_label,current_path&order=last_seen_at.desc&limit=250`,{headers}).then(r=>r.ok?r.json():[]),
       fetch(`${apiBase}/rest/v1/ac_audit_log?organisation_id=eq.${org}&select=id,actor_id,action,module,details,project_id,record_id,created_at&order=created_at.desc&limit=500`,{headers}).then(r=>r.ok?r.json():[]),
       fetch(`${apiBase}/rest/v1/ac_team_messages?organisation_id=eq.${org}&deleted_at=is.null&select=id,sender_id,recipient_id,body,attachment_name,attachment_path,attachment_type,attachment_size,read_at,created_at&order=created_at.asc&limit=500`,{headers}).then(r=>r.ok?r.json():[]),
-      fetch(`${apiBase}/rest/v1/ac_usage_events?organisation_id=eq.${org}&event_name=eq.tool_opened&select=id,user_id,tool,path,occurred_at&order=occurred_at.desc&limit=250`,{headers}).then(r=>r.ok?r.json():[])
+      fetch(`${apiBase}/rest/v1/ac_usage_events?organisation_id=eq.${org}&event_name=eq.tool_opened&select=id,user_id,tool,path,occurred_at&order=occurred_at.desc&limit=250`,{headers}).then(r=>r.ok?r.json():[]),
+      rpc('list_ac_team_invitations').catch(()=>[])
     ]);
-    return{organisation:organisations[0]||null,members,sessions,events:[...events,...usage.map(item=>({id:`usage-${item.id}`,actor_id:item.user_id,action:'tool_opened',module:item.tool,details:{title:`Opened ${cleanDetail(item.tool)}`},created_at:item.occurred_at}))],messages};
+    return{organisation:organisations[0]||null,members,sessions,events:[...events,...usage.map(item=>({id:`usage-${item.id}`,actor_id:item.user_id,action:'tool_opened',module:item.tool,details:{title:`Opened ${cleanDetail(item.tool)}`},created_at:item.occurred_at}))],messages,invitations};
   }
   async function load(){
     try{state={...state,...(preview?previewData():await loadProduction())};renderAll()}catch(error){document.querySelector('.main').innerHTML=`<section class="panel"><div class="panel-body empty"><strong>${esc(error.message)}</strong><br><br><a class="btn primary" href="../login/index.html">Open secure account</a></div></section>`}
@@ -127,6 +133,7 @@
     ]:[];
     $('ohScheduleList').innerHTML=schedule.length?schedule.map(item=>`<div class="oh-schedule-item"><time>${esc(item[0])}</time><div><strong>${esc(item[1])}</strong><span>${esc(item[2])}</span></div></div>`).join(''):'<div class="empty">Assigned schedule items will appear here.</div>';
     window.ACOperationToolsOverview?.render?.();
+    window.ACRequestsOverview?.render?.();
   }
 
   let activeProjectImageUrl='',activeProjectImageId='';
@@ -179,7 +186,37 @@
   }
   window.ACOperationsOverview={setFinance:applyFinanceOverview,setProjectImage:loadActiveProjectImage};
   function eventHtml(event){const info=eventInfo(event);return`<article class="event"><div class="event-icon ${info.tone}">${esc(info.icon)}</div><div class="event-copy"><strong>${esc(info.title)}</strong><span>${esc(memberName(event.actor_id))} • ${esc(info.detail)}</span></div><time>${esc(timeAgo(event.created_at))}</time></article>`}
+  const inviteRoleLabel=value=>roleLabel(value);
+  function inviteStatus(item){
+    if(item.revoked_at)return['Revoked',true];
+    if(item.used_at)return['Accepted',false];
+    if(item.expires_at&&new Date(item.expires_at)<new Date())return['Expired',true];
+    return['Pending',false];
+  }
+  function renderInvites(){
+    const panel=$('invitePanel');if(!panel)return;
+    const canInvite=['owner','admin'].includes(currentProfile()?.role);panel.hidden=!canInvite;if(!canInvite)return;
+    $('inviteRows').innerHTML=(state.invitations||[]).map(item=>{
+      const [label,off]=inviteStatus(item),canRevoke=!item.used_at&&!item.revoked_at&&!(item.expires_at&&new Date(item.expires_at)<new Date());
+      return`<tr data-invite="${esc(item.id)}"><td>${esc(item.email||'Any email')}</td><td>${esc(inviteRoleLabel(item.role))}</td><td><span class="status-pill ${off?'off':''}">${esc(label)}</span></td><td>${esc(dateTime(item.expires_at))}</td><td>${canRevoke?'<button data-action="revoke-invite">Revoke</button>':'—'}</td></tr>`;
+    }).join('')||'<tr><td colspan="5" class="empty">No invitations created yet.</td></tr>';
+  }
+  async function createInvite(email,role,hours){
+    if(preview){
+      const item={id:crypto.randomUUID(),email,role,expires_at:new Date(Date.now()+hours*3600000).toISOString(),used_at:null,revoked_at:null,created_at:new Date().toISOString()};
+      state.invitations.unshift(item);renderInvites();
+      return`${location.origin}/sample-invitation-link/${item.id}`;
+    }
+    const result=await rpc('create_ac_team_invitation',{p_email:email,p_role:role,p_expires_hours:hours});
+    await load();
+    return new URL(`../login/index.html?invite=${encodeURIComponent(result.token)}`,location.href).href;
+  }
+  async function revokeInvite(id){
+    if(preview){state.invitations=state.invitations.filter(item=>item.id!==id);renderInvites();notice('Sample invitation revoked.');return}
+    await rpc('revoke_ac_team_invitation',{p_id:id});await load();notice('Invitation revoked.');
+  }
   function renderTeam(){
+    renderInvites();
     const query=$('teamSearch').value.toLowerCase().trim(),roleFilter=$('teamRoleFilter').value,status=$('teamStatusFilter').value;
     const rows=state.members.filter(member=>{const text=`${member.full_name} ${member.email}`.toLowerCase(),status=member.role==='pending'?'pending':member.active===false?'inactive':'active';return(!query||text.includes(query))&&(!roleFilter||member.role===roleFilter)&&(!$('teamStatusFilter').value||status===$('teamStatusFilter').value)});
     $('staffRows').innerHTML=rows.map(member=>{const session=latestSession(member.id),isOnline=online(session),isOwner=member.role==='owner',isPending=member.role==='pending';return`<tr data-member="${esc(member.id)}"><td><div class="staff-name"><div class="avatar ${isOwner?'yellow':''}">${esc(initials(member.full_name||member.email))}</div><div><strong>${esc(member.full_name||'Team member')}</strong><span>${esc(member.email)}</span></div></div></td><td>${isPending?'<span class="status-pill off">Awaiting role</span>':isOwner?'<strong>Owner</strong>':`<select class="role-select" data-action="role"><option value="worker" ${member.role==='worker'?'selected':''}>Worker</option><option value="estimator" ${member.role==='estimator'?'selected':''}>Estimator</option><option value="manager" ${member.role==='manager'?'selected':''}>Project Manager</option><option value="site_supervisor" ${member.role==='site_supervisor'?'selected':''}>Site Supervisor</option><option value="admin" ${member.role==='admin'?'selected':''}>Admin</option></select>`}</td><td><span class="status-pill ${member.active===false?'off':''}">${isPending?'Pending':member.active===false?'Revoked':'Active'}</span></td><td>${esc(dateTime(session?.started_at))}</td><td><span class="presence ${isOnline?'online':''}"><i></i>${esc(isOnline?'Online now':timeAgo(session?.last_seen_at))}</span></td><td>${todayMinutes(member.id)} min</td><td><div class="row-actions">${isPending?'<button data-action="review">Review</button>':isOwner?'—':`<button data-action="message">Message</button><button data-action="access">${member.active===false?'Restore':'Revoke'}</button>`}</div></td></tr>`}).join('')||'<tr><td colspan="7" class="empty">No team members match this filter.</td></tr>';
@@ -209,6 +246,10 @@
   ['teamSearch','teamRoleFilter','teamStatusFilter'].forEach(id=>$(id).addEventListener('input',renderTeam));
   $('staffRows').addEventListener('change',event=>{if(event.target.matches('[data-action="role"]'))changeRole(event.target.closest('tr').dataset.member,event.target.value).catch(error=>notice(error.message))});
   $('staffRows').addEventListener('click',event=>{const button=event.target.closest('[data-action]');if(!button)return;const memberId=button.closest('tr').dataset.member;if(button.dataset.action==='access')changeAccess(memberId).catch(error=>notice(error.message));if(button.dataset.action==='message'){state.selectedChat=memberId;switchView('messages')}if(button.dataset.action==='review')switchView('overview')});
+  $('inviteForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;button.textContent='Creating…';try{const link=await createInvite($('inviteEmail').value.trim(),$('inviteRole').value,Number($('inviteExpiry').value)||168);$('inviteLinkValue').value=link;$('inviteLinkBox').hidden=false;$('inviteEmail').value='';notice('Invitation created. Copy the link below — it only appears once.')}catch(error){notice(error.message)}finally{button.disabled=false;button.textContent='Create Invitation'}});
+  $('copyInviteLinkBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('inviteLinkValue').value);notice('Invitation link copied.')}catch(_){notice('Copy failed — select and copy the link manually.')}});
+  $('dismissInviteLinkBtn').addEventListener('click',()=>{$('inviteLinkBox').hidden=true;$('inviteLinkValue').value=''});
+  $('inviteRows').addEventListener('click',event=>{const button=event.target.closest('[data-action="revoke-invite"]');if(!button)return;const id=button.closest('tr').dataset.invite;if(!confirm('Revoke this invitation? It will no longer be usable.'))return;revokeInvite(id).catch(error=>notice(error.message))});
   ['activitySearch','activityType','activityRange'].forEach(id=>$(id).addEventListener('input',renderActivity));$('auditPeople').addEventListener('click',event=>{const button=event.target.closest('[data-person]');if(!button)return;state.selectedMember=button.dataset.person;renderActivity()});$('exportActivity').addEventListener('click',exportCsv);
   $('conversationList').addEventListener('click',event=>{const button=event.target.closest('[data-chat]');if(!button)return;state.selectedChat=button.dataset.chat;renderChat();markConversationRead()});$('messages').addEventListener('click',event=>{const button=event.target.closest('[data-file]');if(button)openAttachment(button.dataset.file,button.dataset.name,button.dataset.type).catch(error=>notice(error.message))});
   $('messageFile').addEventListener('change',()=>{$('messageFileName').textContent=$('messageFile').files?.[0]?.name||''});$('messageForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;button.textContent='Sending…';try{await sendMessage($('messageText').value,$('messageFile').files?.[0]||null);$('messageText').value='';$('messageFile').value='';$('messageFileName').textContent=''}catch(error){notice(error.message)}finally{button.disabled=false;button.textContent='Send message'}});

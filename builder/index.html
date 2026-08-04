@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="./finance.css?v=52-live">
   <link rel="stylesheet" href="./operation-overview.css?v=45">
   <link rel="stylesheet" href="./operation-tools.css?v=47">
+  <link rel="stylesheet" href="./requests.css?v=54">
   <style>
     :root{--bg:#090a0a;--panel:#111313;--panel2:#171919;--panel3:#1d1f1f;--line:#2b2e2e;--line2:#373a3a;--text:#f3f2ed;--muted:#969b99;--yellow:#f5b400;--yellow2:#ffce47;--green:#40d18a;--red:#ff7373;--blue:#83b7ff;--shadow:0 24px 70px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{min-height:100vh;background:radial-gradient(circle at 68% -15%,rgba(245,180,0,.08),transparent 34%),linear-gradient(180deg,#0c0e0e,#080909 58%)}
@@ -75,6 +76,7 @@
       <nav>
       <span class="side-group-label">Operations</span>
       <button class="active" type="button" data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-3H4zm10-13h6V4h-6z"/></svg>Overview<b id="overviewBadge"></b></button>
+      <button type="button" data-view="requests" id="requestsNav"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H8l-4 4zM8 9h8M8 12h5"/></svg>Requests<b id="requestsBadge"></b></button>
       <button type="button" data-view="team-management"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8m13 10v-2a4 4 0 0 0-3-3.87m-2-11.99a4 4 0 0 1 0 7.75"/></svg><span id="teamWorkspaceNavLabel">Team Management</span><b id="teamManagementBadge"></b></button>
       <button type="button" data-view="photo-timeline" id="photoTimelineNav"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01"/></svg>Project Photo Timeline<b id="photoTimelineBadge"></b></button>
       <button type="button" data-view="team"><svg viewBox="0 0 24 24"><path d="M4 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2M9 8a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/></svg>Team &amp; roles<b id="teamBadge"></b></button>
@@ -125,6 +127,8 @@
         </div>
 
         <div class="oh-command-cards">
+          <button class="oh-command" type="button" data-open-view="requests"><span class="oh-command-icon">✉</span><div><small>New requests</small><strong id="ohNewRequestCount">—</strong><em>Waiting for review</em></div><b>⌁</b></button>
+          <button class="oh-command" type="button" data-open-view="requests"><span class="oh-command-icon">☎</span><div><small>Follow-ups due</small><strong id="ohFollowUpCount">—</strong><em>Customer follow-up</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" onclick="location.href='../projects/index.html'"><span class="oh-command-icon">▤</span><div><small>Active projects</small><strong id="ohActiveProjectCount">—</strong><em>Across your workspace</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" data-open-view="team"><span class="oh-command-icon">☷</span><div><small>Approvals pending</small><strong id="pendingCount">—</strong><em>Requires a decision</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" data-open-view="financial-data" data-finance-overview-link data-overview-company-finance><span class="oh-command-icon">↗</span><div><small>Weekly revenue</small><strong id="ohWeeklyRevenue">—</strong><em>Approved income</em></div><b>⌁</b></button>
@@ -165,6 +169,21 @@
           <button type="button" data-open-view="documents"><span>▱</span><strong>Documents</strong><small>Organised company files</small><b>›</b></button>
           <button type="button" data-open-view="reports"><span>▥</span><strong>Reports</strong><small>Team daily work reports</small><b>›</b></button>
         </div></article>
+      </section>
+
+      <section class="view" data-view-panel="requests" id="requestsView">
+        <div class="req-head"><div><div class="eyebrow">Customer intake</div><h1>Requests.</h1><p>Review new job requests, record customer contact, and approve a request to create its project.</p></div><button class="btn" id="reqRefresh" type="button">Refresh</button></div>
+        <div class="req-kpis">
+          <div class="req-kpi"><small>New requests</small><strong id="reqKpiNew">—</strong></div>
+          <div class="req-kpi"><small>Waiting for follow-up</small><strong id="reqKpiFollowUp">—</strong></div>
+          <div class="req-kpi"><small>Site visits scheduled</small><strong id="reqKpiSiteVisit">—</strong></div>
+          <div class="req-kpi"><small>Ready to schedule</small><strong id="reqKpiReady">—</strong></div>
+        </div>
+        <div class="req-filters"><select id="reqStatusFilter"><option value="">All statuses</option><option value="request_submitted">Request Submitted</option><option value="under_review">Under Review</option><option value="customer_contacted">Customer Contacted</option><option value="more_info_required">More Info Required</option><option value="site_visit_scheduled">Site Visit Scheduled</option><option value="site_inspection_completed">Inspection Completed</option><option value="estimate_in_preparation">Estimate in Preparation</option><option value="quote_sent">Quote Sent</option><option value="quote_accepted">Quote Accepted</option><option value="project_scheduled">Project Scheduled</option><option value="work_in_progress">Work in Progress</option><option value="project_completed">Project Completed</option><option value="not_suitable">Not Suitable</option><option value="closed">Closed</option></select></div>
+        <div class="req-layout">
+          <div class="req-list" id="reqList"><div class="req-detail-empty">Loading requests…</div></div>
+          <div class="req-detail" id="reqDetail"><div class="req-detail-empty">Select a request to view details.</div></div>
+        </div>
       </section>
 
       <section class="view ops-tool-view" data-view-panel="quotes" id="quotesView">
@@ -486,6 +505,6 @@
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=52-live"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="../shared/product-shell.js?v=53"></script><script src="../shared/global-shell-v43.js?v=54"></script>
+<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=52-live"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="./requests-api.js?v=54"></script><script src="./requests.js?v=55"></script><script src="../shared/product-shell.js?v=54"></script><script src="../shared/global-shell-v43.js?v=54"></script>
 </body>
 </html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en" data-ac-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070807">
+  <meta name="description" content="Customer request panel for repair, renovation and building jobs through Alert Tradie Pro.">
+  <title>Customer Request Panel | Alert Tradie Pro</title>
+  <link rel="icon" href="../assets/alert-tradie-pro-logo.png">
+  <link rel="stylesheet" href="../shared/alert-request.css">
+</head>
+<body>
+  <a class="skip-link" href="#requestPath">Skip to request path</a>
+  <div class="app-shell">
+    <header class="app-topbar" id="appTopbar">
+      <a class="brand" href="../index.html" aria-label="Alert Tradie Pro preview home">
+        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png" alt=""></span>
+        <span class="brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
+      </a>
+      <nav class="app-nav" aria-label="Request panel navigation">
+        <a href="../index.html">Home</a>
+        <a href="./index.html" aria-current="page">Request Panel</a>
+        <a href="../request-form/index.html">Request Form</a>
+        <a href="../project-status/index.html">Project Situation</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+      </button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+    </header>
+
+    <main id="main">
+      <section class="request-story" id="requestStory" aria-label="House owner request journey from repair need to mobile project update">
+        <div class="story-sticky">
+          <div class="story-backdrop" aria-hidden="true">
+            <img src="../assets/request-owner-planning.jpg" alt="">
+          </div>
+          <div class="story-overlay-image" id="storyOverlayImage" aria-hidden="true">
+            <img src="../assets/request-hero-project.jpeg" alt="">
+          </div>
+          <div class="story-grid" aria-hidden="true"></div>
+
+          <div class="story-copy" id="storyCopy">
+            <span class="story-kicker">For house owners and customers</span>
+            <h1 id="storyTitle">Request a repair or building job.</h1>
+            <p id="storyText">Tell us what needs fixing, renovating or checking. Start with a simple request panel, then open the form when you are ready to send the details.</p>
+            <div class="story-actions">
+              <a class="btn primary" href="../request-form/index.html">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                Open Request Form
+              </a>
+              <a class="btn" href="#requestPath">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg>
+                See Request Path
+              </a>
+            </div>
+          </div>
+
+          <div class="story-stage" aria-hidden="true">
+            <div class="story-rig" id="storyRig">
+              <article class="scene-card consult-card" id="consultCard">
+                <div class="scene-header">
+                  <strong>Repair request</strong>
+                  <span><i class="live-dot"></i> House owner starts</span>
+                </div>
+                <div class="request-3d-body">
+                  <div class="request-problem">
+                    <span class="home-line-art"></span>
+                    <div>
+                      <b>House owner</b>
+                      <span>Needs repair, renovation or inspection help</span>
+                    </div>
+                  </div>
+                  <div class="request-detail-list">
+                    <span><b>1</b> Take photos or describe the issue</span>
+                    <span><b>2</b> Add location and contact details</span>
+                    <span><b>3</b> Receive a private Alert request code</span>
+                  </div>
+                  <div class="issue-card-grid">
+                    <span>Leak or damage</span>
+                    <span>Bathroom repair</span>
+                    <span>Kitchen update</span>
+                    <span>Extension idea</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="scene-card phone-card" id="phoneCard">
+                <div class="scene-header">
+                  <strong>Customer code</strong>
+                  <span><i class="live-dot"></i> Mobile status</span>
+                </div>
+                <div class="phone-body">
+                  <div class="phone-shell">
+                    <span class="phone-notch"></span>
+                    <div class="phone-screen">
+                      <div class="phone-top"><span>Alert</span><span>9:41</span></div>
+                      <div class="phone-cardlet">
+                        <strong>ATP-260803-K7M2</strong>
+                        <span>Repair request received</span>
+                        <span class="mini-progress"><i></i></span>
+                      </div>
+                      <div class="phone-list">
+                        <span>Request submitted</span>
+                        <span>Team review</span>
+                        <span>Site visit booking</span>
+                        <span>Quote and next step</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="status-board">
+                    <h2>Request once. Track the next step.</h2>
+                    <p>The customer keeps the code and can return to the project situation page after the team updates the job.</p>
+                    <div class="status-chips">
+                      <span>Private code</span>
+                      <span>Repair path</span>
+                      <span>Mobile-ready</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div class="story-meta" aria-hidden="true">
+            <span class="story-state"><i></i><span id="storyState">House owner starts request</span></span>
+            <span class="story-progress"><i id="storyProgress"></i></span>
+            <span class="story-percent" id="storyPercent">0%</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-band" id="requestPath">
+        <div class="inner">
+          <div class="page-intro">
+            <div>
+              <span class="section-kicker">Request path</span>
+              <h1>Simple path for customers.</h1>
+              <p>Keep this page focused on what happens after a house owner needs repair, renovation, inspection or construction work.</p>
+            </div>
+            <aside class="intro-note" aria-label="Open form note">
+              <strong>The form lives on its own page</strong>
+              <span>This request panel sends the customer straight to the form when they are ready.</span>
+              <a class="btn primary" href="../request-form/index.html">Open Request Form</a>
+            </aside>
+          </div>
+
+          <div class="path-grid" aria-label="Customer request path">
+            <article class="path-card">
+              <span>01</span>
+              <strong>Choose the job type</strong>
+              <p>Repair, renovation, inspection, extension, engineering support or a new building request.</p>
+            </article>
+            <article class="path-card">
+              <span>02</span>
+              <strong>Send the details</strong>
+              <p>The customer fills location, phone, email, timing, budget range, photos and important notes.</p>
+            </article>
+            <article class="path-card">
+              <span>03</span>
+              <strong>Receive the Alert code</strong>
+              <p>The app creates a private code for checking the request and project situation.</p>
+            </article>
+            <article class="path-card">
+              <span>04</span>
+              <strong>Check progress later</strong>
+              <p>When staff update the job, the customer can see the latest stage on the status page.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="partner-band" aria-labelledby="partnerTitle">
+        <div class="inner">
+          <div class="partner-head">
+            <div>
+              <span class="section-kicker">Alert group</span>
+              <h2 id="partnerTitle">Alert request brands.</h2>
+            </div>
+            <p>One request path for customers, from the first repair note to the private Alert code.</p>
+          </div>
+          <div class="logo-rail">
+            <div class="logo-tile">
+              <span class="logo-frame brand-logo"><img src="../assets/alert-construction-logo.png" alt="Alert Construction logo"></span>
+              <span>Alert Construction</span>
+            </div>
+            <div class="logo-tile">
+              <span class="logo-frame brand-logo"><img src="../assets/alert-engineers-logo.png" alt="Alert Engineers logo"></span>
+              <span>Alert Engineer</span>
+            </div>
+            <div class="logo-tile">
+              <span class="logo-frame tradie"><img src="../assets/alert-tradie-pro-logo.png" alt="Alert Tradie Pro logo"><span class="tradie-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span></span>
+              <span>Alert Tradie Pro</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div><strong>Alert Tradie Pro</strong> - Powered by Alert Construction</div>
+      <div class="footer-links">
+        <a href="../request-form/index.html">Request Form</a>
+        <a href="../project-status/index.html">Project Situation</a>
+      </div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="../shared/alert-request.js"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+ALERT TRADIE PRO V51 — COMPANY PRICING
+=======================================
+
+V51 adds deterministic company price lists and routes every estimator through
+the same effective-price lookup.
+
+INSTALL ORDER
+-------------
+
+1. SUPABASE DATABASE
+   Open a new Supabase SQL Editor query.
+   Run:
+   private-v40/supabase/migrations/20260730_company_pricing_v51.sql
+
+   Run this once after the V50 Finance repair. It preserves existing projects,
+   quotes, catalogue records, finance data, photos, files and team data.
+
+2. SUPABASE EDGE FUNCTION
+   Deploy the updated analyse-plan function from the V51 private package.
+
+   From the folder containing "supabase/functions/analyse-plan/index.ts":
+
+     supabase login
+     supabase link --project-ref YOUR_PROJECT_REF
+     supabase functions deploy analyse-plan
+
+   Keep the existing function secrets/configuration. This deployment is required
+   so AI Plan Estimator also uses the active company price list.
+
+3. GITHUB WEBSITE
+   If V50 is already live, use the V51 UPDATE-ONLY package. It contains 23 files,
+   so it is below GitHub's 100-file browser-upload limit.
+
+   Unzip the package first. Upload its folders/files to the repository root and
+   replace matching files while preserving the included folder paths.
+
+   Do not upload the Supabase SQL or private package to GitHub.
+
+4. REFRESH
+   Wait for GitHub Pages deployment to complete.
+   Close all existing app tabs.
+   Open a private/incognito window and sign in as Owner.
+   Hard-refresh once.
+
+WHERE TO FIND IT
+----------------
+
+Company Pricing appears:
+
+- on the Home dashboard under Business;
+- in the Tools menu;
+- in the Account menu;
+- in the Account page.
+
+Owner and Admin can create, edit, import and activate price lists.
+Estimator can view and use company rates but cannot edit.
+Site Supervisor and Worker have no pricing-screen access.
+
+QUICK ACCEPTANCE CHECK
+----------------------
+
+1. Open Company Pricing as Owner.
+2. Change ELEC-001, save it, and confirm "Your rate" appears.
+3. Open Electrical Estimate and confirm ELEC-001 uses the same rate.
+4. Download the CSV template and import one changed price.
+5. Confirm the preview before saving.
+6. Open Version History and confirm both saves are recorded.
+7. Sign in as Estimator and confirm the page is read-only.
+
+V51 does not add PDF, OCR, AI or fuzzy matching to price imports. CSV/XLSX rows
+are matched only by exact item_code.
+

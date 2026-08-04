@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" data-ac-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070807">
+  <meta name="description" content="Workers-only project update preview for Alert request codes.">
+  <title>Worker Update Panel | Alert Tradie Pro</title>
+  <link rel="icon" href="../assets/alert-tradie-pro-logo.png">
+  <link rel="stylesheet" href="../shared/alert-request.css">
+</head>
+<body>
+  <a class="skip-link" href="#workerContent">Skip to worker update panel</a>
+  <div class="app-shell">
+    <header class="app-topbar" id="appTopbar">
+      <a class="brand" href="../index.html" aria-label="Alert Tradie Pro preview home">
+        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png" alt=""></span>
+        <span class="brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
+      </a>
+      <nav class="app-nav" aria-label="Worker update navigation">
+        <a href="../index.html">Preview Home</a>
+        <a href="../project-status/index.html">Customer Situation</a>
+        <a href="./index.html" aria-current="page">Worker Update</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+      </button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+    </header>
+
+    <main id="main" class="status-main">
+      <section class="status-hero worker-hero">
+        <div class="status-hero-inner">
+          <span class="story-kicker">Workers-only preview</span>
+          <h1>Update the customer project situation.</h1>
+          <p>For admin, owner and manager. Use the request code to update the stage and note the customer sees on their project situation page.</p>
+          <div class="status-actions">
+            <span class="code-pill" id="projectCode">Loading code</span>
+            <a class="btn primary" href="../project-status/index.html" data-customer-link>Open Customer Situation</a>
+          </div>
+          <div class="role-strip" aria-label="Allowed worker roles">
+            <span>Admin</span>
+            <span>Owner</span>
+            <span>Manager</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-band" id="workerContent">
+        <div class="inner">
+          <div class="status-grid">
+            <section class="status-panel" aria-labelledby="statusTitle">
+              <div class="page-intro">
+                <div>
+                  <span class="section-kicker">Worker control</span>
+                  <h1 id="statusTitle">Request Situation</h1>
+                  <p id="currentStatusNote">Loading project situation.</p>
+                </div>
+                <aside class="intro-note">
+                  <strong id="currentStatus">Loading</strong>
+                  <span>Last updated <span id="lastUpdated">-</span></span>
+                </aside>
+              </div>
+
+              <div class="status-summary" aria-label="Request summary">
+                <div class="summary-item"><span>Customer</span><strong data-record="customerName">-</strong></div>
+                <div class="summary-item"><span>Phone</span><strong data-record="phone">-</strong></div>
+                <div class="summary-item"><span>Location</span><strong><span data-record="suburb">-</span> <span data-record="postcode"></span></strong></div>
+                <div class="summary-item"><span>Project</span><strong data-record="projectType">-</strong></div>
+              </div>
+
+              <div class="project-progress" aria-label="Project progress">
+                <span id="projectProgressText">0% through the Alert project path</span>
+                <span class="bar"><i id="projectProgress"></i></span>
+              </div>
+
+              <ol class="timeline" id="statusTimeline" aria-label="Project status timeline"></ol>
+            </section>
+
+            <aside>
+              <section class="staff-panel" aria-labelledby="staffPanelTitle">
+                <span class="worker-badge">Admin / Owner / Manager</span>
+                <h2 id="staffPanelTitle">Worker update panel</h2>
+                <p>Change the project situation here. The saved note appears on the customer's project situation page.</p>
+                <form id="staffUpdateForm">
+                  <div class="field">
+                    <label for="staffStatus">Project situation</label>
+                    <select id="staffStatus" name="staffStatus"></select>
+                  </div>
+                  <div class="field">
+                    <label for="staffNote">Worker note</label>
+                    <textarea id="staffNote" name="staffNote"></textarea>
+                  </div>
+                  <button class="btn primary" type="submit">Save Update</button>
+                </form>
+              </section>
+
+              <section class="lookup-panel" aria-labelledby="lookupTitle">
+                <h2 id="lookupTitle">Find a request code</h2>
+                <p>Use a code created on this device during the preview.</p>
+                <form class="lookup-row" id="lookupForm">
+                  <label class="field" for="lookupCode">
+                    <span>Request code</span>
+                    <input id="lookupCode" name="lookupCode" type="text" autocomplete="off" placeholder="ATP-260804-K7M2">
+                  </label>
+                  <button class="btn" type="submit">Find</button>
+                </form>
+              </section>
+
+              <section class="lookup-panel" aria-labelledby="notesTitle">
+                <h2 id="notesTitle">Latest notes</h2>
+                <ul class="status-note-list" id="statusNotes"></ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div><strong>Alert Tradie Pro</strong> - Powered by Alert Construction</div>
+      <div class="footer-links">
+        <a href="../project-status/index.html">Customer Situation</a>
+        <a href="../request-a-job/index.html">Request Panel</a>
+      </div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="../shared/alert-request.js"></script>
+</body>
+</html>

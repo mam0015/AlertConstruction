@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en" data-ac-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070807">
+  <meta name="description" content="Project situation page for Alert customer request codes.">
+  <title>Project Situation | Alert Tradie Pro</title>
+  <link rel="icon" href="../assets/alert-tradie-pro-logo.png">
+  <link rel="stylesheet" href="../shared/alert-request.css">
+</head>
+<body>
+  <a class="skip-link" href="#statusContent">Skip to project situation</a>
+  <div class="app-shell">
+    <header class="app-topbar" id="appTopbar">
+      <a class="brand" href="../index.html" aria-label="Alert Tradie Pro preview home">
+        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png" alt=""></span>
+        <span class="brand-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
+      </a>
+      <nav class="app-nav" aria-label="Project situation navigation">
+        <a href="../index.html">Preview Home</a>
+        <a href="../request-a-job/index.html">Request Panel</a>
+        <a href="../request-form/index.html">Request Form</a>
+        <a href="./index.html" aria-current="page">Project Situation</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+      </button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+    </header>
+
+    <main id="main" class="status-main">
+      <section class="status-hero">
+        <div class="status-hero-inner">
+          <span class="story-kicker">Customer project situation</span>
+          <h1>Track your Alert project with one code.</h1>
+          <p>The request code connects the customer, the Alert team and job updates in a single project situation view.</p>
+          <div class="status-actions">
+            <span class="code-pill" id="projectCode">Loading code</span>
+            <a class="btn primary" href="../request-form/index.html">Create New Request</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-band" id="statusContent">
+        <div class="inner">
+          <div class="status-grid">
+            <section class="status-panel" aria-labelledby="statusTitle">
+              <div class="page-intro">
+                <div>
+                  <span class="section-kicker">Live situation</span>
+                  <h1 id="statusTitle">Project Situation</h1>
+                  <p id="currentStatusNote">Loading project situation.</p>
+                </div>
+                <aside class="intro-note">
+                  <strong id="currentStatus">Loading</strong>
+                  <span>Last updated <span id="lastUpdated">-</span></span>
+                </aside>
+              </div>
+
+              <div class="status-summary" aria-label="Request summary">
+                <div class="summary-item"><span>Customer</span><strong data-record="customerName">-</strong></div>
+                <div class="summary-item"><span>Phone</span><strong data-record="phone">-</strong></div>
+                <div class="summary-item"><span>Location</span><strong><span data-record="suburb">-</span> <span data-record="postcode"></span></strong></div>
+                <div class="summary-item"><span>Project</span><strong data-record="projectType">-</strong></div>
+              </div>
+
+              <div class="project-progress" aria-label="Project progress">
+                <span id="projectProgressText">0% through the Alert project path</span>
+                <span class="bar"><i id="projectProgress"></i></span>
+              </div>
+
+              <ol class="timeline" id="statusTimeline" aria-label="Project status timeline"></ol>
+            </section>
+
+            <aside>
+              <section class="lookup-panel" aria-labelledby="customerCodeTitle">
+                <h2 id="customerCodeTitle">Keep your request code</h2>
+                <p>This customer page only shows the project situation. Worker updates are kept in the internal team area.</p>
+                <a class="btn primary" href="../request-form/index.html">Create New Request</a>
+              </section>
+
+              <section class="lookup-panel" aria-labelledby="lookupTitle">
+                <h2 id="lookupTitle">Find a request code</h2>
+                <p>Use a code created on this device during the preview.</p>
+                <form class="lookup-row" id="lookupForm">
+                  <label class="field" for="lookupCode">
+                    <span>Request code</span>
+                    <input id="lookupCode" name="lookupCode" type="text" autocomplete="off" placeholder="ATP-260803-K7M2">
+                  </label>
+                  <button class="btn" type="submit">Find</button>
+                </form>
+              </section>
+
+              <section class="lookup-panel" aria-labelledby="notesTitle">
+                <h2 id="notesTitle">Latest notes</h2>
+                <ul class="status-note-list" id="statusNotes"></ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="partner-band" aria-labelledby="partnerTitle">
+        <div class="inner">
+          <div class="partner-head">
+            <div>
+              <span class="section-kicker">Alert group</span>
+              <h2 id="partnerTitle">Alert request brands.</h2>
+            </div>
+            <p>The customer keeps one code from request submission through the next project update.</p>
+          </div>
+          <div class="logo-rail">
+            <div class="logo-tile">
+              <span class="logo-frame brand-logo"><img src="../assets/alert-construction-logo.png" alt="Alert Construction logo"></span>
+              <span>Alert Construction</span>
+            </div>
+            <div class="logo-tile">
+              <span class="logo-frame brand-logo"><img src="../assets/alert-engineers-logo.png" alt="Alert Engineers logo"></span>
+              <span>Alert Engineer</span>
+            </div>
+            <div class="logo-tile">
+              <span class="logo-frame tradie"><img src="../assets/alert-tradie-pro-logo.png" alt="Alert Tradie Pro logo"><span class="tradie-copy"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span></span>
+              <span>Alert Tradie Pro</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div><strong>Alert Tradie Pro</strong> - Powered by Alert Construction</div>
+      <div class="footer-links">
+        <a href="../request-a-job/index.html">Request Panel</a>
+        <a href="../request-form/index.html">Request Form</a>
+      </div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="../shared/alert-request.js"></script>
+</body>
+</html>
