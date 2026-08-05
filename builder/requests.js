@@ -93,13 +93,6 @@
 
       ${files.length?`<div class="req-section"><h3>Files</h3><div class="req-files">${files.map(file=>`<button class="req-file-btn" type="button" data-file="${esc(file.storage_path)}" data-name="${esc(file.file_name)}" data-type="${esc(file.mime_type)}">📎 ${esc(file.file_name)}</button>`).join('')}</div></div>`:''}
 
-      ${canManage?`<div class="req-section"><h3>Update project situation</h3><form class="req-form" id="reqStatusForm">
-        <label>Project situation<select id="reqStatusSelect">${Object.entries(STATUS_LABEL).map(([value,label])=>`<option value="${esc(value)}" ${value===detail.status?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
-        <label>Note for the customer<textarea id="reqStatusNote" maxlength="2000" placeholder="What should the customer see for this update?"></textarea></label>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:700;color:#ccc"><input id="reqStatusVisible" type="checkbox" style="width:auto;min-height:0" checked> Visible to customer</label>
-        <button class="btn primary" type="submit">Save Update</button>
-      </form></div>`:''}
-
       ${canManage?`<div class="req-section"><h3>Record contact</h3><form class="req-form" id="reqContactForm">
         <label>Outcome<select id="reqOutcome"><option>Contacted</option><option>No Answer</option><option>Follow-up Required</option><option>More Information Required</option><option>Site Visit Required</option><option>Approved for Inspection</option><option>Not Suitable</option><option>Closed</option></select></label>
         <label>Follow-up date<input id="reqFollowUpDate" type="date"></label>
@@ -117,15 +110,6 @@
 
       <div class="req-section"><h3>Status timeline</h3><div class="req-timeline">${history.length?history.map(item=>`<div class="req-timeline-row"><strong>${esc(STATUS_LABEL[item.status]||item.status)}</strong><span>${esc(dateLabel(item.created_at))}${item.note?' — '+esc(item.note):''}${item.customer_visible?' · Visible to customer':''}</span></div>`).join(''):'<div class="req-timeline-row"><strong>No history recorded.</strong></div>'}</div></div>
     `;
-
-    const statusForm=$('reqStatusForm');
-    if(statusForm)statusForm.addEventListener('submit',async event=>{
-      event.preventDefault();const button=event.submitter;button.disabled=true;
-      try{
-        await window.ACRequestsAPI.setStatus(detail.id,$('reqStatusSelect').value,$('reqStatusNote').value.trim(),$('reqStatusVisible').checked);
-        toast('Project situation updated.','good');await load();await openRequest(detail.id);
-      }catch(error){toast(error.message,'error')}finally{button.disabled=false}
-    });
 
     const contactForm=$('reqContactForm');
     if(contactForm)contactForm.addEventListener('submit',async event=>{

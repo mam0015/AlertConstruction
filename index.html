@@ -43,37 +43,34 @@
     .trust-point strong,.trust-point span{display:block}
     .trust-point strong{font-size:13px;letter-spacing:-.01em}
     .trust-point span{max-width:230px;margin-top:7px;color:var(--app-muted);font-size:11px;line-height:1.5}
-    .company-about{padding:92px 0 84px}
-    .about-copy{max-width:920px}
+    .company-about{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(38px,6vw,86px);padding:92px 0 84px}
+    .about-visual{position:relative;min-height:520px;overflow:hidden;background:#171817}
+    .about-visual img{display:block;width:100%;height:100%;min-height:520px;object-fit:cover;transition:transform .7s var(--app-ease)}
+    .about-visual:hover img{transform:scale(1.025)}
+    .about-visual:after{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.11);pointer-events:none}
+    .about-visual-note{position:absolute;left:0;bottom:0;max-width:310px;padding:18px 22px;background:var(--app-gold);color:#101110}
+    .about-visual-note strong,.about-visual-note span{display:block}
+    .about-visual-note strong{font-size:12px;letter-spacing:.01em}
+    .about-visual-note span{margin-top:5px;font-size:9px;font-weight:800;line-height:1.45;opacity:.72}
     .section-kicker{display:block;margin-bottom:10px;color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
     .company-about h2,.services-head h2{margin:0;font-size:clamp(38px,4.5vw,62px);line-height:.98;letter-spacing:-.05em;text-wrap:balance}
-    #aboutTitle{font-size:clamp(48px,6vw,86px)}
     .section-rule{width:52px;height:3px;margin:20px 0 24px;background:var(--app-gold)}
     .company-about p{margin:0 0 17px;color:var(--app-muted);font-size:15px;line-height:1.75}
-    .about-lead{color:var(--app-text);font-size:19px;line-height:1.55}
-    .who-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:30px 0}
-    .who-card{padding:24px 20px;border:1px solid var(--app-border);background:color-mix(in srgb,var(--app-text) 3%,transparent)}
-    .who-card-mark{display:grid;place-items:center;width:44px;height:44px;margin-bottom:15px;padding:8px;border:1px solid var(--app-border);background:#101211}
-    .who-card-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
-    .who-card strong{display:block;font-size:15px;letter-spacing:-.01em}
-    .who-card p{margin:8px 0 0;color:var(--app-muted);font-size:13px;line-height:1.62}
-    .who-summary{margin:6px 0 0;padding-top:22px;border-top:1px solid var(--app-border);color:var(--app-text);font-size:15px;line-height:1.62}
-    html[data-ac-theme="light"] .who-card-mark{background:#fff;border-color:#d2cbc0}
-    html[data-ac-theme="light"] .who-card-mark img{filter:none}
+    .about-identity{display:flex;align-items:center;gap:13px;margin-top:29px;padding-top:21px;border-top:1px solid var(--app-border)}
+    .about-identity strong,.about-identity span{display:block}
+    .about-identity strong{font-size:12px}
+    .about-identity span{margin-top:4px;color:var(--app-muted);font-size:10px}
+    .identity-mark{width:36px;height:3px;background:var(--app-gold);flex:none}
     .services{padding:0 0 88px}
     .services-head{display:flex;align-items:end;justify-content:space-between;gap:36px;margin-bottom:31px;padding-top:8px}
     .services-head-copy{max-width:520px}
     .services-head-copy p{margin:0;color:var(--app-muted);font-size:13px;line-height:1.65}
     .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px 28px}
-    .service-card{position:relative;isolation:isolate;min-height:290px;display:flex;flex-direction:column;justify-content:flex-end;padding:22px 20px;overflow:hidden;border:1px solid var(--app-border)}
-    .service-card-img{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;transition:transform .7s var(--app-ease)}
-    .service-card:hover .service-card-img{transform:scale(1.06)}
-    .service-card:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(7,8,7,.1) 0%,rgba(7,8,7,.5) 55%,rgba(7,8,7,.94) 100%)}
-    .service-icon{display:grid;place-items:center;width:38px;height:38px;margin-bottom:14px;border-radius:10px;background:rgba(245,180,0,.18);color:var(--app-gold)}
-    .service-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-    .service-card strong{display:block;color:#fff;font-size:14px;letter-spacing:-.01em}
-    .service-card p{margin:6px 0 0;color:rgba(255,255,255,.74);font-size:11px;line-height:1.55}
-    @media(max-width:680px){.service-card{min-height:230px}}
+    .service-card{padding:26px 24px;border:1px solid var(--app-border);background:transparent}
+    .service-icon{display:grid;place-items:center;width:44px;height:44px;margin-bottom:16px;border-radius:11px;background:color-mix(in srgb,var(--app-gold) 14%,transparent);color:var(--app-gold)}
+    .service-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+    .service-card strong{display:block;font-size:14px;letter-spacing:-.01em}
+    .service-card p{margin:6px 0 0;color:var(--app-muted);font-size:11px;line-height:1.55}
     .company-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:30px;padding:38px 0 0;border-top:1px solid var(--app-border)}
     .company-cta h3{margin:0;font-size:clamp(24px,3vw,38px);letter-spacing:-.035em}
     .company-cta p{max-width:680px;margin:9px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
@@ -85,9 +82,9 @@
     .footer strong{color:var(--app-text)}
     .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
     .footer a:hover{color:var(--app-gold)}
-    @media(max-width:980px){.trust-rail{grid-template-columns:1fr 1fr}.trust-point:nth-child(2){border-right:0}.trust-point:nth-child(-n+2){border-bottom:1px solid var(--app-border)}.who-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.service-grid{grid-template-columns:1fr 1fr}}
-    @media(max-width:680px){.company-home{padding:0 15px 64px}.trust-point{min-height:102px;padding:23px 16px 20px 34px}.trust-point:before{left:14px;top:25px}.company-about{padding:67px 0 62px}.who-cards{grid-template-columns:1fr;gap:14px;margin:24px 0}.who-summary{font-size:14px}.company-about p{font-size:14px}.services{padding-bottom:62px}.services-head{align-items:flex-start;flex-direction:column;gap:22px}.service-grid{grid-template-columns:1fr;gap:20px}.company-cta{grid-template-columns:1fr}.company-cta-links{justify-content:flex-start}}
-    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.trust-rail{grid-template-columns:1fr}.trust-point{border-right:0;border-bottom:1px solid var(--app-border)!important}.trust-point:last-child{border-bottom:0!important}.footer-links{margin-left:0}}
+    @media(max-width:980px){.trust-rail{grid-template-columns:1fr 1fr}.trust-point:nth-child(2){border-right:0}.trust-point:nth-child(-n+2){border-bottom:1px solid var(--app-border)}.company-about{grid-template-columns:1fr;gap:42px}.about-visual,.about-visual img{min-height:460px}.service-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:680px){.company-home{padding:0 15px 64px}.trust-point{min-height:102px;padding:23px 16px 20px 34px}.trust-point:before{left:14px;top:25px}.company-about{padding:67px 0 62px}.about-visual,.about-visual img{min-height:360px}.about-visual-note{max-width:250px;padding:14px 17px}.company-about p{font-size:14px}.services{padding-bottom:62px}.services-head{align-items:flex-start;flex-direction:column;gap:22px}.service-grid{grid-template-columns:1fr;gap:20px}.company-cta{grid-template-columns:1fr}.company-cta-links{justify-content:flex-start}}
+    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.trust-rail{grid-template-columns:1fr}.trust-point{border-right:0;border-bottom:1px solid var(--app-border)!important}.trust-point:last-child{border-bottom:0!important}.about-visual,.about-visual img{min-height:300px}.footer-links{margin-left:0}}
   </style>
 </head>
 <body>
@@ -101,12 +98,27 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
       </button>
       <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
-        <a href="./" aria-current="page">Dashboard</a>
-        <a href="./customer/index.html">Customer Sign In</a>
+        <a href="./" aria-current="page">Home</a>
+        <a href="./about/">About Us</a>
+        <a href="#what-we-do">Services</a>
         <a href="./request-a-job/index.html" style="color:var(--app-gold);font-weight:950">Request a Job</a>
+        <a href="./customer/index.html">Customer Sign In</a>
         <a href="./login/index.html">Team Sign In</a>
-        <a href="./legal/support.html">Support</a>
-        <!-- Operation Hub, Tools, Projects and Reports are intentionally removed from this public nav (not deleted) — their pages and routes are untouched and still reachable directly, and staff reach them via Team Sign In → Operation Hub, which has its own internal navigation (shared/global-shell-v43.js). -->
+        <!-- Internal-only items below stay in the markup so signed-in staff keep their full navigation, but shared/product-shell-v43.js hides every one of them (and the Tools trigger) unless ACAuth reports an active, permitted staff role. Public visitors and signed-in customers never see this block. -->
+        <a href="./builder/index.html">Operation Hub</a>
+        <div class="app-tools">
+          <button class="app-tools-trigger" id="appToolsTrigger" type="button" aria-expanded="false" aria-controls="appToolsMenu">Tools
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+          </button>
+          <div class="app-tools-menu" id="appToolsMenu" hidden>
+            <div class="app-tools-group"><strong>Estimating</strong><a data-role-tool="electrical" href="./electrical/index.html">Electrical Estimate</a><a data-role-tool="plumbing" href="./plumbing/index.html">Plumbing Estimate</a><a data-role-tool="cladding" href="./cladding/index.html">Cladding Estimate</a><a data-role-tool="renovation-budget" href="./renovation-budget/index.html">Renovation Budget</a></div>
+            <div class="app-tools-group"><strong>Analysis &amp; AI</strong><a data-role-tool="plan-ai" href="./plan-ai/index.html">AI Plan Estimator</a><a data-role-tool="quote-analysis" href="./quote-analysis/index.html">Quote Price Analysis</a><a data-role-tool="property-estimate" href="./property-estimate/index.html">Property Value Guide</a></div>
+            <div class="app-tools-group"><strong>Projects &amp; Site</strong><a data-role-tool="projects" href="./projects/index.html">Projects &amp; Schedule</a><a data-role-tool="checklist" href="./checklist/index.html">Site Checklist</a><a data-role-tool="permit-checklist" href="./permit-checklist/index.html">Permit Checklist</a></div>
+            <div class="app-tools-group"><strong>Business</strong><a data-role-tool="finance" href="./builder/index.html?view=financial-data">Financial Data</a><a data-role-tool="invoice" href="./invoice/index.html">Invoice Generator</a><a data-role-tool="photo-timeline" href="./builder/index.html?view=photo-timeline">Photo Timeline</a><a data-role-tool="catalogue" href="./catalogue/index.html">Company Pricing</a></div>
+          </div>
+        </div>
+        <a data-role-tool="projects" href="./projects/index.html">Projects</a>
+        <a data-role-tool="builder" href="./builder/index.html?view=reports">Reports</a>
       </nav>
     </header>
 
@@ -151,29 +163,17 @@
         </section>
 
         <section class="company-about" aria-labelledby="aboutTitle">
+          <div class="about-visual">
+            <img src="./assets/luxury-property.webp" alt="Completed Melbourne home representing Alert Construction project delivery">
+            <div class="about-visual-note"><strong>Built from construction experience</strong><span>Alert Tradie Pro · Powered by Alert Construction</span></div>
+          </div>
           <div class="about-copy">
             <span class="section-kicker">Who we are</span>
-            <h2 id="aboutTitle">Who We Are</h2>
+            <h2 id="aboutTitle">Construction experience behind every tool.</h2>
             <div class="section-rule" aria-hidden="true"></div>
-            <p class="about-lead">We are Alert Construction, Alert Engineers, and Alert Tradie Pro, working together to provide complete construction, engineering, and customer project support.</p>
-            <div class="who-cards">
-              <article class="who-card">
-                <span class="who-card-mark"><img src="./assets/alert-construction-logo.png" alt=""></span>
-                <strong>Alert Construction</strong>
-                <p>Manages residential construction, renovations, extensions, inspections, and on-site building work.</p>
-              </article>
-              <article class="who-card">
-                <span class="who-card-mark"><img src="./assets/alert-engineers-logo.png" alt=""></span>
-                <strong>Alert Engineers</strong>
-                <p>Provides engineering advice, assessments, inspections, designs, and technical support.</p>
-              </article>
-              <article class="who-card">
-                <span class="who-card-mark"><img src="./assets/alert-tradie-pro-logo.png?v=44" alt=""></span>
-                <strong>Alert Tradie Pro</strong>
-                <p>Our online customer request and project-tracking portal. Customers can submit service requests, upload documents and photos, view project updates, follow the progress of their renovation or construction work, see completed stages, review schedules, receive important notices, and communicate with the project team.</p>
-              </article>
-            </div>
-            <p class="who-summary">Together, we combine construction experience, engineering expertise, and digital project tracking to give customers a clearer, more organised, and more transparent building experience.</p>
+            <p>Alert Construction is a licensed unlimited builder based in Melbourne, delivering new homes, extensions and renovations from the first sketch to final handover. With engineering and architectural support working alongside construction, planning, compliance and delivery stay connected.</p>
+            <p>Alert Tradie Pro was created from the work behind those projects: setting company rates, preparing estimates, reviewing trade quotes, coordinating site teams and keeping reliable records. It brings that work into one practical platform, giving owners a clear business view while each team member sees only the tools needed for their role.</p>
+            <div class="about-identity"><span class="identity-mark" aria-hidden="true"></span><div><strong>Alert Tradie Pro</strong><span>The operating platform · Powered by Alert Construction</span></div></div>
           </div>
         </section>
 
@@ -189,43 +189,36 @@
 
           <div class="service-grid">
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/kitchen-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-renovation.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9h16M8 9V6a4 4 0 0 1 8 0v3M6 9l1 10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-10"/></svg></span>
               <strong>Kitchen Renovations</strong>
               <p>Kitchens designed and built around how your household actually cooks and lives.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/bathroom-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-renovation.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM7 12V7a2 2 0 0 1 4 0"/></svg></span>
               <strong>Bathroom Renovations</strong>
               <p>Bathroom renovations built for lasting style, durability and everyday use.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/home-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-renovation.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></svg></span>
               <strong>Home Renovations</strong>
               <p>Full or partial renovations that lift comfort, function and long-term value.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/new-homes.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-property.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9M12 14v4m-2-2h4"/></svg></span>
               <strong>New Homes</strong>
               <p>Custom new home builds delivered end-to-end by a licensed, in-house team.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/extension.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-renovation.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h6v-6H3v6ZM9 20h9V10l-4.5-4L9 10"/></svg></span>
               <strong>Home Extensions</strong>
               <p>Seamless extensions that add real space without compromising the existing home.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/building-inspection.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-site.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m20 20-5.2-5.2"/></svg></span>
               <strong>Building Inspections</strong>
               <p>Professional building and structural inspections, backed by qualified engineers.</p>
             </article>
             <article class="service-card">
-              <img class="service-card-img" src="./assets/services/engineering.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='./assets/luxury-plans.webp'">
               <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4 6 20h3l1.2-3h3.6L15 20h3L12 4Z"/><path d="M9.7 14h4.6"/></svg></span>
               <strong>Engineering Services</strong>
               <p>Structural assessments and certified engineering design for renovations, extensions and new builds.</p>
@@ -247,10 +240,9 @@
   </div>
   <script src="./shared/platform-config.js?v=43"></script>
   <script src="./shared/auth.js"></script>
-  <script src="./shared/customer-auth.js?v=53"></script>
   <script src="./shared/project-store.js"></script>
   <script src="./shared/dashboard-v43.js?v=52"></script>
-  <script src="./shared/product-shell-v43.js?v=56"></script>
+  <script src="./shared/product-shell-v43.js?v=54"></script>
   <script src="./shared/cloud-sync.js"></script>
 </body>
 </html>

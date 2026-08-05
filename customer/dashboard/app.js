@@ -19,13 +19,6 @@
     closed:['Request Closed','This request has been closed.']
   };
   const COMPLETE_STATUSES=new Set(['quote_accepted','project_scheduled','work_in_progress','project_completed']);
-  const PROGRESS_ORDER=['request_submitted','under_review','site_visit_scheduled','site_inspection_completed','estimate_in_preparation','quote_sent','quote_accepted','project_scheduled','work_in_progress','project_completed'];
-  const PROGRESS_ALIAS={customer_contacted:'under_review',more_info_required:'under_review',not_suitable:'project_completed',closed:'project_completed'};
-  function progressPercent(status){
-    const key=PROGRESS_ALIAS[status]||status,index=PROGRESS_ORDER.indexOf(key);
-    if(index<0)return 0;
-    return Math.round((index/(PROGRESS_ORDER.length-1))*100);
-  }
 
   async function apiHeaders(content=true){return{apikey:config.publishableKey||'',...(content?{'Content-Type':'application/json'}:{}),...await ACCustomerAuth.headers()}}
   async function rpc(name,body={}){
@@ -39,17 +32,11 @@
   let requests=[];
 
   function renderList(){
-    const term=$('trackCodeInput').value.trim().toUpperCase();
-    const filtered=term?requests.filter(request=>String(request.request_number||'').toUpperCase().includes(term)):requests;
     if(!requests.length){
       $('requestList').innerHTML='<div class="empty-panel">No requests yet. <a href="../../request-a-job/index.html" style="color:var(--yellow)">Submit a job request</a>.</div>';
       return;
     }
-    if(!filtered.length){
-      $('requestList').innerHTML=`<div class="empty-panel">No request matches "${esc(term)}". Check the code and try again.</div>`;
-      return;
-    }
-    $('requestList').innerHTML=filtered.map(request=>{
+    $('requestList').innerHTML=requests.map(request=>{
       const [label]=STATUS_COPY[request.status]||['Request Submitted',''];
       const complete=COMPLETE_STATUSES.has(request.status);
       return `<button class="request-row" type="button" data-request="${esc(request.id)}">
@@ -58,7 +45,6 @@
       </button>`;
     }).join('');
   }
-  $('trackCodeInput').addEventListener('input',renderList);
 
   async function openRequest(id){
     try{
@@ -69,15 +55,11 @@
       $('detailStatusPill').className=`status-pill ${complete?'complete':''}`;
       $('detailTitle').textContent=`${detail.request_number} — ${detail.main_service||'Job request'}`;
       $('detailStatusCopy').textContent=copy;
-      const percent=progressPercent(detail.status);
-      $('detailProgressBar').style.width=`${percent}%`;
-      $('detailProgressText').textContent=`${percent}% through the project path`;
-      const history=Array.isArray(detail.history)&&detail.history.length?detail.history:[{status:detail.status,note:'',created_at:detail.created_at}];
-      $('detailTimeline').innerHTML=history.map((item,index)=>{
+      const history=Array.isArray(detail.history)?detail.history:[];
+      $('detailTimeline').innerHTML=history.length?history.map(item=>{
         const [itemLabel]=STATUS_COPY[item.status]||[item.status,''];
-        const state=index<history.length-1?'is-complete':'is-current';
-        return `<li class="${state}"><span class="timeline-marker">${index+1}</span><span class="timeline-copy"><strong>${esc(itemLabel)}</strong><span>${esc(item.note||'No further detail provided.')} — ${esc(dateLabel(item.created_at))}</span></span></li>`;
-      }).join('');
+        return `<div class="timeline-row"><strong>${esc(itemLabel)}</strong><span>${esc(item.note||'')} — ${esc(dateLabel(item.created_at))}</span></div>`;
+      }).join(''):'<div class="timeline-row"><strong>Request Submitted</strong><span>No further updates yet.</span></div>';
       $('listView').hidden=true;$('detailView').classList.add('show');
     }catch(error){alert(error.message)}
   }

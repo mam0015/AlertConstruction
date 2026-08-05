@@ -9,8 +9,6 @@
     .card{padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--panel);margin-bottom:14px}.card h2{margin:0 0 6px}.card p{color:var(--muted);margin:0 0 14px;font-size:13px;line-height:1.6}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.empty-panel{padding:26px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);font-size:13px;text-align:center}
     .signout{border:0;background:transparent;color:var(--yellow);font-weight:850;cursor:pointer}
-    .track-row{margin-bottom:12px}
-    .track-row input{width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text);font-size:13px}
     .request-list{display:grid;gap:10px}
     .request-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--input);cursor:pointer;text-align:left;border-width:1px}
     .request-row:hover{border-color:var(--yellow)}
@@ -24,19 +22,12 @@
     .detail-back{border:0;background:transparent;color:var(--muted);font-weight:800;font-size:12px;cursor:pointer;margin-bottom:10px}
     .detail h3{margin:0 0 4px}
     .detail .status-copy{color:var(--muted);font-size:13px;margin:0 0 18px}
-    .progress-wrap{margin:16px 0 24px}
-    .progress-wrap span{display:block;margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:850}
-    .progress-bar{height:8px;border-radius:999px;overflow:hidden;background:#232323}
-    .progress-bar i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--yellow),var(--green));transition:width .35s ease}
-    .timeline{display:grid;gap:0;margin:0;padding:0;list-style:none}
-    .timeline li{display:grid;grid-template-columns:30px 1fr;gap:12px;padding:0 0 18px;position:relative}
-    .timeline li:before{content:"";position:absolute;left:14px;top:30px;bottom:0;width:1px;background:var(--line)}
-    .timeline li:last-child:before{display:none}
-    .timeline-marker{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--muted);font-size:11px;font-weight:950}
-    .timeline li.is-complete .timeline-marker,.timeline li.is-current .timeline-marker{border-color:var(--yellow);background:var(--yellow);color:#111}
-    .timeline li.is-current .timeline-marker{box-shadow:0 0 0 5px rgba(245,180,0,.16)}
-    .timeline-copy strong,.timeline-copy span{display:block}
-    .timeline-copy span{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.5}
+    .timeline{display:grid;gap:0}
+    .timeline-row{position:relative;padding:0 0 20px 22px;border-left:2px solid var(--line)}
+    .timeline-row:last-child{border-color:transparent;padding-bottom:0}
+    .timeline-row:before{content:"";position:absolute;left:-6px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--yellow)}
+    .timeline-row strong,.timeline-row span{display:block}
+    .timeline-row span{margin-top:3px;color:var(--muted);font-size:11px}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -48,7 +39,7 @@
 
     <div id="listView">
       <div class="grid">
-        <div class="card"><h2>My Requests</h2><p>Job requests you've submitted to Alert Construction.</p><div class="track-row"><input id="trackCodeInput" placeholder="Track a project by code, e.g. ATP-483921" autocapitalize="characters" autocomplete="off" spellcheck="false"></div><div id="requestList" class="request-list"><div class="empty-panel">No requests yet. <a href="../../request-a-job/index.html" style="color:var(--yellow)">Submit a job request</a>.</div></div></div>
+        <div class="card"><h2>My Requests</h2><p>Job requests you've submitted to Alert Construction.</p><div id="requestList" class="request-list"><div class="empty-panel">No requests yet. <a href="../../request-a-job/index.html" style="color:var(--yellow)">Submit a job request</a>.</div></div></div>
         <div class="card"><h2>My Projects</h2><p>Active and completed projects linked to your account.</p><div class="empty-panel">No projects yet.</div></div>
         <div class="card"><h2>Messages &amp; Documents</h2><p>Updates and files shared with you by the Alert Construction team.</p><div class="empty-panel">Nothing shared yet.</div></div>
         <div class="card"><h2>Quotes &amp; Invoices</h2><p>Quotes and invoices sent to you for this project.</p><div class="empty-panel">Nothing sent yet.</div></div>
@@ -60,12 +51,11 @@
       <span class="status-pill" id="detailStatusPill" style="margin-bottom:10px;display:inline-flex"></span>
       <h3 id="detailTitle"></h3>
       <p class="status-copy" id="detailStatusCopy"></p>
-      <div class="progress-wrap"><span id="detailProgressText">0% through the project path</span><div class="progress-bar"><i id="detailProgressBar"></i></div></div>
-      <ol class="timeline" id="detailTimeline"></ol>
+      <div class="timeline" id="detailTimeline"></div>
     </div>
   </div>
 </main>
 <script src="../../shared/platform-config.js?v=53"></script>
 <script src="../../shared/customer-auth.js?v=53"></script>
-<script src="./app.js?v=1"></script>
+<script src="./app.js"></script>
 </body></html>

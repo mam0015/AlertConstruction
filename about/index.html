@@ -11,7 +11,7 @@
   <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="../assets/alert-tradie-pro-apple-touch.png">
   <link rel="stylesheet" href="../shared/dashboard-v43.css?v=52">
-  <link rel="stylesheet" href="./styles.css?v=54">
+  <link rel="stylesheet" href="./styles.css?v=52">
 </head>
 <body>
   <div class="shell">
@@ -25,11 +25,22 @@
       </button>
       <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
         <a href="../">Dashboard</a>
-        <a href="../customer/index.html">Customer Sign In</a>
-        <a href="../request-a-job/index.html" style="color:var(--app-gold);font-weight:950">Request a Job</a>
-        <a href="../login/index.html">Team Sign In</a>
+        <a href="./" aria-current="page">About Us</a>
+        <a href="../builder/index.html">Operation Hub</a>
+        <div class="app-tools">
+          <button class="app-tools-trigger" id="appToolsTrigger" type="button" aria-expanded="false" aria-controls="appToolsMenu">Tools
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+          </button>
+          <div class="app-tools-menu" id="appToolsMenu" hidden>
+            <div class="app-tools-group"><strong>Estimating</strong><a data-role-tool="electrical" href="../electrical/index.html">Electrical Estimate</a><a data-role-tool="plumbing" href="../plumbing/index.html">Plumbing Estimate</a><a data-role-tool="cladding" href="../cladding/index.html">Cladding Estimate</a><a data-role-tool="renovation-budget" href="../renovation-budget/index.html">Renovation Budget</a></div>
+            <div class="app-tools-group"><strong>Analysis &amp; AI</strong><a data-role-tool="plan-ai" href="../plan-ai/index.html">AI Plan Estimator</a><a data-role-tool="quote-analysis" href="../quote-analysis/index.html">Quote Price Analysis</a><a data-role-tool="property-estimate" href="../property-estimate/index.html">Property Value Guide</a></div>
+            <div class="app-tools-group"><strong>Projects &amp; Site</strong><a data-role-tool="projects" href="../projects/index.html">Projects &amp; Schedule</a><a data-role-tool="checklist" href="../checklist/index.html">Site Checklist</a><a data-role-tool="permit-checklist" href="../permit-checklist/index.html">Permit Checklist</a></div>
+            <div class="app-tools-group"><strong>Business</strong><a data-role-tool="finance" href="../builder/index.html?view=financial-data">Financial Data</a><a data-role-tool="invoice" href="../invoice/index.html">Invoice Generator</a><a data-role-tool="photo-timeline" href="../builder/index.html?view=photo-timeline">Photo Timeline</a><a data-role-tool="catalogue" href="../catalogue/index.html">Company Pricing</a></div>
+          </div>
+        </div>
+        <a href="../projects/index.html">Projects</a>
+        <a data-role-tool="builder" href="../builder/index.html?view=reports">Reports</a>
         <a href="../legal/support.html">Support</a>
-        <!-- Operation Hub, Tools, Projects and Reports are intentionally removed from this public nav (not deleted) — see index.html for the same change. -->
       </nav>
     </header>
 
@@ -67,77 +78,35 @@
       <section class="about-intro" id="who-we-are" aria-labelledby="whoTitle">
         <div class="intro-label"><span>01</span><strong>Who We Are</strong></div>
         <div class="intro-copy">
-          <h2 id="whoTitle">Who We Are</h2>
+          <span class="section-kicker">Construction first. Technology with a purpose.</span>
+          <h2 id="whoTitle">Construction experience, built into one clear platform.</h2>
           <div class="gold-rule" aria-hidden="true"></div>
-          <p class="lead">We are Alert Construction, Alert Engineers, and Alert Tradie Pro, working together to provide complete construction, engineering, and customer project support.</p>
-          <div class="who-cards">
-            <article class="who-card">
-              <span class="who-card-mark"><img src="../assets/alert-construction-logo.png" alt=""></span>
-              <strong>Alert Construction</strong>
-              <p>Manages residential construction, renovations, extensions, inspections, and on-site building work.</p>
-            </article>
-            <article class="who-card">
-              <span class="who-card-mark"><img src="../assets/alert-engineers-logo.png" alt=""></span>
-              <strong>Alert Engineers</strong>
-              <p>Provides engineering advice, assessments, inspections, designs, and technical support.</p>
-            </article>
-            <article class="who-card">
-              <span class="who-card-mark"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt=""></span>
-              <strong>Alert Tradie Pro</strong>
-              <p>Our online customer request and project-tracking portal. Customers can submit service requests, upload documents and photos, view project updates, follow the progress of their renovation or construction work, see completed stages, review schedules, receive important notices, and communicate with the project team.</p>
-            </article>
-          </div>
-          <p class="who-summary">Together, we combine construction experience, engineering expertise, and digital project tracking to give customers a clearer, more organised, and more transparent building experience.</p>
+          <p class="lead">Alert Construction is a Melbourne builder working across new homes, extensions and renovations. We built Alert Tradie Pro from the problems we face on real projects.</p>
+          <p>It keeps estimates, projects, site work, finance and records connected—from the first plan to final handover.</p>
+          <div class="identity-line"><span></span><div><strong>Alert Tradie Pro</strong><small>A construction operating platform · Powered by Alert Construction</small></div></div>
         </div>
       </section>
 
       <section class="work-section" id="what-we-do" aria-labelledby="workTitle">
         <header class="section-heading">
-          <div><span class="section-kicker">What we build</span><h2 id="workTitle">What We Do</h2></div>
-          <p>Alert Construction brings in-house engineering, architectural design and hands-on building experience together, so every renovation, extension or new home is planned and delivered by one accountable team.</p>
+          <div><span class="section-kicker">One connected project record</span><h2 id="workTitle">What We Do</h2></div>
+          <p>One place to price, plan, build and report—with access matched to each role.</p>
         </header>
-        <div class="service-grid">
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/kitchen-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-renovation.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9h16M8 9V6a4 4 0 0 1 8 0v3M6 9l1 10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-10"/></svg></span>
-            <strong>Kitchen Renovations</strong>
-            <p>Kitchens designed and built around how your household actually cooks and lives.</p>
+        <div class="work-list">
+          <article class="work-row">
+            <div class="work-image"><img src="../assets/what-we-do-estimating.webp" alt="Construction plans and calculator used for project estimating" loading="lazy"></div>
+            <div class="work-number">01</div>
+            <div class="work-copy"><span>Price</span><h3>Estimate with confidence.</h3><p>Build estimates, check trade quotes and use one company price list across every tool.</p><a href="../catalogue/index.html" data-role-tool="catalogue">Open Company Pricing →</a></div>
           </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/bathroom-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-renovation.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM7 12V7a2 2 0 0 1 4 0"/></svg></span>
-            <strong>Bathroom Renovations</strong>
-            <p>Bathroom renovations built for lasting style, durability and everyday use.</p>
+          <article class="work-row">
+            <div class="work-image"><img src="../assets/what-we-do-site.webp" alt="Construction site team coordinating work on an active project" loading="lazy"></div>
+            <div class="work-number">02</div>
+            <div class="work-copy"><span>Manage</span><h3>Run projects clearly.</h3><p>Plan schedules, assign tasks, complete checklists and keep site updates organised.</p><a href="../builder/index.html?view=team-management" data-role-tool="builder">Open Team Management →</a></div>
           </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/home-renovation.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-renovation.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></svg></span>
-            <strong>Home Renovations</strong>
-            <p>Full or partial renovations that lift comfort, function and long-term value.</p>
-          </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/new-homes.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-property.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9M12 14v4m-2-2h4"/></svg></span>
-            <strong>New Homes</strong>
-            <p>Custom new home builds delivered end-to-end by a licensed, in-house team.</p>
-          </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/extension.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-renovation.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h6v-6H3v6ZM9 20h9V10l-4.5-4L9 10"/></svg></span>
-            <strong>Home Extensions</strong>
-            <p>Seamless extensions that add real space without compromising the existing home.</p>
-          </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/building-inspection.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-site.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m20 20-5.2-5.2"/></svg></span>
-            <strong>Building Inspections</strong>
-            <p>Professional building and structural inspections, backed by qualified engineers.</p>
-          </article>
-          <article class="service-card">
-            <img class="service-card-img" src="../assets/services/engineering.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='../assets/luxury-plans.webp'">
-            <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4 6 20h3l1.2-3h3.6L15 20h3L12 4Z"/><path d="M9.7 14h4.6"/></svg></span>
-            <strong>Engineering Services</strong>
-            <p>Structural assessments and certified engineering design for renovations, extensions and new builds.</p>
+          <article class="work-row">
+            <div class="work-image"><img src="../assets/what-we-do-finance.webp" alt="Finance reports and calculator used to manage project costs" loading="lazy"></div>
+            <div class="work-number">03</div>
+            <div class="work-copy"><span>Track</span><h3>See the business clearly.</h3><p>Track income, expenses and cash flow, create invoices and keep project reports ready.</p><a href="../builder/index.html?view=financial-data" data-role-tool="finance">Open Financial Data →</a></div>
           </article>
         </div>
       </section>
@@ -169,9 +138,8 @@
   </div>
   <script src="../shared/platform-config.js?v=43"></script>
   <script src="../shared/auth.js?v=44"></script>
-  <script src="../shared/customer-auth.js?v=53"></script>
   <script src="../shared/dashboard-v43.js?v=52"></script>
-  <script src="../shared/product-shell-v43.js?v=56"></script>
+  <script src="../shared/product-shell-v43.js?v=54"></script>
   <script src="./app.js?v=52"></script>
 </body>
 </html>
