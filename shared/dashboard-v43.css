@@ -180,6 +180,7 @@ html[data-ac-theme="light"] .build-grid{opacity:.17}
 
 @media(max-width:1160px){
   .app-global-nav>a{padding:0 8px;font-size:11px}
+  .app-global-nav>a:nth-of-type(5),.app-global-nav>a:nth-of-type(6){display:none}
   .app-tools-menu{right:-90px}
 }
 @media(max-width:850px){
@@ -195,6 +196,7 @@ html[data-ac-theme="light"] .build-grid{opacity:.17}
   }
   .app-topbar.menu-open .app-global-nav{display:flex}
   .app-global-nav>a,.app-tools-trigger{width:100%;justify-content:space-between;padding:0 12px}
+  .app-global-nav>a:nth-of-type(5),.app-global-nav>a:nth-of-type(6){display:flex}
   .app-global-nav>a[aria-current="page"]:after{display:none}
   .app-tools-menu{position:static;width:100%;margin-top:7px;grid-template-columns:1fr 1fr;box-shadow:none}
   .build-copy{left:18px;top:116px;max-width:calc(100vw - 36px)}

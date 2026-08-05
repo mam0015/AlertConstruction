@@ -178,18 +178,6 @@
     }
   });
 
-  $('copyNumberBtn').addEventListener('click',async()=>{
-    const number=$('confirmNumber').textContent.trim();
-    if(!number)return;
-    try{
-      await navigator.clipboard.writeText(number);
-      $('copyNumberBtn').textContent='Copied';
-    }catch(_){
-      message(`Your request number is ${number}. Copy it and keep it somewhere safe.`,'good');
-    }
-    setTimeout(()=>{$('copyNumberBtn').textContent='Copy'},2000);
-  });
-
   // ---- Auth gate ----
   async function init(){
     await ACCustomerAuth.ready;

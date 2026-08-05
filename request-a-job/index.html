@@ -1,196 +1,185 @@
 <!doctype html>
-<html lang="en" data-ac-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#070807">
-  <meta name="description" content="Request a repair, renovation, inspection or building job from Alert Construction, Alert Engineers and Alert Tradie Pro.">
+  <meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#050505">
   <title>Request a Job | Alert Tradie Pro</title>
+  <meta name="description" content="Tell Alert Construction about your project and request a site visit and quote.">
   <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="../assets/alert-tradie-pro-apple-touch.png">
-  <link rel="stylesheet" href="../shared/dashboard-v43.css?v=52">
   <style>
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    html{scroll-behavior:smooth;background:#070807}
-    body{margin:0;min-height:100vh;background:var(--app-bg);color:var(--app-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-    a{color:inherit;text-decoration:none}
-    button{font:inherit}
-    .shell{min-height:100vh}
-    .brand{display:flex;align-items:center;gap:11px;min-width:0;flex:none}
-    .brand-mark{display:grid;place-items:center;width:46px;height:46px;padding:7px;border:1px solid rgba(255,255,255,.17);border-radius:12px;background:#101211;overflow:hidden}
-    .brand-mark img{display:block;width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
-    .brand-wordmark{display:grid;gap:3px;line-height:1}
-    .brand-wordmark strong{color:var(--app-text);font-size:17px;font-weight:950;letter-spacing:-.035em}
-    .brand-wordmark small{color:var(--app-muted);font-size:8px;font-weight:800;letter-spacing:.045em}
-    html[data-ac-theme="light"] .brand-mark{background:#fff;border-color:#d2cbc0}
-    html[data-ac-theme="light"] .brand-mark img{filter:none}
-
-    .request-scene{position:relative;height:220vh;background:#070807}
-    .request-sticky{--req-reveal:0%;--req-scale:1.035;--before-opacity:1;--before-y:0px;--after-opacity:0;--after-y:30px;--bar-width:0%;--scroll-opacity:1;position:sticky;top:0;height:100vh;min-height:650px;overflow:hidden;background:#0a0b0a}
-    .request-stage{position:absolute;inset:-2%;transform:scale(var(--req-scale));transform-origin:center;will-change:transform}
-    .request-image,.request-image-reveal{position:absolute;inset:0;width:100%;height:100%}
-    .request-image{object-fit:cover;object-position:center}
-    .request-image-before{filter:saturate(.7) brightness(.68)}
-    .request-image-reveal{overflow:hidden;clip-path:inset(0 calc(100% - var(--req-reveal)) 0 0);will-change:clip-path}
-    .request-image-after{filter:saturate(.98) brightness(.86)}
-    .request-vignette{position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,5,4,.9) 0%,rgba(4,5,4,.5) 30%,rgba(4,5,4,.06) 56%,rgba(4,5,4,.1) 74%,rgba(4,5,4,.4) 100%),linear-gradient(180deg,rgba(4,5,4,.5),transparent 32%,rgba(4,5,4,.58))}
-    .request-copy{position:absolute;z-index:2;left:clamp(22px,7vw,112px);top:50%;width:min(650px,78vw);transform:translateY(-48%);text-shadow:0 3px 30px rgba(0,0,0,.55)}
-    .hero-kicker{display:block;margin-bottom:12px;color:#f5b400;font-size:10px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}
-    .request-copy h1{max-width:760px;margin:0;color:#fff;font-family:Georgia,"Times New Roman",serif;font-size:clamp(44px,6.6vw,96px);font-weight:500;line-height:.92;letter-spacing:-.055em;text-wrap:balance}
-    .request-copy p{max-width:560px;margin:22px 0 0;color:rgba(255,255,255,.8);font-size:clamp(14px,1.3vw,18px);line-height:1.62}
-    .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:27px}
-    .hero-button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.38);color:#fff;font-size:10px;font-weight:950;letter-spacing:.02em;backdrop-filter:blur(8px);transition:transform .2s,border-color .2s}
-    .hero-button.primary{border-color:#f5b400;background:#f5b400;color:#111;text-shadow:none}
-    .hero-button:hover,.hero-button:focus-visible{outline:none;transform:translateY(-2px);border-color:#f5b400}
-    .request-status{position:absolute;z-index:3;left:clamp(22px,7vw,112px);right:clamp(22px,5vw,78px);bottom:30px;display:grid;grid-template-columns:auto minmax(100px,280px) 44px;align-items:center;gap:14px;color:rgba(255,255,255,.82);font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-    .request-status i{height:3px;background:rgba(255,255,255,.25);overflow:hidden;display:block}.request-status b{display:block;width:var(--bar-width);height:100%;background:#f5b400}.request-status strong{color:#f5b400;text-align:right}
-    .request-scroll{position:absolute;z-index:3;right:clamp(22px,5vw,78px);top:50%;display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.72);font-size:8px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;transform:rotate(90deg) translateX(50%);transform-origin:right center;opacity:var(--scroll-opacity)}
-    .request-scroll i{display:block;width:38px;height:1px;background:#f5b400}
-
-    .content-wrap{position:relative;z-index:5;max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,54px) 94px;scroll-margin-top:72px}
-    .section-kicker{display:block;margin-bottom:10px;color:var(--app-gold);font-size:10px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
-    .path-section{padding:92px 0 84px}
-    .path-head{max-width:640px}
-    .path-head h2{margin:0;font-size:clamp(34px,4.2vw,54px);line-height:1;letter-spacing:-.04em;text-wrap:balance}
-    .path-head p{margin:14px 0 0;color:var(--app-muted);font-size:14px;line-height:1.7}
-    .path-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:34px}
-    .path-card{padding:22px 20px;border:1px solid var(--app-border);background:color-mix(in srgb,var(--app-text) 3%,transparent)}
-    .path-card span{display:block;color:var(--app-gold);font-family:Georgia,"Times New Roman",serif;font-size:20px}
-    .path-card strong{display:block;margin-top:30px;font-size:16px;letter-spacing:-.02em;line-height:1.2}
-    .path-card p{margin:9px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
-
-    .brands-section{padding:0 0 88px;border-top:1px solid var(--app-border);padding-top:84px}
-    .brands-head{max-width:640px;margin-bottom:28px}
-    .brands-head h2{margin:0;font-size:clamp(28px,3.4vw,42px);letter-spacing:-.03em}
-    .brands-head p{margin:9px 0 0;color:var(--app-muted);font-size:13px;line-height:1.6}
-    .logo-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-    .logo-tile{display:grid;place-items:center;gap:12px;min-height:150px;padding:22px;border:1px solid var(--app-border);background:color-mix(in srgb,var(--app-text) 3%,transparent)}
-    .logo-frame{display:grid;place-items:center;width:150px;height:56px}
-    .logo-frame img{width:100%;height:100%;object-fit:contain;filter:brightness(0) invert(1)}
-    html[data-ac-theme="light"] .logo-frame img{filter:none}
-    .logo-tile span{color:var(--app-muted);font-size:12px;font-weight:900}
-
-    .cta-band{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:30px;padding:38px 0 0;border-top:1px solid var(--app-border)}
-    .cta-band h3{margin:0;font-size:clamp(22px,2.8vw,34px);letter-spacing:-.03em}
-    .cta-band p{max-width:600px;margin:9px 0 0;color:var(--app-muted);font-size:12px;line-height:1.6}
-    .cta-links{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
-    .cta-link{display:inline-flex;align-items:center;justify-content:center;min-height:45px;padding:0 16px;border:1px solid var(--app-border);color:var(--app-text);font-size:10px;font-weight:900;transition:transform .2s,border-color .2s}
-    .cta-link.primary{border-color:var(--app-gold);background:var(--app-gold);color:#111}
-    .cta-link:hover,.cta-link:focus-visible{outline:none;transform:translateY(-2px);border-color:var(--app-gold)}
-
-    .footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:25px clamp(20px,4vw,60px);border-top:1px solid var(--app-border);background:var(--app-bg);color:var(--app-muted);font-size:11px}
-    .footer strong{color:var(--app-text)}
-    .footer-links{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
-    .footer a:hover{color:var(--app-gold)}
-
-    @media(max-width:980px){.path-grid{grid-template-columns:1fr 1fr}.logo-rail{grid-template-columns:1fr 1fr}}
-    @media(max-width:680px){.content-wrap{padding:0 15px 64px}.path-section{padding:64px 0}.path-grid{grid-template-columns:1fr;gap:14px}.brands-section{padding-top:58px;padding-bottom:60px}.logo-rail{grid-template-columns:1fr;gap:14px}.cta-band{grid-template-columns:1fr}.cta-links{justify-content:flex-start}}
-    @media(max-width:440px){.brand-wordmark strong{font-size:15px}.brand-wordmark small{font-size:7px}.footer-links{margin-left:0}}
+    :root{--bg:#050505;--panel:#111;--input:#202020;--line:#303030;--text:#f7f7f7;--muted:#aaa;--yellow:#f5b400;--green:#38d281;--red:#ff6c6c}
+    *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    button,input,select,textarea{font:inherit}a{color:inherit}
+    .app{width:min(760px,100%);margin:auto;padding:18px 18px 90px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .back{color:var(--muted);text-decoration:none;font-weight:800;font-size:13px}
+    .brand{display:flex;align-items:center;gap:9px;font-weight:900}
+    .logo{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--yellow);color:#050505}
+    .hero{padding:26px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at 85% 10%,rgba(245,180,0,.16),transparent 45%),linear-gradient(145deg,#151515,#080808);margin-bottom:16px}
+    .hero h1{font-size:clamp(28px,5vw,44px);line-height:1;letter-spacing:-.05em;margin:0}
+    .hero h1 span{color:var(--yellow)}.hero p{color:var(--muted);max-width:640px;margin:10px 0 0}
+    .steps{display:flex;gap:6px;margin-bottom:16px}
+    .steps i{flex:1;height:4px;border-radius:99px;background:var(--line)}
+    .steps i.done,.steps i.active{background:var(--yellow)}
+    .step-label{color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+    .card{padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--panel);margin-bottom:14px}
+    .card h2{margin:0 0 6px;font-size:20px}.card>p.intro{color:var(--muted);margin:0 0 18px;font-size:13px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field{margin-bottom:14px}.field label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin-bottom:6px}
+    .field .hint{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+    .field input,.field select,.field textarea{width:100%;min-height:50px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text)}
+    .field textarea{min-height:96px;resize:vertical}
+    .radio-row{display:flex;gap:10px;flex-wrap:wrap}
+    .radio-row label{display:flex;align-items:center;gap:8px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--input);font-size:13px;font-weight:700;cursor:pointer}
+    .radio-row input{width:auto;min-height:0}
+    .engineering-fields{display:none;padding:14px;margin-top:4px;border:1px solid rgba(245,180,0,.35);border-radius:14px;background:rgba(245,180,0,.05)}
+    .engineering-fields.show{display:block}
+    .engineering-fields>p{margin:0 0 12px;color:#f0d385;font-size:12px}
+    .upload-zone{padding:20px;border:1.5px dashed var(--line);border-radius:16px;text-align:center;cursor:pointer}
+    .upload-zone:hover{border-color:var(--yellow)}
+    .upload-zone strong{display:block;margin-bottom:4px}
+    .upload-zone span{color:var(--muted);font-size:12px}
+    .file-list{display:grid;gap:8px;margin-top:12px}
+    .file-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--input)}
+    .file-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+    .file-row button{border:0;background:transparent;color:var(--red);font-weight:900;cursor:pointer}
+    .review-block{margin-bottom:14px}.review-block h3{margin:0 0 8px;font-size:12px;color:var(--yellow);text-transform:uppercase;letter-spacing:.06em}
+    .review-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #232323;font-size:13px}
+    .review-row span:first-child{color:var(--muted)}
+    .nav-row{display:flex;gap:10px;justify-content:space-between}
+    .btn{min-height:52px;padding:0 22px;border:1px solid var(--line);border-radius:13px;background:#232323;color:var(--text);font-weight:900;cursor:pointer}
+    .btn.primary{background:var(--yellow);color:#050505;border-color:var(--yellow)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .message{display:none;padding:12px;margin-bottom:14px;border-radius:12px;font-size:12px}
+    .message.show{display:block}
+    .message.error{background:rgba(255,108,108,.1);color:#ffc2c2;border:1px solid rgba(255,108,108,.4)}
+    .message.good{background:rgba(56,210,129,.08);color:#baffd2;border:1px solid rgba(56,210,129,.4)}
+    .gate,.confirm{display:none}
+    .gate.show,.confirm.show{display:block}
+    .confirm{text-align:center;padding:40px 24px}
+    .confirm .mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:rgba(56,210,129,.12);color:var(--green);font-size:28px}
+    .confirm h2{margin:0 0 8px}.confirm p{color:var(--muted)}
+    .confirm .number{display:inline-block;margin:14px 0;padding:10px 18px;border-radius:12px;background:var(--input);font-weight:900;letter-spacing:.03em}
+    @media(max-width:640px){.grid2{grid-template-columns:1fr}.nav-row{flex-direction:column-reverse}.nav-row .btn{width:100%}}
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar app-topbar" id="appTopbar">
-      <a class="brand" href="../" aria-label="Alert Tradie Pro home">
-        <span class="brand-mark"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt=""></span>
-        <span class="brand-wordmark"><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span>
-      </a>
-      <button class="app-nav-toggle" id="appNavToggle" type="button" aria-label="Open navigation" aria-expanded="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
-      </button>
-      <nav class="app-global-nav" id="appGlobalNav" aria-label="App navigation">
-        <a href="../">Dashboard</a>
-        <a href="../customer/index.html">Customer Sign In</a>
-        <a href="./index.html" aria-current="page" style="color:var(--app-gold);font-weight:950">Request a Job</a>
-        <a href="../login/index.html">Team Sign In</a>
-        <a href="../legal/support.html">Support</a>
-      </nav>
-    </header>
+<main class="app">
+  <header class="top"><a class="back" href="../index.html">← Alert Tradie Pro</a><div class="brand"><div class="logo"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt="Alert Tradie Pro" style="width:22px;height:22px;object-fit:contain"></div><span>Request a Job</span></div></header>
 
-    <main>
-      <section class="request-scene" id="requestScene" aria-label="From house owner request to a tracked Alert code">
-        <div class="request-sticky" id="requestSticky">
-          <div class="request-stage" aria-hidden="true">
-            <img class="request-image request-image-before" src="../assets/request-owner-planning.jpg" alt="">
-            <div class="request-image-reveal" id="requestImageReveal">
-              <img class="request-image request-image-after" src="../assets/request-hero-project.jpeg" alt="">
-            </div>
-          </div>
-          <div class="request-vignette" aria-hidden="true"></div>
-          <div class="request-copy request-copy-before" id="requestBefore">
-            <span class="hero-kicker">For house owners and customers</span>
-            <h1>Request a repair or<br>building job.</h1>
-            <p>Tell us what needs fixing, renovating or checking. Send the details once, and you'll get a private Alert code to follow what happens next.</p>
-            <div class="hero-actions">
-              <a class="hero-button primary" href="../request-form/index.html">Open Request Form</a>
-              <a class="hero-button" href="#requestPath">See the Request Path</a>
-            </div>
-          </div>
-          <div class="request-copy request-copy-after" id="requestAfter" style="opacity:0">
-            <span class="hero-kicker">Open Alert Tradie Pro</span>
-            <h1>Get a code.<br>Check the next step.</h1>
-            <p>After you submit, sign in any time to see your request move through review, site visit, quote and scheduling — right through to handover.</p>
-            <div class="hero-actions">
-              <a class="hero-button primary" href="../request-form/index.html">Open Request Form</a>
-              <a class="hero-button" href="../customer/dashboard/index.html">Track My Requests</a>
-            </div>
-          </div>
-          <div class="request-status">
-            <span></span>
-            <i><b id="requestBar"></b></i>
-            <strong id="requestPercent">0%</strong>
-          </div>
-          <div class="request-scroll" id="requestScrollHint"><span>Scroll</span><i></i></div>
+  <section id="gate" class="gate card"><p>Checking your account…</p></section>
+
+  <div id="formArea">
+    <section class="hero"><h1>Tell us about<br><span>your project.</span></h1><p>Share the details below and our team will be in touch to arrange a site visit and quote.</p></section>
+    <div class="steps" id="stepsBar"></div>
+    <div class="message" id="message"></div>
+    <form id="requestForm">
+      <section class="card" data-step="1">
+        <span class="step-label">Step 1 of 6</span>
+        <h2>Your details</h2><p class="intro">So our team knows who to contact.</p>
+        <div class="field"><label for="fullName">Full name</label><input id="fullName" required></div>
+        <div class="grid2">
+          <div class="field"><label for="email">Email</label><input id="email" type="email" required></div>
+          <div class="field"><label for="phone">Phone</label><input id="phone" type="tel" placeholder="04xx xxx xxx"></div>
+        </div>
+        <div class="field"><label for="preferredContact">Preferred contact method</label><select id="preferredContact"><option value="email">Email</option><option value="phone">Phone</option><option value="sms">SMS</option></select></div>
+      </section>
+
+      <section class="card" data-step="2">
+        <span class="step-label">Step 2 of 6</span>
+        <h2>Project location</h2><p class="intro">Where is the work needed?</p>
+        <div class="field"><label for="addressStreet">Street address</label><input id="addressStreet" required></div>
+        <div class="grid2">
+          <div class="field"><label for="addressSuburb">Suburb</label><input id="addressSuburb" required></div>
+          <div class="field"><label for="addressPostcode">Postcode</label><input id="addressPostcode" inputmode="numeric" maxlength="4" required></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="addressState">State</label><select id="addressState"><option>VIC</option><option>NSW</option><option>QLD</option><option>WA</option><option>SA</option><option>TAS</option><option>ACT</option><option>NT</option></select></div>
+          <div class="field"><label for="propertyType">Property type</label><select id="propertyType"><option value="">Select…</option><option>House</option><option>Townhouse</option><option>Apartment / Unit</option><option>Commercial</option><option>Other</option></select></div>
         </div>
       </section>
 
-      <div class="content-wrap" id="requestPath">
-        <section class="path-section" aria-labelledby="pathTitle">
-          <div class="path-head">
-            <span class="section-kicker">Request path</span>
-            <h2 id="pathTitle">A simple path for customers.</h2>
-            <p>What happens after a house owner needs repair, renovation, inspection or construction work.</p>
+      <section class="card" data-step="3">
+        <span class="step-label">Step 3 of 6</span>
+        <h2>The work you need</h2><p class="intro">What kind of project is this?</p>
+        <div class="field"><label for="mainService">Main service</label>
+          <select id="mainService" required>
+            <option value="">Select a service…</option>
+            <option>Kitchen Renovation</option><option>Bathroom Renovation</option><option>Home Renovation</option>
+            <option>Home Extension</option><option>New Home / Building and Construction</option><option>Building Inspection</option>
+            <option>Electrical</option><option>Plumbing</option><option>Painting</option><option>Cladding</option>
+            <option>Repairs and Maintenance</option><option>Engineering</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field" id="subServiceField"><label for="subService">Sub-service</label><input id="subService" placeholder="e.g. Full renovation, single room, specific repair"></div>
+        <div class="engineering-fields" id="engineeringFields">
+          <p>Engineering requests use a few extra questions so the right engineer can be assigned.</p>
+          <div class="field"><label for="engineeringType">Engineering service type</label>
+            <select id="engineeringType">
+              <option>Structural Engineering</option><option>Civil Engineering</option><option>Geotechnical Engineering</option>
+              <option>Building Assessment / Inspection</option><option>Engineering Drawings</option>
+              <option>Permit and Documentation Support</option><option>Renovation or Extension Advice</option><option>Other Engineering Service</option>
+            </select>
           </div>
-          <div class="path-grid">
-            <article class="path-card"><span>01</span><strong>Choose the job type</strong><p>Repair, renovation, inspection, extension, engineering support or a new building request.</p></article>
-            <article class="path-card"><span>02</span><strong>Send the details</strong><p>Location, phone, email, timing, budget range, photos and anything we should know.</p></article>
-            <article class="path-card"><span>03</span><strong>Receive your Alert code</strong><p>A private code is created for checking your request and project status.</p></article>
-            <article class="path-card"><span>04</span><strong>Check progress later</strong><p>Sign in any time to see the latest stage on your account dashboard.</p></article>
+          <div class="grid2">
+            <div class="field"><label for="existingPlans">Existing plans available?</label><select id="existingPlans"><option value="">Not sure</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+            <div class="field"><label for="councilRelated">Council or permit related?</label><select id="councilRelated"><option value="">Not sure</option><option value="yes">Yes</option><option value="no">No</option></select></div>
           </div>
-        </section>
+          <div class="field"><label for="drawingsRequired">Drawings or assessment required</label><input id="drawingsRequired" placeholder="e.g. Structural drawings for an extension"></div>
+        </div>
+        <div class="field"><label for="description">Project description</label><textarea id="description" required placeholder="Describe the work you'd like done"></textarea></div>
+        <div class="field"><label for="currentProblem">Current problem (if any)</label><textarea id="currentProblem" placeholder="What's not working, or what prompted this request?"></textarea></div>
+        <div class="field"><label for="desiredOutcome">Desired outcome</label><textarea id="desiredOutcome" placeholder="What would a great result look like?"></textarea></div>
+      </section>
 
-        <section class="brands-section" aria-labelledby="brandsTitle">
-          <div class="brands-head">
-            <span class="section-kicker">Alert group</span>
-            <h2 id="brandsTitle">Alert request brands.</h2>
-            <p>One request path for customers, from the first note to a tracked Alert code.</p>
+      <section class="card" data-step="4">
+        <span class="step-label">Step 4 of 6</span>
+        <h2>Budget and timing</h2><p class="intro">This helps us prepare a realistic quote — it stays private to our office.</p>
+        <div class="grid2">
+          <div class="field"><label for="expectedBudget">Expected budget (AUD)</label><input id="expectedBudget" type="number" min="0" step="100" placeholder="Optional"></div>
+          <div class="field"><label for="preferredStart">Preferred start date</label><input id="preferredStart" type="date"></div>
+        </div>
+        <div class="field"><label for="expectedCompletion">Expected completion timeframe</label><input id="expectedCompletion" placeholder="e.g. Within 3 months"></div>
+        <div class="field"><label>Urgency</label>
+          <div class="radio-row">
+            <label><input type="radio" name="urgency" value="flexible" checked> Flexible</label>
+            <label><input type="radio" name="urgency" value="urgent"> Urgent</label>
           </div>
-          <div class="logo-rail">
-            <div class="logo-tile"><span class="logo-frame"><img src="../assets/alert-construction-logo.png" alt="Alert Construction logo"></span><span>Alert Construction</span></div>
-            <div class="logo-tile"><span class="logo-frame"><img src="../assets/alert-engineers-logo.png" alt="Alert Engineers logo"></span><span>Alert Engineers</span></div>
-            <div class="logo-tile"><span class="logo-frame"><img src="../assets/alert-tradie-pro-logo.png?v=44" alt="Alert Tradie Pro logo"></span><span>Alert Tradie Pro</span></div>
-          </div>
-        </section>
+        </div>
+      </section>
 
-        <section class="cta-band" aria-label="Start your request">
-          <div><h3>Ready to send your request?</h3><p>Open the form when you're ready — it only takes a few minutes and you'll get your Alert code straight away.</p></div>
-          <div class="cta-links"><a class="cta-link primary" href="../request-form/index.html">Open Request Form</a><a class="cta-link" href="mailto:info@alertconstruction.com.au">Contact us</a></div>
-        </section>
+      <section class="card" data-step="5">
+        <span class="step-label">Step 5 of 6</span>
+        <h2>Photos and documents</h2><p class="intro">Photos, plans, reports or anything else that helps us understand the job.</p>
+        <div class="upload-zone" id="uploadZone"><strong>Click to add files</strong><span>Photos, videos, plans, PDFs — up to 20MB each</span></div>
+        <input type="file" id="fileInput" multiple hidden accept="image/*,video/*,application/pdf,.doc,.docx">
+        <div class="file-list" id="fileList"></div>
+      </section>
+
+      <section class="card" data-step="6">
+        <span class="step-label">Step 6 of 6</span>
+        <h2>Review your request</h2><p class="intro">Please check everything below before submitting.</p>
+        <div id="reviewContent"></div>
+      </section>
+
+      <div class="nav-row">
+        <button class="btn" type="button" id="backBtn">Back</button>
+        <button class="btn primary" type="button" id="nextBtn">Continue</button>
+        <button class="btn primary" type="submit" id="submitBtn" hidden>Submit Request</button>
       </div>
-    </main>
-
-    <footer class="footer">
-      <strong>Alert Tradie Pro</strong><span>Powered by Alert Construction</span>
-      <span class="footer-links"><a href="../legal/terms.html">Terms</a><a href="../legal/support.html">Support</a></span>
-    </footer>
+    </form>
   </div>
-  <script src="../shared/platform-config.js?v=43"></script>
-  <script src="../shared/auth.js?v=44"></script>
-  <script src="../shared/customer-auth.js?v=53"></script>
-  <script src="../shared/dashboard-v43.js?v=52"></script>
-  <script src="../shared/product-shell-v43.js?v=56"></script>
-  <script src="./story.js?v=1"></script>
+
+  <section id="confirm" class="confirm card">
+    <div class="mark">✓</div>
+    <h2>Request received</h2>
+    <p>Your request number is</p>
+    <div class="number" id="confirmNumber"></div>
+    <p>Our team will review your request and be in touch. You can follow its progress any time from your dashboard.</p>
+    <a class="btn primary" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-top:10px" href="../customer/dashboard/index.html">Open My Dashboard</a>
+  </section>
+</main>
+<script src="../shared/platform-config.js?v=53"></script>
+<script src="../shared/customer-auth.js?v=53"></script>
+<script src="./app.js"></script>
 </body>
 </html>
