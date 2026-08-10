@@ -21,8 +21,9 @@ On a trusted computer, open a terminal in the extracted project and run:
 npm run setup:credentials
 ```
 
-Enter the Owner email, a new Owner password, and a private Team Code. Passwords
-are hidden while typing. Copy the generated environment-variable block into the
+The Owner email defaults to `mamobiniali@gmail.com`. Enter the Owner password,
+the Admin email and password, and a private Team Code. Passwords are hidden
+while typing. Copy the generated environment-variable block into the
 hosting provider's encrypted secrets/settings panel. Do not put it in source
 control or upload it as a public file.
 
@@ -32,12 +33,16 @@ The required variables are:
 OWNER_EMAIL
 OWNER_PASSWORD_HASH
 OWNER_SESSION_SECRET
+ADMIN_EMAIL
+ADMIN_PASSWORD_HASH
 ADMIN_TEAM_CODE_HASH
 ADMIN_SESSION_SECRET
 ```
 
 The Team Code allows a staff member to request access; it does not grant a role.
-The Owner must approve the member and assign their role from `/owner`.
+The initial Admin credentials also create a pending staff request on first use.
+The Owner must approve the member and assign their role from `/owner` before the
+Admin workspace opens.
 
 ## 2. Configure storage
 
@@ -81,4 +86,3 @@ After deployment, verify:
 - Never upload `.dev.vars`, `.env`, private keys, or production database exports.
 - Keep HTTPS enabled and rotate credentials after any suspected exposure.
 - Back up D1 and define an R2 retention policy appropriate for customer files.
-
