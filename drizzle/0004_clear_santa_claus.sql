@@ -1,0 +1,1 @@
+CREATE INDEX `request_files_code_idx` ON `request_files` (`request_code`);
