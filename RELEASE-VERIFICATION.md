@@ -15,6 +15,9 @@ Verified on 10 August 2026 with Node.js 22+.
 
 Automated result: 5 tests passed, 0 failed.
 
+Credential setup was corrected on 10 August 2026 to generate the required
+Admin email and password hash as well as the Owner credentials and Team Code.
+
 ## Deployment-dependent checks
 
 The production host must still be configured with the documented D1 and R2
