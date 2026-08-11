@@ -978,11 +978,6 @@ html[data-theme="dark"] .theme-logo-dark {
   background: #ffd329;
 }
 
-.submit-button:disabled {
-  opacity: 0.68;
-  cursor: wait;
-}
-
 .submit-button span {
   font-size: 17px;
 }
@@ -1001,18 +996,6 @@ html[data-theme="dark"] .theme-logo-dark {
 
 .preview-notice span {
   color: #5c635d;
-}
-
-.preview-notice button {
-  width: max-content;
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  color: #574200;
-  background: transparent;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
 }
 
 .form-error { margin:-4px 0 14px; color:#b42318; font-size:12px; line-height:1.45; }

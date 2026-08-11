@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const projects = sqliteTable("projects", {
   id: integer("id").primaryKey({ autoIncrement: true }), code: text("code").notNull().unique(), name: text("name").notNull(), service: text("service").notNull(), stage: text("stage").notNull(), progress: integer("progress").notNull().default(0), contractValue: integer("contract_value").notNull().default(0), balance: integer("balance").notNull().default(0), customerName: text("customer_name").notNull().default(""), suburb: text("suburb").notNull().default(""), startDate: text("start_date").notNull().default(""), notes: text("notes").notNull().default(""), updatedAt: text("updated_at").notNull(),
@@ -36,13 +36,3 @@ export const staffAccessRequests = sqliteTable("staff_access_requests", {
   reviewedAt: text("reviewed_at").notNull().default(""),
   lastSeenAt: text("last_seen_at").notNull(),
 });
-
-export const requestFiles = sqliteTable("request_files", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  requestCode: text("request_code").notNull(),
-  objectKey: text("object_key").notNull().unique(),
-  originalName: text("original_name").notNull(),
-  contentType: text("content_type").notNull(),
-  size: integer("size").notNull(),
-  uploadedAt: text("uploaded_at").notNull(),
-}, (table) => [index("request_files_code_idx").on(table.requestCode)]);

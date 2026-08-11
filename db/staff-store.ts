@@ -1,5 +1,4 @@
 import type { StaffRole } from "../app/admin-auth";
-import { runtimeBindings } from "./runtime";
 
 export type StaffAccessStatus = "Pending" | "Approved" | "Rejected";
 
@@ -16,7 +15,7 @@ export type StaffAccessRequest = {
 };
 
 async function database() {
-  const env = await runtimeBindings();
+  const { env } = await import("cloudflare:workers");
   if (!env.DB) throw new Error("The staff access database is unavailable.");
   return env.DB;
 }

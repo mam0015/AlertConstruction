@@ -1,0 +1,548 @@
+/*
+ * Internal Operation Hub skin.
+ * Scoped to Owner/Admin roots so the approved public homepage stays unchanged.
+ */
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) {
+  --gold: #f5b900 !important;
+  --gold2: #ffd84f !important;
+  --ink: #121313 !important;
+  --muted: #6d7071 !important;
+  --line: #dedbd4 !important;
+  --line2: #cbc7bd !important;
+  --panel: #ffffff !important;
+  min-height: 100vh;
+  color: #121313 !important;
+  background: #f2f1ed !important;
+}
+
+/* Keep the em-based AT brand lockup at its intended UI size. */
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) [class*="accessLogo"] {
+  font-size: .78px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) [class*="loginLogo"] {
+  font-size: .82px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarLogo"] {
+  font-size: .75px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="mobileLogo"] {
+  font-size: .62px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebar"] {
+  border-right: 1px solid #292a2a !important;
+  background: #080909 !important;
+  box-shadow: 12px 0 38px rgba(0, 0, 0, .12) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="brandLink"] {
+  position: relative;
+  padding-bottom: 24px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="brandLink"]::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, #f5b900 0 35%, #2d2e2e 35% 100%);
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveIdentity"], [class*="roleCard"]) {
+  border: 1px solid #292a2a !important;
+  background: #111212 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveIdentity"], [class*="roleCard"]) > span,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="profileChip"] > span {
+  border-color: #f5b900 !important;
+  color: #080909 !important;
+  background: #f5b900 !important;
+  box-shadow: none !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveIdentity"], [class*="roleCard"]) strong {
+  color: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveIdentity"], [class*="roleCard"]) small {
+  color: #8f9292 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] button {
+  border-left-color: transparent !important;
+  color: #a8aaaa !important;
+  background: transparent !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] button:hover {
+  color: #fff !important;
+  background: #171818 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] [class*="activeNav"] {
+  border-left-color: #f5b900 !important;
+  color: #080909 !important;
+  background: #f5b900 !important;
+  box-shadow: 0 10px 24px rgba(245, 185, 0, .14) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] [class*="activeNav"] :is(i, span) {
+  color: #080909 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] button b {
+  color: #080909 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="restrictedCard"] {
+  border-color: #303131 !important;
+  color: #fff !important;
+  background: #121313 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="restrictedCard"] span {
+  color: #f5b900 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="restrictedCard"] small {
+  color: #8f9292 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarBottom"] {
+  border-top-color: #2c2d2d !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarBottom"] :is(button, a) {
+  color: #d4d5d5 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="mainPanel"] {
+  color: #121313 !important;
+  background:
+    linear-gradient(rgba(18, 19, 19, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 19, 19, .025) 1px, transparent 1px),
+    #f2f1ed !important;
+  background-size: 42px 42px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] {
+  border-bottom: 3px solid #f5b900 !important;
+  color: #fff !important;
+  background: rgba(8, 9, 9, .97) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .13) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] :is(span, strong) {
+  color: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] small {
+  color: #a6a9a9 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) {
+  border-bottom: 2px solid #121313 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) h1 {
+  color: #121313 !important;
+  font-family: var(--font-geist-sans), Arial, sans-serif !important;
+  font-weight: 760 !important;
+  letter-spacing: -.055em !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) p:last-child {
+  color: #6d7071 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) [class*="eyebrow"] {
+  color: #a87500 !important;
+  font-weight: 850 !important;
+  letter-spacing: .2em !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is([class*="primaryButton"], [class*="loginSubmit"]) {
+  border-color: #f5b900 !important;
+  border-radius: 0 !important;
+  color: #080909 !important;
+  background: #f5b900 !important;
+  box-shadow: 0 8px 20px rgba(179, 125, 0, .14) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is([class*="primaryButton"], [class*="loginSubmit"]):hover {
+  border-color: #080909 !important;
+  color: #fff !important;
+  background: #080909 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="secondaryButton"], [class*="outlineButton"]) {
+  border: 1px solid #121313 !important;
+  border-radius: 0 !important;
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="pendingLabel"] {
+  border-color: #a87500 !important;
+  color: #765200 !important;
+  background: #fff8dd !important;
+}
+
+/* White cards and metric tiles */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panel"]:not([class*="mainPanel"]),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectCards"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="requestGrid"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="staffCard"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="controlBar"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="transactionsPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectProfitPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="permissionsPanel"] {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+  box-shadow: 0 14px 35px rgba(12, 13, 13, .07) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] {
+  border-bottom-color: #dedbd4 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] :is(h2, button) {
+  color: #121313 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] span {
+  color: #777a7b !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) {
+  border: 0 !important;
+  background: transparent !important;
+  gap: 12px !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) article {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dedbd4 !important;
+  border-top: 4px solid #121313 !important;
+  color: #121313 !important;
+  background: #fff !important;
+  box-shadow: 0 12px 28px rgba(12, 13, 13, .055) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) article:nth-child(2) {
+  border-top-color: #f5b900 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) :is(span, small) {
+  color: #737677 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) strong {
+  color: #121313 !important;
+  font-family: var(--font-geist-sans), Arial, sans-serif !important;
+  font-weight: 780 !important;
+}
+
+/* Tables, records and request cards */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="tableHeader"] {
+  color: #6e7172 !important;
+  background: #f5f4f0 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="attendanceRow"]),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="scheduleList"] > div {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectRow"]:hover {
+  background: #fff9e7 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="scheduleList"], [class*="projectCards"], [class*="requestBody"]) :is(small, p, dt) {
+  color: #707374 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectCards"], [class*="requestBody"]) :is(h2, dd) {
+  color: #121313 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="requestBody"] blockquote, [class*="staffAccessPreview"], [class*="restrictedNotice"]) {
+  border-left-color: #f5b900 !important;
+  color: #555859 !important;
+  background: #fff9e7 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] {
+  border-color: #dedbd4 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] button {
+  border-color: #dedbd4 !important;
+  color: #5d6061 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="segmentActive"], [class*="selectedSegment"]) {
+  color: #080909 !important;
+  background: #f5b900 !important;
+}
+
+/* Forms */
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="controlBar"], [class*="recordModal"], [class*="staffControls"], [class*="eodCard"]) :is(input, select, textarea) {
+  border-color: #d4d1ca !important;
+  color: #121313 !important;
+  background: #faf9f6 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="financeControls"] > div, [class*="financeControls"] select, [class*="typeSelector"]) {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+/* Schedule */
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]) {
+  border-color: #dedbd4 !important;
+  box-shadow: 0 12px 30px rgba(12, 13, 13, .055) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]) > article {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]) button {
+  color: #121313 !important;
+  background: #f6f5f1 !important;
+}
+
+/* Finance charts */
+[class*="ownerShell"] [class*="lineChart"] svg line {
+  stroke: #e2dfd8 !important;
+}
+
+[class*="ownerShell"] [class*="lineChart"] svg text {
+  fill: #6b6e6f !important;
+}
+
+[class*="ownerShell"] [class*="chartKey"] {
+  color: #6b6e6f !important;
+}
+
+[class*="ownerShell"] [class*="pie"] > span {
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+/* Messaging */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+  box-shadow: 0 14px 35px rgba(12, 13, 13, .07) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] > aside {
+  border-right-color: #2c2d2d !important;
+  color: #fff !important;
+  background: #080909 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] > aside button {
+  border-color: #292a2a !important;
+  color: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] [class*="selectedPerson"] {
+  background: #1a1b1b !important;
+  box-shadow: inset 3px 0 #f5b900 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] > section,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] section > header,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] form {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #fff !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="teamMessage"] {
+  border-color: #dedbd4 !important;
+  background: #f3f2ee !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="ownMessage"] {
+  border-color: #e4bf42 !important;
+  background: #fff4c7 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="teamMessage"], [class*="ownMessage"]) p {
+  color: #121313 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] form input {
+  border-color: #dedbd4 !important;
+  color: #121313 !important;
+  background: #faf9f6 !important;
+}
+
+/* Record modals */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="modalBackdrop"] {
+  background: rgba(8, 9, 9, .76) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="recordModal"] {
+  border: 0 !important;
+  border-top: 7px solid #f5b900 !important;
+  color: #121313 !important;
+  background: #fff !important;
+  box-shadow: 0 35px 100px rgba(0, 0, 0, .28) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="recordModal"] h2 {
+  color: #121313 !important;
+}
+
+/* Login: black statement panel, white secure form */
+:is([class*="accessShell"], [class*="loginShell"]) {
+  color: #121313 !important;
+  background: linear-gradient(135deg, rgba(245, 185, 0, .14), transparent 38%), #f2f1ed !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="executiveLogin"], [class*="loginFrame"]) {
+  border: 1px solid #cbc8c1 !important;
+  color: #121313 !important;
+  background: linear-gradient(90deg, #080909 0 52%, #fff 52% 100%) !important;
+  box-shadow: 0 35px 90px rgba(12, 13, 13, .18) !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginIntro"], [class*="loginStatement"]) {
+  color: #fff !important;
+  background: #080909 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginIntro"], [class*="executiveLogin"])::after {
+  position: absolute;
+  right: 48%;
+  bottom: 0;
+  left: 0;
+  height: 7px;
+  content: "";
+  background: #f5b900;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginCopy"], [class*="loginStatement"]) h1 {
+  color: #fff !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginCopy"] > p:last-child,
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginStatement"] > p:not([class*="eyebrow"]) {
+  color: #b4b7b7 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginScope"] {
+  border-color: #303131 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginScope"] span,
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginSignals"] strong {
+  color: #f5b900 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginScope"] strong,
+:is([class*="accessShell"], [class*="loginShell"]) [class*="loginSignals"] span {
+  color: #fff !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) {
+  border: 0 !important;
+  color: #121313 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginHeading"], [class*="loginFormHeading"]) > span {
+  border-color: #f5b900 !important;
+  color: #080909 !important;
+  background: #f5b900 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) strong {
+  color: #121313 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) small {
+  color: #707374 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) label > span {
+  color: #4f5253 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) input {
+  border: 1px solid #cbc8c1 !important;
+  border-radius: 0 !important;
+  color: #121313 !important;
+  background: #f8f7f4 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) input:focus {
+  border-color: #a87500 !important;
+  box-shadow: 0 0 0 3px rgba(245, 185, 0, .16) !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="backLink"], [class*="backToSite"]) {
+  color: #4f5253 !important;
+}
+
+@media (max-width: 900px) {
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="mobileNav"] {
+    border: 1px solid #303131 !important;
+    border-top: 3px solid #f5b900 !important;
+    background: rgba(8, 9, 9, .98) !important;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, .25) !important;
+  }
+
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="mobileNav"] button {
+    color: #9da0a0 !important;
+  }
+
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="mobileNav"] [class*="activeMobileNav"] {
+    color: #080909 !important;
+    background: #f5b900 !important;
+  }
+
+  :is([class*="accessShell"], [class*="loginShell"]) :is([class*="executiveLogin"], [class*="loginFrame"]) {
+    background: #080909 !important;
+  }
+
+  :is([class*="accessShell"], [class*="loginShell"]) :is([class*="loginForm"], [class*="ownerLoginForm"]) {
+    border-top: 6px solid #f5b900 !important;
+    background: #fff !important;
+  }
+}
+
+@media (max-width: 640px) {
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="content"] {
+    padding-right: 15px !important;
+    padding-left: 15px !important;
+  }
+
+  :is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) article {
+    min-height: 104px !important;
+  }
+}

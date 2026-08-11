@@ -89,9 +89,6 @@ export default function Home() {
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
   const [selectedService, setSelectedService] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [requestCode, setRequestCode] = useState("");
-  const [requestError, setRequestError] = useState("");
-  const [requestBusy, setRequestBusy] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [trackingCode, setTrackingCode] = useState("ATP-2026-00124");
   const [teamEmail, setTeamEmail] = useState("");
@@ -166,25 +163,9 @@ export default function Home() {
     setMenuOpen(false);
   }
 
-  async function handleRequest(event: FormEvent<HTMLFormElement>) {
+  function handleRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    setSubmitted(false);
-    setRequestError("");
-    setRequestBusy(true);
-    try {
-      const response = await fetch("/api/requests", { method: "POST", body: new FormData(form) });
-      const result = await response.json() as { error?: string; code?: string };
-      if (!response.ok || !result.code) throw new Error(result.error ?? "Your request could not be saved.");
-      setRequestCode(result.code);
-      setSubmitted(true);
-      form.reset();
-      setSelectedService("");
-    } catch (error) {
-      setRequestError(error instanceof Error ? error.message : "Your request could not be saved.");
-    } finally {
-      setRequestBusy(false);
-    }
+    setSubmitted(true);
   }
 
   function handleTracking(event: FormEvent<HTMLFormElement>) {
@@ -464,17 +445,12 @@ export default function Home() {
               <small>Choose files or drag and drop · JPG, PNG, PDF, DOC or DWG</small>
             </label>
 
-            <button className="submit-button" type="submit" disabled={requestBusy}>
-              {requestBusy ? "Saving your request…" : "Submit Request"} <span>→</span>
-            </button>
-
-            {requestError && <p className="form-error" role="alert">{requestError}</p>}
+            <button className="submit-button" type="submit">Submit Request <span>→</span></button>
 
             {submitted && (
               <div className="preview-notice" role="status">
-                <strong>Your request has been saved.</strong>
-                <span>Your tracking reference is <b>{requestCode}</b>. Keep this code to view future updates.</span>
-                <button type="button" onClick={() => router.push(`/track/${encodeURIComponent(requestCode)}`)}>Open project status →</button>
+                <strong>Your request details passed the preview check.</strong>
+                <span>No information was sent or stored in this design preview.</span>
               </div>
             )}
           </form>
