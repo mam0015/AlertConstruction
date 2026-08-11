@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="./finance.css?v=52-live">
   <link rel="stylesheet" href="./operation-overview.css?v=45">
   <link rel="stylesheet" href="./operation-tools.css?v=47">
-  <link rel="stylesheet" href="./requests.css?v=54">
+  <link rel="stylesheet" href="../shared/portal-auth.css?v=53">
   <style>
     :root{--bg:#090a0a;--panel:#111313;--panel2:#171919;--panel3:#1d1f1f;--line:#2b2e2e;--line2:#373a3a;--text:#f3f2ed;--muted:#969b99;--yellow:#f5b400;--yellow2:#ffce47;--green:#40d18a;--red:#ff7373;--blue:#83b7ff;--shadow:0 24px 70px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{min-height:100vh;background:radial-gradient(circle at 68% -15%,rgba(245,180,0,.08),transparent 34%),linear-gradient(180deg,#0c0e0e,#080909 58%)}
@@ -76,7 +76,6 @@
       <nav>
       <span class="side-group-label">Operations</span>
       <button class="active" type="button" data-view="overview"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-3H4zm10-13h6V4h-6z"/></svg>Overview<b id="overviewBadge"></b></button>
-      <button type="button" data-view="requests" id="requestsNav"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H8l-4 4zM8 9h8M8 12h5"/></svg>Requests<b id="requestsBadge"></b></button>
       <button type="button" data-view="team-management"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8m13 10v-2a4 4 0 0 0-3-3.87m-2-11.99a4 4 0 0 1 0 7.75"/></svg><span id="teamWorkspaceNavLabel">Team Management</span><b id="teamManagementBadge"></b></button>
       <button type="button" data-view="photo-timeline" id="photoTimelineNav"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01"/></svg>Project Photo Timeline<b id="photoTimelineBadge"></b></button>
       <button type="button" data-view="team"><svg viewBox="0 0 24 24"><path d="M4 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2M9 8a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/></svg>Team &amp; roles<b id="teamBadge"></b></button>
@@ -99,7 +98,7 @@
       <section class="view active oh-overview" data-view-panel="overview">
         <div class="oh-heading">
           <div class="oh-title-lockup"><span class="oh-title-icon">▥</span><div><div class="eyebrow">Operation command centre</div><h1>Operations Hub</h1><p id="ohDashboardRole">Executive dashboard</p></div></div>
-          <div class="oh-heading-actions"><span class="oh-live-time" id="ohDateTime">Live workspace</span><button class="btn" id="copyTeamCode" type="button">Copy Team Code</button><button class="btn primary" data-open-view="messages" type="button">Message Team</button></div>
+          <div class="oh-heading-actions"><span class="oh-live-time" id="ohDateTime">Live workspace</span><button class="btn" id="openInvitations" data-open-view="team" type="button">Invite Team</button><button class="btn primary" data-open-view="messages" type="button">Message Team</button></div>
         </div>
 
         <div class="oh-hero-grid">
@@ -127,8 +126,6 @@
         </div>
 
         <div class="oh-command-cards">
-          <button class="oh-command" type="button" data-open-view="requests"><span class="oh-command-icon">✉</span><div><small>New requests</small><strong id="ohNewRequestCount">—</strong><em>Waiting for review</em></div><b>⌁</b></button>
-          <button class="oh-command" type="button" data-open-view="requests"><span class="oh-command-icon">☎</span><div><small>Follow-ups due</small><strong id="ohFollowUpCount">—</strong><em>Customer follow-up</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" onclick="location.href='../projects/index.html'"><span class="oh-command-icon">▤</span><div><small>Active projects</small><strong id="ohActiveProjectCount">—</strong><em>Across your workspace</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" data-open-view="team"><span class="oh-command-icon">☷</span><div><small>Approvals pending</small><strong id="pendingCount">—</strong><em>Requires a decision</em></div><b>⌁</b></button>
           <button class="oh-command" type="button" data-open-view="financial-data" data-finance-overview-link data-overview-company-finance><span class="oh-command-icon">↗</span><div><small>Weekly revenue</small><strong id="ohWeeklyRevenue">—</strong><em>Approved income</em></div><b>⌁</b></button>
@@ -169,21 +166,6 @@
           <button type="button" data-open-view="documents"><span>▱</span><strong>Documents</strong><small>Organised company files</small><b>›</b></button>
           <button type="button" data-open-view="reports"><span>▥</span><strong>Reports</strong><small>Team daily work reports</small><b>›</b></button>
         </div></article>
-      </section>
-
-      <section class="view" data-view-panel="requests" id="requestsView">
-        <div class="req-head"><div><div class="eyebrow">Customer intake</div><h1>Requests.</h1><p>Review new job requests, record customer contact, and approve a request to create its project.</p></div><button class="btn" id="reqRefresh" type="button">Refresh</button></div>
-        <div class="req-kpis">
-          <div class="req-kpi"><small>New requests</small><strong id="reqKpiNew">—</strong></div>
-          <div class="req-kpi"><small>Waiting for follow-up</small><strong id="reqKpiFollowUp">—</strong></div>
-          <div class="req-kpi"><small>Site visits scheduled</small><strong id="reqKpiSiteVisit">—</strong></div>
-          <div class="req-kpi"><small>Ready to schedule</small><strong id="reqKpiReady">—</strong></div>
-        </div>
-        <div class="req-filters"><select id="reqStatusFilter"><option value="">All statuses</option><option value="request_submitted">Request Submitted</option><option value="under_review">Under Review</option><option value="customer_contacted">Customer Contacted</option><option value="more_info_required">More Info Required</option><option value="site_visit_scheduled">Site Visit Scheduled</option><option value="site_inspection_completed">Inspection Completed</option><option value="estimate_in_preparation">Estimate in Preparation</option><option value="quote_sent">Quote Sent</option><option value="quote_accepted">Quote Accepted</option><option value="project_scheduled">Project Scheduled</option><option value="work_in_progress">Work in Progress</option><option value="project_completed">Project Completed</option><option value="not_suitable">Not Suitable</option><option value="closed">Closed</option></select></div>
-        <div class="req-layout">
-          <div class="req-list" id="reqList"><div class="req-detail-empty">Loading requests…</div></div>
-          <div class="req-detail" id="reqDetail"><div class="req-detail-empty">Select a request to view details.</div></div>
-        </div>
       </section>
 
       <section class="view ops-tool-view" data-view-panel="quotes" id="quotesView">
@@ -291,7 +273,7 @@
         </div>
         <div class="pt-project-workspace" id="ptProjectWorkspace" hidden>
         <div class="pt-project-bar"><button class="pt-back" id="ptBackToFolders" type="button">← All project folders</button><div class="pt-current-project-cover"><img id="ptCurrentProjectCover" alt="Selected project cover" hidden><span id="ptCurrentProjectCoverFallback" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M7 17h20l6 7h24v28H7z"/><path d="M7 25h50"/></svg></span></div><div class="pt-current-project-copy"><div><strong id="ptCurrentProjectName">Project</strong><span id="ptCurrentProjectMeta"></span></div><span class="pt-current-status" id="ptCurrentProjectStatus">Active</span><div class="pt-current-progress"><i id="ptCurrentProjectProgress"></i></div></div><label class="pt-field"><span>Switch project</span><select id="ptProject"><option value="">Select a project</option></select></label></div>
-        <div class="pt-alert" id="ptProfileAlert"><div><strong id="ptProfileAlertTitle">Company Profile incomplete</strong><span id="ptProfileAlertText">Complete the key business details before sharing the Team Code or generating a Marketing Booklet.</span></div><button class="btn primary" id="ptCompleteProfile" type="button">Complete Company Profile</button></div>
+        <div class="pt-alert" id="ptProfileAlert"><div><strong id="ptProfileAlertTitle">Company Profile incomplete</strong><span id="ptProfileAlertText">Complete the key business details before publishing client-facing content or generating a Marketing Booklet.</span></div><button class="btn primary" id="ptCompleteProfile" type="button">Complete Company Profile</button></div>
         <div class="pt-stats"><article class="pt-stat"><span>Total photos</span><strong id="ptTotalPhotos">0</strong><small>Selected project</small></article><article class="pt-stat"><span>Marketing ready</span><strong id="ptMarketingPhotos">0</strong><small>Owner/Admin approved</small></article><article class="pt-stat"><span>Timeline stage</span><strong id="ptStageSummary">—</strong><small>Before • During • After</small></article><article class="pt-stat"><span>Latest upload</span><strong id="ptLatestDate">—</strong><small id="ptLatestUploader">No photos yet</small></article></div>
         <nav class="pt-tabs" aria-label="Photo Timeline sections"><button class="active" type="button" data-pt-tab="photos">Photo Timeline</button><button type="button" data-pt-tab="booklet" class="pt-booklet-action">Booklet Builder</button><button type="button" data-pt-tab="reports" class="pt-report-action">Saved Reports</button><button type="button" data-pt-tab="profile" class="pt-profile-action">Company Profile</button></nav>
 
@@ -405,18 +387,22 @@
         </div>
       </section>
 
-      <section class="view" data-view-panel="team"><div class="page-head"><div><div class="eyebrow">People & access</div><h1>Team command.</h1><p>Approve new staff, change roles and revoke access. Role permissions apply immediately across every protected tool.</p></div><div class="page-actions"><button class="btn" id="rotateTeamCode" type="button">Rotate Legacy Team Code</button><button class="btn" id="inviteCopy" type="button">Copy Legacy Team Code</button></div></div><div class="filters"><input id="teamSearch" type="search" placeholder="Search name or email"><select id="teamRoleFilter"><option value="">All roles</option><option value="owner">Owner</option><option value="admin">Admin</option><option value="manager">Project Manager</option><option value="site_supervisor">Site Supervisor</option><option value="estimator">Estimator</option><option value="worker">Worker</option><option value="pending">Pending</option></select><select id="teamStatusFilter"><option value="">All access</option><option value="active">Active</option><option value="inactive">Revoked</option><option value="pending">Pending</option></select></div>
-      <div class="panel" id="invitePanel" style="margin-bottom:16px"><div class="panel-head"><h2>Team Invitations</h2><p style="margin:4px 0 0;font-size:11px;color:var(--muted,#9a9a9a)">Secure, single-use links. Each invitation is bound to a role chosen now, expires automatically and cannot be reused.</p></div><div class="panel-body">
-        <form id="inviteForm" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px">
-          <label style="flex:1;min-width:220px;display:block">Email (optional)<input id="inviteEmail" type="email" placeholder="name@example.com" style="width:100%;min-height:42px;margin-top:4px;display:block"></label>
-          <label style="display:block">Role<select id="inviteRole" style="min-height:42px;margin-top:4px;display:block"><option value="worker">Worker</option><option value="estimator">Estimator</option><option value="site_supervisor">Site Supervisor</option><option value="manager">Project Manager</option><option value="admin">Admin</option></select></label>
-          <label style="display:block">Expires<select id="inviteExpiry" style="min-height:42px;margin-top:4px;display:block"><option value="24">24 hours</option><option value="72">3 days</option><option value="168" selected>7 days</option><option value="336">14 days</option></select></label>
-          <button class="btn primary" type="submit">Create Invitation</button>
-        </form>
-        <div id="inviteLinkBox" hidden style="margin-bottom:14px;padding:12px;border:1px solid rgba(245,180,0,.45);border-radius:10px;background:rgba(245,180,0,.08)"><strong>Invitation link — shown once, copy and send it now</strong><div style="display:flex;gap:8px;margin-top:8px"><input id="inviteLinkValue" readonly style="flex:1;min-height:40px"><button class="btn" id="copyInviteLinkBtn" type="button">Copy</button><button class="btn" id="dismissInviteLinkBtn" type="button">Done</button></div></div>
-        <div class="table-wrap"><table class="staff-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th></th></tr></thead><tbody id="inviteRows"></tbody></table></div>
-      </div></div>
-      <div class="table-wrap"><table class="staff-table"><thead><tr><th>Team member</th><th>Role</th><th>Access</th><th>Last sign-in</th><th>Last activity</th><th>Today</th><th>Control</th></tr></thead><tbody id="staffRows"></tbody></table></div></section>
+      <section class="view" data-view-panel="team">
+        <div class="page-head"><div><div class="eyebrow">People &amp; access</div><h1>Team command.</h1><p>Issue one secure invitation per person, approve accepted requests and control every role.</p></div></div>
+        <section class="invite-console" id="ownerInvitationConsole" hidden>
+          <h2>Individual Team invitation</h2><p>The secret appears once. It is stored only as a hash, expires automatically and cannot be reused.</p>
+          <form class="invite-form" id="invitationForm">
+            <input id="invitationEmail" type="email" autocomplete="email" placeholder="Invited work email" aria-label="Invited work email" required>
+            <select id="invitationRole" aria-label="Requested role"><option value="worker">Worker</option><option value="site_supervisor">Site Supervisor</option><option value="estimator">Estimator</option><option value="manager">Project Manager</option><option value="admin">Admin</option></select>
+            <select id="invitationExpiry" aria-label="Invitation expiry"><option value="24">24 hours</option><option value="72" selected>3 days</option><option value="168">7 days</option></select>
+            <button type="submit">Create Invitation</button>
+          </form>
+          <div class="invite-result" id="invitationResult" hidden><input id="invitationUrl" readonly aria-label="New secure invitation URL"><button id="copyInvitationUrl" type="button">Copy secure link</button></div>
+          <div class="invite-list" id="invitationList"></div>
+        </section>
+        <div class="filters"><input id="teamSearch" type="search" placeholder="Search name or email"><select id="teamRoleFilter"><option value="">All roles</option><option value="owner">Owner</option><option value="admin">Admin</option><option value="manager">Project Manager</option><option value="site_supervisor">Site Supervisor</option><option value="estimator">Estimator</option><option value="worker">Worker</option><option value="pending">Pending</option></select><select id="teamStatusFilter"><option value="">All access</option><option value="active">Active</option><option value="inactive">Revoked</option><option value="pending">Pending</option></select></div>
+        <div class="table-wrap"><table class="staff-table"><thead><tr><th>Team member</th><th>Role</th><th>Access</th><th>Last sign-in</th><th>Last activity</th><th>Today</th><th>Control</th></tr></thead><tbody id="staffRows"></tbody></table></div>
+      </section>
 
       <section class="view" data-view-panel="activity"><div class="page-head"><div><div class="eyebrow">Accountability</div><h1>Complete activity history.</h1><p>Review who signed in, opened tools, changed records, ticked site checks, edited prices or managed staff.</p></div><div class="page-actions"><button class="btn" id="exportActivity" type="button">Export CSV</button></div></div><div class="filters"><input id="activitySearch" type="search" placeholder="Search action, person or module"><select id="activityType"><option value="">All activity types</option><option value="session">Sign-in & attendance</option><option value="project">Projects & edits</option><option value="checklist">Site checklist</option><option value="team">Team access</option><option value="chat">Messages & files</option></select><select id="activityRange"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></div><div class="audit-layout"><div class="panel"><div class="panel-head"><h2>Filter by team member</h2></div><div class="panel-body audit-people" id="auditPeople"></div></div><div class="panel"><div class="panel-head"><h2 id="auditTitle">All staff activity</h2><span id="auditTotal">0 events</span></div><div class="audit-stream" id="auditStream"></div></div></div></section>
 
@@ -505,6 +491,6 @@
 <datalist id="ptStages"><option>Initial Inspection</option><option>Demolition</option><option>Excavation</option><option>Framing</option><option>Rough-In</option><option>Electrical</option><option>Plumbing</option><option>Waterproofing</option><option>Plastering</option><option>Painting</option><option>Installation</option><option>Fit-Off</option><option>Final Inspection</option><option>Completed</option></datalist>
 <datalist id="ptAreas"><option>Kitchen</option><option>Bathroom</option><option>Living Room</option><option>Bedroom</option><option>Exterior</option><option>Roof</option><option>Garage</option><option>Backyard</option><option>Front Yard</option><option>Ground Floor</option><option>First Floor</option></datalist>
 <datalist id="ptTrades"><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>Cladding</option><option>Painting</option><option>Tiling</option><option>Roofing</option><option>Waterproofing</option><option>Landscaping</option><option>Structural</option><option>General Construction</option></datalist>
-<script src="../shared/platform-config.js?v=42"></script><script src="../shared/auth.js?v=44"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=47"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=52-live"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="./requests-api.js?v=54"></script><script src="./requests.js?v=54"></script><script src="../shared/product-shell.js?v=53"></script><script src="../shared/global-shell-v43.js?v=54"></script>
+<script src="../shared/platform-config.js?v=53"></script><script src="../shared/auth.js?v=53"></script><script src="../shared/account-context.js?v=53"></script><script src="../vendor/jspdf.umd.min.js"></script><script src="./photo-timeline-api.js?v=48"></script><script src="./booklet-pdf.js?v=40"></script><script src="./app.js?v=53"></script><script src="./team-management.js?v=47"></script><script src="./photo-timeline.js?v=48"></script><script src="./finance-api.js?v=44"></script><script src="./finance.js?v=52-live"></script><script src="./operation-tools-api.js?v=47"></script><script src="./operation-tools.js?v=47"></script><script src="../shared/product-shell.js?v=53"></script><script src="../shared/global-shell-v43.js?v=44"></script>
 </body>
 </html>

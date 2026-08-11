@@ -1,0 +1,59 @@
+.cp-message-layout {
+  display: grid;
+  grid-template-columns: 1.35fr .65fr;
+  gap: 18px;
+}
+
+.cp-message-form {
+  align-content: start;
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+}
+
+.cp-message-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cp-message-form select,
+.cp-message-form textarea {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background: #0d0f0d;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+}
+
+.cp-message-form textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.cp-feed p {
+  margin: 6px 0;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.cp-list-card-actions > div {
+  display: flex;
+  gap: 7px;
+}
+
+@media (max-width: 1050px) {
+  .cp-message-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .cp-list-card-actions { align-items: flex-start; flex-direction: column; }
+  .cp-list-card-actions > div { flex-wrap: wrap; }
+}

@@ -335,7 +335,7 @@
     alert.classList.toggle('show',!!state.projectId&&(missing.length>0||(canBuild()&&bookletMissing.length>0)));
     if(missing.length){
       $('ptProfileAlertTitle').textContent='Company Profile incomplete';
-      $('ptProfileAlertText').textContent=`Complete before sharing the Team Code: ${missing.join(', ')}.`;
+      $('ptProfileAlertText').textContent=`Complete before publishing client-facing content: ${missing.join(', ')}.`;
     }else if(bookletMissing.length){
       $('ptProfileAlertTitle').textContent='Booklet information needed';
       $('ptProfileAlertText').textContent=`Add ${bookletMissing.join(' and ')} before generating a Marketing Booklet.`;
@@ -883,7 +883,7 @@
       if(!state.projectId&&state.projects[0])await openProject(state.projects[0].id,'profile');
       else switchTab('profile');
       updateProfileAlert();
-      toast(`Complete Company Profile before sharing the Team Code: ${missing.join(', ')}.`,'error');
+      toast(`Complete Company Profile before publishing client-facing content: ${missing.join(', ')}.`,'error');
       return false;
     }catch(error){
       toast(error.message,'error');
