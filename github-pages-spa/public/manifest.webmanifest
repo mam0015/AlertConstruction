@@ -1,0 +1,12 @@
+{
+  "name": "Alert Tradie Pro",
+  "short_name": "Tradie Pro",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080909",
+  "theme_color": "#080909",
+  "icons": [
+    { "src": "./images/logo-alert-tradie-pro-mark-v53.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

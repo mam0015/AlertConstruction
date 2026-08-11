@@ -36,3 +36,96 @@ export const staffAccessRequests = sqliteTable("staff_access_requests", {
   reviewedAt: text("reviewed_at").notNull().default(""),
   lastSeenAt: text("last_seen_at").notNull(),
 });
+
+export const workflowCases = sqliteTable("workflow_cases", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  requestCode: text("request_code").notNull().unique(),
+  projectCode: text("project_code").notNull().default(""),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull().default(""),
+  customerPhone: text("customer_phone").notNull().default(""),
+  service: text("service").notNull(),
+  suburb: text("suburb").notNull().default(""),
+  description: text("description").notNull().default(""),
+  timeframe: text("timeframe").notNull().default(""),
+  budget: text("budget").notNull().default(""),
+  stage: text("stage").notNull().default("request_submitted"),
+  assignedSupervisorEmail: text("assigned_supervisor_email").notNull().default(""),
+  assignedSupervisorName: text("assigned_supervisor_name").notNull().default(""),
+  siteVisitAt: text("site_visit_at").notNull().default(""),
+  projectFolder: text("project_folder").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const siteVisitReports = sqliteTable("site_visit_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: integer("case_id").notNull(),
+  supervisorEmail: text("supervisor_email").notNull(),
+  visitDate: text("visit_date").notNull(),
+  summary: text("summary").notNull(),
+  findings: text("findings").notNull(),
+  recommendations: text("recommendations").notNull(),
+  internalNotes: text("internal_notes").notNull().default(""),
+  status: text("status").notNull().default("submitted"),
+  adminNote: text("admin_note").notNull().default(""),
+  submittedAt: text("submitted_at").notNull(),
+  reviewedAt: text("reviewed_at").notNull().default(""),
+});
+
+export const workflowFiles = sqliteTable("workflow_files", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: integer("case_id").notNull(),
+  updateId: integer("update_id").notNull().default(0),
+  category: text("category").notNull(),
+  objectKey: text("object_key").notNull().unique(),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  uploadedBy: text("uploaded_by").notNull(),
+  visibility: text("visibility").notNull().default("internal"),
+  uploadedAt: text("uploaded_at").notNull(),
+  publishedAt: text("published_at").notNull().default(""),
+});
+
+export const workflowEstimates = sqliteTable("workflow_estimates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: integer("case_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  scope: text("scope").notNull(),
+  terms: text("terms").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  sentAt: text("sent_at").notNull().default(""),
+  customerDecidedAt: text("customer_decided_at").notNull().default(""),
+  confirmedAt: text("confirmed_at").notNull().default(""),
+});
+
+export const projectUpdates = sqliteTable("project_updates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: integer("case_id").notNull(),
+  workDate: text("work_date").notNull(),
+  supervisorEmail: text("supervisor_email").notNull(),
+  internalUpdate: text("internal_update").notNull(),
+  customerUpdate: text("customer_update").notNull(),
+  status: text("status").notNull().default("pending_admin"),
+  adminNote: text("admin_note").notNull().default(""),
+  ownerNote: text("owner_note").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+  adminReviewedAt: text("admin_reviewed_at").notNull().default(""),
+  ownerReviewedAt: text("owner_reviewed_at").notNull().default(""),
+  publishedAt: text("published_at").notNull().default(""),
+});
+
+export const workflowEvents = sqliteTable("workflow_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: integer("case_id").notNull(),
+  actorRole: text("actor_role").notNull(),
+  actorEmail: text("actor_email").notNull().default(""),
+  eventType: text("event_type").notNull(),
+  title: text("title").notNull(),
+  detail: text("detail").notNull().default(""),
+  audience: text("audience").notNull().default("internal"),
+  createdAt: text("created_at").notNull(),
+});
