@@ -1,4 +1,4 @@
-const CACHE = "alert-tradie-pro-v64-integrated";
+const CACHE = "alert-tradie-pro-v65-project-workflow";
 const SHELL = [
   "./",
   "./index.html",
