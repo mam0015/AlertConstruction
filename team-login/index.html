@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-ac-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <title>Team Sign In | Alert Tradie Pro</title>
+  <meta name="description" content="Secure Team Sign In for approved Alert Tradie Pro company members.">
+  <link rel="icon" href="../assets/app-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/portal-auth.css?v=53">
+</head>
+<body>
+  <main class="pa-shell">
+    <header class="pa-top"><a class="pa-brand" href="../"><img src="../assets/alert-tradie-pro-logo.png" alt=""><span><strong>Alert Tradie Pro</strong><small>Powered by Alert Construction</small></span></a><div class="pa-top-actions"><a class="pa-back" href="../login/">Choose portal</a><button class="pa-theme" type="button" data-theme-toggle><span data-theme-label>Dark</span> mode</button></div></header>
+    <div class="pa-grid">
+      <section class="pa-intro"><span class="pa-kicker">Management Portal</span><h1>Authorised team access.</h1><p>Existing team members can sign in normally. New staff must use the individual, time-limited invitation sent by the company Owner.</p><div class="pa-points"><div class="pa-point"><i>✓</i><span>One invitation per person</span></div><div class="pa-point"><i>⌁</i><span>Email match and expiry checked</span></div><div class="pa-point"><i>♜</i><span>Owner approval before access</span></div></div></section>
+      <section class="pa-card">
+        <header class="pa-card-head"><h2>Team Sign In</h2><p>For Owner, Manager, Admin, Site Supervisor, Worker and Estimator accounts.</p></header>
+        <div class="pa-card-body">
+          <div class="pa-message" id="message" role="status"></div>
+          <div class="pa-invite-summary" id="inviteSummary" hidden><strong id="inviteCompany">Secure team invitation</strong><span id="inviteDetails">Checking invitation…</span></div>
+          <div id="guestPanel">
+            <div class="pa-tabs"><button class="pa-tab active" type="button" data-tab="teamSignIn">Sign In</button><button class="pa-tab" id="createTab" type="button" data-tab="teamSignUp" hidden>Create Invited Account</button></div>
+            <form class="pa-form" id="teamSignIn"><label class="pa-field"><span>Work email</span><input id="signInEmail" type="email" autocomplete="email" autocapitalize="none" required></label><label class="pa-field"><span>Password</span><input id="signInPassword" type="password" autocomplete="current-password" minlength="8" required></label><button class="pa-button" type="submit">Sign In to Management Portal</button><button class="pa-link" id="resetRequest" type="button">Forgot password? Send a secure reset link</button></form>
+            <form class="pa-form" id="teamSignUp" hidden><label class="pa-field"><span>Full name</span><input id="fullName" autocomplete="name" maxlength="120" required></label><label class="pa-field"><span>Invited work email</span><input id="signUpEmail" type="email" autocomplete="email" autocapitalize="none" required></label><label class="pa-field"><span>Password</span><input id="signUpPassword" type="password" autocomplete="new-password" minlength="8" required></label><p class="pa-fine">Your invitation is single use. After email verification, your account stays locked until the Owner approves you and confirms your role.</p><button class="pa-button" type="submit">Create Invited Team Account</button><button class="pa-link" id="resendVerification" type="button">Resend verification email</button></form>
+          </div>
+          <div id="signedPanel" hidden><div class="pa-invite-summary"><strong id="signedStatus">Team account active</strong><span id="signedEmail"></span></div><div class="pa-actions"><a class="pa-button" id="openManagement" href="../builder/">Open Management Portal</a><button class="pa-button secondary" id="signOut" type="button">Sign Out</button></div></div>
+          <form class="pa-form pa-password-form" id="passwordForm" hidden><label class="pa-field"><span>New password</span><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label><button class="pa-button" type="submit">Update Password</button></form>
+          <div class="pa-divider">not staff?</div><a class="pa-button secondary" href="../customer-login/">Open Customer Sign In</a>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="../shared/platform-config.js?v=53"></script><script src="../shared/auth.js?v=53"></script><script src="../shared/account-context.js?v=53"></script><script src="./app.js?v=53"></script>
+</body>
+</html>

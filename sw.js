@@ -1,43 +1,38 @@
-const CACHE='alert-tradie-pro-v52-about-page-refinement';
-const ASSETS=[
-  './','./index.html','./offline.html','./manifest.webmanifest',
-  './assets/alert-tradie-pro-logo.png','./assets/alert-tradie-pro-icon-192.png','./assets/alert-tradie-pro-icon-512.png','./assets/alert-tradie-pro-apple-touch.png','./assets/social-preview.svg',
-  './assets/luxury-builder-hero.webp','./assets/hero-house-construction.webp','./assets/hero-house-complete.webp','./assets/luxury-plans.webp','./assets/luxury-renovation.webp','./assets/luxury-site.webp','./assets/luxury-property.webp',
-  './assets/what-we-do-estimating.webp','./assets/what-we-do-plans.webp','./assets/what-we-do-projects.webp','./assets/what-we-do-site.webp','./assets/what-we-do-finance.webp','./assets/what-we-do-records.webp','./assets/about-project-overload.webp','./assets/about-project-control.webp',
-  './about/','./about/index.html','./about/styles.css','./about/app.js',
-  './electrical/','./plumbing/','./cladding/','./checklist/',
-  './renovation-budget/','./renovation-budget/index.html','./renovation-budget/rates.js','./renovation-budget/app.js',
-  './property-estimate/','./property-estimate/index.html','./property-estimate/victoria-sales-data.js','./property-estimate/app.js',
-  './permit-checklist/','./permit-checklist/index.html','./permit-checklist/app.js',
-  './plan-ai/','./plan-ai/index.html','./plan-ai/styles.css','./plan-ai/config.js','./plan-ai/app.js',
-  './quote-analysis/','./quote-analysis/index.html','./quote-analysis/app.js',
-  './invoice/','./invoice/index.html','./invoice/styles.css','./invoice/calculations.js','./invoice/api.js','./invoice/pdf.js',
-  './vendor/jspdf.umd.min.js','./vendor/jspdf.plugin.autotable.min.js','./vendor/DejaVuSans.ttf','./vendor/DejaVuSans-Bold.ttf','./vendor/LICENSE.dejavu-fonts.txt','./vendor/xlsx.full.min.js','./vendor/LICENSE.xlsx.txt','./assets/invoice-logo.png',
-  './projects/','./projects/index.html','./projects/app.js',
-  './login/','./login/index.html','./login/app.js',
-  './builder/','./builder/index.html','./builder/app.js','./builder/team-management.css','./builder/team-management.js','./builder/photo-timeline.css','./builder/photo-timeline-api.js','./builder/photo-timeline.js','./builder/booklet-pdf.js','./builder/finance.css','./builder/finance-api.js','./builder/finance.js','./builder/operation-overview.css','./builder/operation-tools.css','./builder/operation-tools-api.js','./builder/operation-tools.js',
-  './legal/privacy.html','./legal/terms.html','./legal/support.html',
-  './catalogue/','./catalogue/index.html','./catalogue/styles.css','./catalogue/app.js',
-  './shared/platform-config.js','./shared/auth.js','./shared/project-store.js','./shared/project-bridge.js',
-  './shared/product-shell.js','./shared/product-shell-v43.js','./shared/global-shell-v43.js','./shared/global-shell-v43.css','./shared/dashboard-v43.js','./shared/dashboard-v43.css','./shared/team-chat.js','./shared/cloud-sync.js','./shared/analytics.js','./shared/catalogue-defaults.js','./shared/catalogue-runtime.js'
+const CACHE = "alert-tradie-pro-v64-integrated";
+const SHELL = [
+  "./",
+  "./index.html",
+  "./owner/",
+  "./admin/",
+  "./site-supervisor/",
+  "./track/",
+  "./customer/",
+  "./team/pending/",
 ];
 
-self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(ASSETS.map(asset=>cache.add(asset)))));
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => Promise.allSettled(SHELL.map((asset) => cache.add(asset)))));
   self.skipWaiting();
 });
-self.addEventListener('activate',event=>{
-  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))));
   self.clients.claim();
 });
-self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET')return;
-  if(event.request.mode==='navigate'){
-    event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response}).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('./offline.html'))));
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request, { cache: "no-store" }).then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match(event.request).then((hit) => hit || caches.match("./index.html"))));
     return;
   }
-  event.respondWith(caches.match(event.request).then(cached=>{
-    const fresh=fetch(event.request).then(response=>{if(response&&response.status===200){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy))}return response}).catch(()=>cached);
-    return cached||fresh;
-  }));
+
+  event.respondWith(fetch(event.request).then((response) => {
+    if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+    return response;
+  }).catch(() => caches.match(event.request)));
 });

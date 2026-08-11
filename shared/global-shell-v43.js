@@ -5,7 +5,7 @@
   var TRAVEL_KEY='ac_travel_mode_v1';
   var css=document.createElement('link');
   css.rel='stylesheet';
-  css.href=new URL('shared/global-shell-v43.css?v=54',base).href;
+  css.href=new URL('shared/global-shell-v43.css?v=44',base).href;
   document.head.appendChild(css);
 
   function createBrand(){
@@ -22,7 +22,7 @@
     nav.className='at-global-nav';
     nav.setAttribute('aria-label','App navigation');
     nav.innerHTML=
-      '<a href="'+new URL('',base).href+'">Home</a>'+
+      '<a href="'+new URL('',base).href+'">Dashboard</a>'+
       '<a href="'+new URL('builder/',base).href+'">Operation Hub</a>'+
       '<details class="at-global-tools"><summary>Tools <span aria-hidden="true">⌄</span></summary><div class="at-global-tools-menu">'+
         '<div class="at-global-tools-group"><strong>Estimating</strong><a href="'+new URL('electrical/',base).href+'">Electrical Estimate</a><a href="'+new URL('plumbing/',base).href+'">Plumbing Estimate</a><a href="'+new URL('cladding/',base).href+'">Cladding Estimate</a><a href="'+new URL('renovation-budget/',base).href+'">Renovation Budget</a></div>'+

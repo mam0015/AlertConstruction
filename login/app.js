@@ -1,64 +1,17 @@
 (function(){
   'use strict';
-  const $=id=>document.getElementById(id),config=window.AC_PLATFORM_CONFIG||{},INVITE_KEY='ac_pending_invite_token_v1';
-  function message(text,type='error'){const box=$('message');box.textContent=text;box.className=`message show ${type}`;box.scrollIntoView({block:'nearest'})}
-  function destination(){const value=new URLSearchParams(location.search).get('next')||'';return value.startsWith('/')&&!value.startsWith('//')?value:''}
-  function clearMessage(){$('message').className='message'}
-  function apiHeaders(content=false){return ACAuth.headers().then(auth=>({apikey:config.publishableKey,...(content?{'Content-Type':'application/json'}:{}),...auth}))}
-  async function rpc(name,body={}){const response=await fetch(`${config.supabaseUrl}/rest/v1/rpc/${name}`,{method:'POST',headers:await apiHeaders(true),body:JSON.stringify(body)}),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||`${name} failed.`);return data}
-  async function createPersonalWorkspace(name){await rpc('setup_ac_workspace',{p_name:String(name||'').trim()||'My Construction Workspace',p_team_code:''});await ACAuth.loadProfile()}
-
-  function pendingInviteToken(){return localStorage.getItem(INVITE_KEY)||''}
-  function applyInviteUI(){const token=pendingInviteToken();$('inviteNotice').hidden=!token;$('companyNameField').hidden=!!token;$('signUpTeamCodeField').hidden=!!token;$('companyName').required=!token;if(token)document.querySelector('[data-tab="signup"]')?.click()}
-  async function tryAcceptInvite(){
-    const token=pendingInviteToken();if(!token)return false;
-    try{await rpc('accept_ac_team_invitation',{p_token:token});localStorage.removeItem(INVITE_KEY);await ACAuth.loadProfile();return true}
-    catch(error){localStorage.removeItem(INVITE_KEY);message(error.message);return false}
-  }
-  (function captureInviteFromUrl(){
-    const urlInvite=new URLSearchParams(location.search).get('invite');
-    if(!urlInvite)return;
-    localStorage.setItem(INVITE_KEY,urlInvite);
-    const url=new URL(location.href);url.searchParams.delete('invite');history.replaceState(null,'',url);
-  })();
-
-  document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(item=>item.classList.toggle('active',item===button));document.querySelectorAll('.form').forEach(form=>form.classList.toggle('active',form.id===button.dataset.tab));clearMessage()}));
-  $('signin').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;button.textContent='Signing in…';try{await ACAuth.signIn($('signInEmail').value.trim(),$('signInPassword').value);let inviteAccepted=false;if(pendingInviteToken())inviteAccepted=await tryAcceptInvite();if(!ACAuth.hasAccess()&&!ACAuth.profile()&&!inviteAccepted)await createPersonalWorkspace(ACAuth.user()?.user_metadata?.organisation_name||'My Construction Workspace');await render();if(inviteAccepted){message('Invitation accepted. Your team access is now active.','good');if(destination())location.href=destination();return}if(ACAuth.isPending()){message('Signed in. Your Team Code request is waiting for the Owner to verify you and assign a role.','good');return}if(!ACAuth.hasAccess())throw new Error(ACAuth.profile()?.role==='rejected'?'The Owner declined this team request. You can continue individually or enter a different Team Code.':'Choose Continue Individually below, or enter a Team Code only if a company Owner invited you.');message('Signed in successfully.','good');location.href=destination()||'../builder/index.html'}catch(error){if(ACAuth.isSignedIn())await render();message(error.message)}finally{button.disabled=false;button.textContent='Sign In'}});
-  $('signup').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter,invite=pendingInviteToken(),teamCode=invite?'':$('signUpTeamCode').value.trim();button.disabled=true;button.textContent=invite?'Accepting invitation…':teamCode?'Sending join request…':'Creating workspace…';try{const data=await ACAuth.signUp($('signUpEmail').value.trim(),$('signUpPassword').value,$('companyName').value.trim(),teamCode,invite?'invited':'');if(data.access_token){if(invite){const ok=await tryAcceptInvite();await render();message(ok?'Invitation accepted. Your team access is now active.':'Account created, but the invitation could not be accepted automatically. Contact your Owner or Admin.',ok?'good':'error');if(ok&&destination())location.href=destination()}else{await render();message(teamCode?'Join request sent. The workspace Owner must approve you and choose your role before team tools open.':'Your private Owner workspace is ready.','good');if(!teamCode&&destination())location.href=destination()}}else message(invite?'Check your email to verify the account, then sign in to accept your invitation automatically.':`Check your email to verify the account, then sign in. ${teamCode?'Your request will wait for the Owner to approve and assign your role.':'Your private Owner workspace will be ready.'}`,'good')}catch(error){message(error.message)}finally{button.disabled=false;button.textContent='Create Secure Account'}});
-  $('resetRequestBtn').addEventListener('click',async()=>{const email=$('signInEmail').value.trim();if(!email)return message('Enter your email in the Sign In form first.');try{await ACAuth.requestPasswordReset(email);message('Password reset email sent. Open its secure link on this device.','good')}catch(error){message(error.message)}});
-  $('resendBtn').addEventListener('click',async()=>{const email=$('signUpEmail').value.trim();if(!email)return message('Enter the account email first.');try{await ACAuth.resendVerification(email);message('Verification email sent again.','good')}catch(error){message(error.message)}});
-  $('passwordForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{await ACAuth.updatePassword($('newPassword').value);$('newPassword').value='';message('Password updated successfully.','good')}catch(error){message(error.message)}finally{button.disabled=false}});
-  $('signOutBtn').addEventListener('click',async()=>{await ACAuth.signOut();message('Signed out.','good');render()});
-  $('deleteConfirm').addEventListener('input',event=>$('deleteAccountBtn').disabled=event.target.value.trim()!=='DELETE');
-  $('deleteAccountBtn').addEventListener('click',async()=>{if($('deleteConfirm').value.trim()!=='DELETE')return;if(!confirm('Permanently delete this Alert Tradie Pro account? This cannot be undone.'))return;const button=$('deleteAccountBtn');button.disabled=true;button.textContent='Deleting account…';try{await ACAuth.deleteAccount();location.href='../index.html?account=deleted'}catch(error){message(error.message);button.disabled=false;button.textContent='Delete My Account'}});
-  $('createPersonalBtn').addEventListener('click',async()=>{const button=$('createPersonalBtn');button.disabled=true;button.textContent='Creating workspace…';try{await createPersonalWorkspace($('personalWorkspaceName').value);message('Your individual workspace is active. Your Team Code is ready if you want to invite staff later.','good');await render()}catch(error){message(error.message)}finally{button.disabled=false;button.textContent='Continue Individually'}});
-  $('joinBtn').addEventListener('click',async()=>{const code=$('joinCode').value.trim();if(!code)return message('Enter the Team Code supplied by the workspace Owner.');try{const profile=ACAuth.profile();if(!profile||profile.active===false)await rpc('setup_ac_workspace',{p_name:'',p_team_code:code});else await rpc('join_organisation',{p_code:code});await ACAuth.loadProfile();message('Join request sent. The Owner must approve you and select Estimator, Project Manager or Site Supervisor.','good');render()}catch(error){message(error.message)}});
-  $('copyCodeBtn').addEventListener('click',async()=>{const code=$('teamCode').textContent.trim();if(!code)return;try{await navigator.clipboard.writeText(code);message('Team Code copied.','good')}catch(_){message(`Your Team Code is ${code}. Copy it and share it only with someone you trust.`,'good')}});
-  $('rotateCodeBtn').addEventListener('click',async()=>{if(!confirm('Rotate the Team Code? The previous code will stop working immediately.'))return;try{const code=await rpc('rotate_ac_join_code');$('teamCode').textContent=String(code).replace(/^"|"$/g,'');message('Team Code rotated. Share only the new code.','good');render()}catch(error){message(error.message)}});
-
-  async function organisation(profile){if(!profile?.organisation_id)return null;try{const response=await fetch(`${config.supabaseUrl}/rest/v1/organisations?id=eq.${encodeURIComponent(profile.organisation_id)}&select=id,name,join_code,join_code_rotated_at,public_intake`,{headers:await apiHeaders()});return response.ok?(await response.json())[0]||null:null}catch(_){return null}}
-  $('publicIntakeToggle').addEventListener('click',async()=>{
-    const enabling=$('publicIntakeToggle').textContent.trim()==='Enable';
-    if(enabling&&!confirm('Enable public job requests on this workspace? Only one workspace should have this enabled at a time.'))return;
-    try{await rpc('set_ac_public_intake',{p_enabled:enabling});message(enabling?'Public job requests enabled.':'Public job requests disabled.','good');render()}catch(error){message(error.message)}
-  });
+  const $=id=>document.getElementById(id);
+  const next=ACAccountContext.safeNext();
+  if(next)document.querySelectorAll('[data-portal-choice]').forEach(link=>{const url=new URL(link.dataset.portalChoice,ACAccountContext.root);url.searchParams.set('next',next);link.href=url.href});
   async function render(){
-    await ACAuth.ready;const user=ACAuth.user(),profile=ACAuth.profile();$('guest').hidden=!!user;$('account').classList.toggle('show',!!user);if(!user)return;
-    const profileActive=!!profile?.organisation_id&&profile.active!==false,active=ACAuth.hasAccess(),pending=profile?.role==='pending',rejected=profile?.role==='rejected';
-    $('accountEmail').textContent=user.email||'';$('accountRole').textContent=active?ACAuth.roleLabel(profile.role):pending?'Pending Owner Approval':rejected?'Join Request Declined':'Individual setup available';$('accountRole').className=active?'status-good':'status-bad';
-    $('verificationState').textContent=user.email_confirmed_at?'Verified':'Pending verification';$('verificationState').className=user.email_confirmed_at?'status-good':'status-bad';
-    const org=await organisation(profile);$('accountCompany').textContent=profileActive?(org?.name||user.user_metadata?.organisation_name||'Workspace'):pending?'Requested team workspace':rejected?'No active team workspace':'Choose individual or team';
-    $('workspaceAccess').textContent=active?'Active • role protected':pending?'Waiting for Owner decision':rejected?'Request declined':'Setup required';$('workspaceAccess').className=active?'status-good':'status-bad';
-    $('cloudState').textContent=active?'Connected with RLS':pending?'Locked until approval':rejected?'Request declined':'Ready to create workspace';
-    $('catalogueState').textContent=active&&['owner','admin'].includes(profile.role)?'Company rates • edit access':active&&profile.role==='estimator'?'Company rates • read only':active?'Not included in this role':pending?'Locked until role approval':'Available after workspace setup';
-    $('pendingRequests').textContent=String(ACAuth.pendingJoinCount?.()||0);$('pendingRequests').className=(ACAuth.pendingJoinCount?.()||0)>0?'status-bad':'';
-    $('teamArea').hidden=false;$('personalChoice').hidden=profileActive||pending;$('joinChoice').hidden=profileActive||pending;$('builderControlLink').hidden=!(active&&ACAuth.canUseTool?.('builder'));$('companyPricingLink').hidden=!(active&&ACAuth.canUseTool?.('catalogue'));
-    if(active&&profile.role==='owner'&&org?.join_code){$('ownerCode').hidden=false;$('teamCode').textContent=org.join_code;$('codeAge').textContent=org.join_code_rotated_at?`Rotated ${new Date(org.join_code_rotated_at).toLocaleString('en-AU')}`:''}else $('ownerCode').hidden=true;
-    if(active&&profile.role==='owner'){$('publicIntakeCard').hidden=false;$('publicIntakeState').textContent=org?.public_intake?'Enabled':'Disabled';$('publicIntakeState').className=org?.public_intake?'status-good':'status-bad';$('publicIntakeToggle').textContent=org?.public_intake?'Disable':'Enable'}else $('publicIntakeCard').hidden=true;
-    $('teamMembers').innerHTML=active&&profile.role==='owner'?'<div class="activity-row"><strong>Manage staff in Operations Hub</strong><span>Approve requests, assign roles, review attendance and send messages from the secure operations workspace.</span></div>':'';
+    await ACAuth.ready;
+    if(!ACAuth.isSignedIn())return;
+    const context=ACAuth.context()||{};
+    $('sessionCard').hidden=false;
+    $('sessionTitle').textContent=context.account_type==='customer'?'Customer account signed in':context.account_type==='team'?'Team account signed in':'Signed-in account found';
+    $('sessionCopy').textContent=ACAuth.user()?.email||'Secure session';
+    $('openPortal').href=ACAccountContext.correctPortal();
   }
-  let shownRedirect='';function showRedirect(type){if(!type||type===shownRedirect)return;shownRedirect=type;sessionStorage.removeItem('ac_auth_redirect_type');setTimeout(()=>message(type==='recovery'?'Secure recovery link accepted. Enter a new password below.':'Email verified successfully. Your secure account is now active.','good'),0)}
-  window.addEventListener('ac-auth-redirect',event=>showRedirect(event.detail?.type));
-  ACAuth.ready.then(async()=>{showRedirect(sessionStorage.getItem('ac_auth_redirect_type'));if(ACAuth.isSignedIn()&&!ACAuth.hasAccess()&&pendingInviteToken()){const ok=await tryAcceptInvite();await render();if(ok)message('Invitation accepted. Your team access is now active.','good')}});
-  applyInviteUI();render();
+  $('signOut').addEventListener('click',()=>ACAccountContext.signOutTo('login/'));
+  render();
 })();
