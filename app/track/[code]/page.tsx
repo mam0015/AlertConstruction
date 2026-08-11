@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import BrandLogo from "../../BrandLogo";
+import CustomerWorkflowPanel from "../../workflow/CustomerWorkflowPanel";
 import styles from "./track.module.css";
 
 type PortalTab = "overview" | "schedule" | "documents";
@@ -107,6 +108,8 @@ export default function ProjectStatusPage() {
         <span>Customer project portal</span>
         <span className={styles.reference}><i /> Reference&nbsp; {projectCode}</span>
       </section>
+
+      <CustomerWorkflowPanel code={projectCode} />
 
       <section className={styles.hero}>
         <div className={styles.heroHeading}>

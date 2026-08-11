@@ -4,9 +4,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import BrandLogo from "../BrandLogo";
+import WorkflowBoard from "../workflow/WorkflowBoard";
 import styles from "./admin.module.css";
 
-type View = "overview" | "projects" | "requests" | "schedule" | "messages";
+type View = "overview" | "workflow" | "projects" | "requests" | "schedule" | "messages";
 type Resource = "project" | "request" | "schedule" | "message";
 type Project = { id: number; code: string; name: string; service: string; stage: string; progress: number; customerName: string; suburb: string; startDate: string; notes: string; updatedAt: string };
 type JobRequest = { id: number; code: string; requestType: "Project Request" | "Job Request"; customerName: string; contact: string; service: string; suburb: string; submittedAt: string; status: string; priority: string; summary: string; assignedTo: string; updatedAt: string };
@@ -18,6 +19,7 @@ type Snapshot = { projects: Project[]; requests: JobRequest[]; scheduleEvents: S
 const empty: Snapshot = { projects: [], requests: [], scheduleEvents: [], messages: [], permissions: { role: "Admin", projects: 1, schedule: 1, finance: 0, financeExport: 0 } };
 const nav: { id: View; label: string; icon: string }[] = [
   { id: "overview", label: "Operations overview", icon: "◇" },
+  { id: "workflow", label: "Project workflow", icon: "↻" },
   { id: "projects", label: "Projects", icon: "▦" },
   { id: "requests", label: "New requests", icon: "◎" },
   { id: "schedule", label: "Schedule", icon: "□" },
@@ -140,6 +142,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
   const filteredProjects = useMemo(() => data.projects.filter((project) => `${project.code} ${project.name} ${project.suburb}`.toLowerCase().includes(projectQuery.toLowerCase())), [data.projects, projectQuery]);
   const headers: Record<View, [string, string, string]> = {
     overview: ["Operation Hub · Admin", "Keep delivery moving.", "Requests, projects, site time and team direction in one black-and-gold operational command centre."],
+    workflow: ["Request-to-project control", "Project workflow", "Review customer requests, coordinate Site Visits, prepare estimates and control every hand-off."],
     projects: ["Project control", "Projects", "Create and update operational project records without access to private finance."],
     requests: ["Intake & follow-up", "New requests", "Review new project and job requests, contact customers and assign the next action."],
     schedule: ["Site coordination", "Schedule", "Send clear dates, times and task directions to the Site Supervisor and team."],
@@ -160,6 +163,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
         <section className={styles.pageHeading}><div><p className={styles.eyebrow}>{headers[view][0]}</p><h1>{headers[view][1]}</h1><p>{headers[view][2]}</p></div><div className={styles.headingActions}>{view === "projects" && <button className={styles.primaryButton} onClick={() => openProject()}>＋ New project</button>}{view === "schedule" && <button className={styles.primaryButton} onClick={() => openSchedule()}>＋ Schedule site time</button>}{view === "overview" && <><button className={styles.secondaryButton} onClick={() => choose("requests")}>Review requests</button><button className={styles.primaryButton} onClick={() => openSchedule()}>Schedule work</button></>}</div></section>
         {(notice || error) && <div className={`${styles.notice} ${error ? styles.errorNotice : ""}`}><span>{error ? "!" : "✓"}</span>{error || notice}<button onClick={() => { setNotice(""); setError(""); }}>×</button></div>}
         {loading ? <div className={styles.loading}><i />Opening live operations…</div> : <>
+          {view === "workflow" && <WorkflowBoard role="admin" />}
           {view === "overview" && <>
             <section className={styles.metricStrip}><article><span>New requests</span><strong>{newRequests.length}</strong><small>Need follow-up</small></article><article><span>Active projects</span><strong>{activeProjects.length}</strong><small>{data.projects.length} project records</small></article><article><span>Today on site</span><strong>{todayItems.length}</strong><small>Scheduled actions</small></article><article><span>Team messages</span><strong>{data.messages.length}</strong><small>Saved conversation entries</small></article></section>
             <section className={styles.overviewGrid}><article className={styles.panel}><div className={styles.panelHeading}><div><span>Priority intake</span><h2>Requests requiring action</h2></div><button onClick={() => choose("requests")}>Open all →</button></div><div className={styles.requestQueue}>{newRequests.slice(0, 4).map((request) => <button key={request.id} onClick={() => openRequest(request)}><i className={styles[`priority${request.priority}`]} /><div><small>{request.requestType} · {request.code}</small><strong>{request.service} — {request.suburb}</strong><p>{request.customerName} · {request.status}</p></div><span>→</span></button>)}</div></article><article className={styles.panel}><div className={styles.panelHeading}><div><span>Site direction</span><h2>Next scheduled work</h2></div><button onClick={() => choose("schedule")}>Full schedule →</button></div><div className={styles.nextSchedule}>{data.scheduleEvents.slice(0, 4).map((item) => <button key={item.id} onClick={() => openSchedule(item)}><time>{formatDate(item.eventDate, { day: "2-digit", month: "short" })}<small>{item.startTime}</small></time><i className={styles[`tone_${item.tone}`]} /><div><strong>{item.title}</strong><small>{item.assignee} · {item.projectCode}</small></div></button>)}</div></article></section>

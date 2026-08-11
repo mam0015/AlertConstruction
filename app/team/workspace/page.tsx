@@ -12,6 +12,7 @@ export default async function TeamWorkspacePage() {
   const session = await verifyAdminSession(cookieStore.get(adminCookieName())?.value);
   if (!session) redirect("/");
   if (session.role === "Admin") redirect("/admin");
+  if (session.role === "Site Supervisor") redirect("/site-supervisor");
   return <main className={styles.teamShell}>
     <section className={styles.accessCard}>
       <BrandLogo kind="tradie" tone="dark" className={styles.teamLogo} />

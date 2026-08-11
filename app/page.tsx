@@ -88,7 +88,8 @@ export default function Home() {
   const [portal, setPortal] = useState<PortalType>(null);
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
   const [selectedService, setSelectedService] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState("");
   const [theme, setTheme] = useState<Theme>("light");
   const [trackingCode, setTrackingCode] = useState("ATP-2026-00124");
   const [teamEmail, setTeamEmail] = useState("");
@@ -163,9 +164,20 @@ export default function Home() {
     setMenuOpen(false);
   }
 
-  function handleRequest(event: FormEvent<HTMLFormElement>) {
+  async function handleRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setRequestError("");
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === "string"));
+    try {
+      const response = await fetch("/api/workflow/public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json() as { data?: { code: string }; error?: string };
+      if (!response.ok || !result.data) throw new Error(result.error ?? "Your request could not be submitted.");
+      setTrackingCode(result.data.code);
+      setSubmitted(result.data.code);
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Your request could not be submitted.");
+    }
   }
 
   function handleTracking(event: FormEvent<HTMLFormElement>) {
@@ -449,10 +461,11 @@ export default function Home() {
 
             {submitted && (
               <div className="preview-notice" role="status">
-                <strong>Your request details passed the preview check.</strong>
-                <span>No information was sent or stored in this design preview.</span>
+                <strong>Request received · {submitted}</strong>
+                <span>Keep this reference to follow Admin review, Site Visit, estimate and approved project updates.</span>
               </div>
             )}
+            {requestError && <div className="preview-notice" role="alert"><strong>Request not submitted</strong><span>{requestError}</span></div>}
           </form>
         </div>
       </section>
