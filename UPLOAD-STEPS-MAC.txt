@@ -1,0 +1,44 @@
+ALERT TRADIE PRO V67 — GITHUB UPLOAD (MAC)
+================================================
+
+This folder contains only the public website files.
+Do not upload your Supabase migrations, .env files, Team Code, passwords,
+or service-role key to GitHub.
+
+1. Open Safari or Chrome and go to:
+   https://github.com/mam0015/AlertConstruction
+
+2. Make sure the branch selector says: main
+
+3. Click Add file, then click Upload files.
+
+4. Open this extracted folder in Finder.
+
+5. Press Command + A inside this folder, then drag all selected items onto
+   the GitHub upload page. Upload the CONTENTS of this folder, not the ZIP.
+
+6. Wait until GitHub finishes listing every file. This package is below the
+   100-file browser upload limit.
+
+7. In the commit message enter:
+   Deploy Alert Tradie Pro V67 full-stack frontend
+
+8. Click Commit changes.
+
+9. Wait about 2 minutes, then open:
+   https://mam0015.github.io/AlertConstruction/force-update.html
+
+10. The update page clears the old V65 demo cache and opens V67.
+
+11. Click Team Sign In, then Open Owner Sign In.
+
+12. Sign in privately with:
+    Owner email: mamobiniali@gmail.com
+    Password: your existing Supabase Owner password
+
+Expected result:
+- No "Full-Stack deployment required" message.
+- The Owner Control Centre opens using live Supabase records.
+- Staff can use email, password and the real company Team Code.
+- New staff remain Pending until the Owner approves their role.
+
