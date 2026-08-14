@@ -1,4 +1,4 @@
-const CACHE = "alert-tradie-pro-v67-live-supabase";
+const CACHE = "alert-tradie-pro-v68-simple-auth";
 const SHELL = [
   "./",
   "./index.html",
@@ -8,7 +8,9 @@ const SHELL = [
   "./track/",
   "./customer/",
   "./team/pending/",
+  "./team/",
   "./worker/",
+  "./reset-password/",
 ];
 
 self.addEventListener("install", (event) => {
