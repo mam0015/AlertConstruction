@@ -4,6 +4,7 @@ import AdminDashboard from "./admin/AdminDashboard";
 import ProjectStatusPage from "./track/ProjectStatusPage";
 import SiteSupervisor from "./supervisor/SiteSupervisor";
 import PendingStaff from "./PendingStaff";
+import NotificationBell from "./NotificationBell";
 
 function route() {
   const path = window.location.pathname.replace(/index\.html$/i, "").replace(/\/+$/, "");
@@ -16,12 +17,15 @@ function route() {
 }
 
 export default function App() {
-  switch (route()) {
-    case "owner": return <OwnerDashboard ownerName="Ali Mobini" ownerEmail="mamobiniali@gmail.com" />;
-    case "admin": return <AdminDashboard viewerName="Admin Preview" viewerEmail="admin.preview@alerttradiepro.demo" previewAsOwner={false} />;
-    case "supervisor": return <SiteSupervisor />;
-    case "track": return <ProjectStatusPage />;
-    case "pending": return <PendingStaff />;
-    default: return <Home />;
+  const active = route();
+  let page;
+  switch (active) {
+    case "owner": page = <OwnerDashboard ownerName="Owner" ownerEmail="" />; break;
+    case "admin": page = <AdminDashboard viewerName="Admin" viewerEmail="" previewAsOwner={false} />; break;
+    case "supervisor": page = <SiteSupervisor />; break;
+    case "track": page = <ProjectStatusPage />; break;
+    case "pending": page = <PendingStaff />; break;
+    default: page = <Home />;
   }
+  return <>{page}{["owner","admin","supervisor"].includes(active) && <NotificationBell />}</>;
 }

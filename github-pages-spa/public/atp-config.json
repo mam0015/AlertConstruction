@@ -1,0 +1,6 @@
+{
+  "mode": "remote",
+  "apiBase": "PASTE_YOUR_SUPABASE_ATP_API_FUNCTION_URL_HERE",
+  "anonKey": "",
+  "build": "V69-2026-08-16"
+}
