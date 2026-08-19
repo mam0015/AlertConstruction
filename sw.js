@@ -1,16 +1,14 @@
-const CACHE = "alert-tradie-pro-v68-simple-auth";
+const CACHE = "alert-tradie-pro-v71-owner-team-access";
 const SHELL = [
   "./",
   "./index.html",
   "./owner/",
   "./admin/",
   "./site-supervisor/",
+  "./worker/",
   "./track/",
   "./customer/",
   "./team/pending/",
-  "./team/",
-  "./worker/",
-  "./reset-password/",
 ];
 
 self.addEventListener("install", (event) => {
