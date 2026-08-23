@@ -12,6 +12,8 @@ export const workflowStages = [
   "estimate_declined",
   "customer_approved",
   "active_project",
+  "quality_inspection",
+  "completion_ready",
   "complete",
 ] as const;
 
@@ -32,7 +34,24 @@ export const stageLabels: Record<WorkflowStage, string> = {
   estimate_declined: "Estimate declined",
   customer_approved: "Customer approved",
   active_project: "Active project",
+  quality_inspection: "Quality inspection",
+  completion_ready: "Ready for completion",
   complete: "Complete",
+};
+
+export type QualityInspection = {
+  id: number;
+  caseId: number;
+  supervisorEmail: string;
+  inspectedAt: string;
+  summary: string;
+  defects: string;
+  status: string;
+  adminNote: string;
+  ownerNote: string;
+  submittedAt: string;
+  reviewedAt: string;
+  completedAt: string;
 };
 
 export type WorkflowFile = {
@@ -127,7 +146,9 @@ export type WorkflowCase = {
   projectFolder: string;
   createdAt: string;
   updatedAt: string;
+  progress: number;
   visitReport: SiteVisitReport | null;
+  qualityInspection: QualityInspection | null;
   estimate: WorkflowEstimate | null;
   files: WorkflowFile[];
   updates: ProjectUpdate[];

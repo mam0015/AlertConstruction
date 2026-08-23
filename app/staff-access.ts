@@ -1,5 +1,7 @@
-import { hashStaffPassword, registeredAdminEmail, type StaffRole, verifyAdminCredentials, verifyCompanyTeamCode, verifyStoredSecret } from "./admin-auth";
+import { hashStaffPassword, type StaffRole, verifyCompanyTeamCode, verifyStoredSecret } from "./admin-auth";
+import { isRegisteredOwnerEmail } from "./owner-auth";
 import { createStaffAccessRequest, getStaffAccessRequest, touchStaffAccessRequest } from "../db/staff-store";
+import { notifyOwnerOfStaffRequest } from "./team-access-notification";
 
 export type StaffSignInResult =
   | { status: "pending"; email: string }
@@ -8,23 +10,28 @@ export type StaffSignInResult =
   | { status: "invalid" };
 
 export function staffRedirect(role: StaffRole) {
-  return role === "Admin" ? "/admin" : "/team/workspace";
+  if (role === "Admin") return "/admin";
+  if (role === "Site Supervisor") return "/site-supervisor";
+  if (isWorkerRole(role)) return "/worker";
+  return "/team/workspace";
+}
+
+export const workerStaffRoles: StaffRole[] = ["Worker", "Electrician", "Plumber", "Cleaner", "Carpenter", "Plasterer", "Tiler"];
+export function isWorkerRole(role: StaffRole | string): role is StaffRole {
+  return workerStaffRoles.includes(role as StaffRole);
 }
 
 export async function processStaffSignIn(emailInput: string, password: string, teamCode: string): Promise<StaffSignInResult> {
   const email = emailInput.trim().toLowerCase();
-  if (!email || !password || !teamCode || !await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
-
-  // This is the single Owner-created bootstrap Admin account. Its secrets live
-  // only in the hosted environment; all other staff still require Owner review.
-  if (email === registeredAdminEmail() && await verifyAdminCredentials(password, teamCode)) {
-    return { status: "approved", email, role: "Admin", tradeTitle: "Primary Admin" };
-  }
+  if (!/^\S+@\S+\.\S+$/.test(email) || !password) return { status: "invalid" };
+  if (await isRegisteredOwnerEmail(email)) return { status: "invalid" };
 
   const existing = await getStaffAccessRequest(email);
 
   if (!existing) {
+    if (!teamCode || !await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
     await createStaffAccessRequest(email, await hashStaffPassword(password));
+    await notifyOwnerOfStaffRequest(email).catch(() => undefined);
     return { status: "pending", email };
   }
 

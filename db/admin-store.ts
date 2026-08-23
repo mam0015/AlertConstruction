@@ -9,6 +9,7 @@ async function database() {
 }
 
 async function seedAdminRequests() {
+  if (process.env.NODE_ENV !== "development" && process.env.ATP_DEMO_SEED !== "true") return;
   await ensureOwnerDatabase();
   const db = await database();
   const existing = await db.prepare("SELECT COUNT(*) AS total FROM job_requests").first<{ total?: number }>();

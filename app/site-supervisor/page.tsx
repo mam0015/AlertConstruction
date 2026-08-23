@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SiteSupervisorPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   const params = await searchParams;
-  if (process.env.NODE_ENV === "development" && params.preview === "operation-hub") return <SiteSupervisor />;
+  if (process.env.NODE_ENV === "development" && params.preview === "operation-hub") return <SiteSupervisor previewTasks />;
 
   const cookieStore = await cookies();
   const session = await verifyAdminSession(cookieStore.get(adminCookieName())?.value);
@@ -18,7 +18,7 @@ export default async function SiteSupervisorPage({ searchParams }: { searchParam
       <p style={{ color: "#f5b900", fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase" }}>Role-protected workspace</p>
       <h1 style={{ margin: "16px 0", fontSize: 42, letterSpacing: "-.045em" }}>Site Supervisor access</h1>
       <p style={{ color: "#a4a7a7", lineHeight: 1.7 }}>This workspace opens only after the Owner approves the Site Supervisor role. Sign in through Team Sign In to continue.</p>
-      <Link href="/#home" style={{ display: "inline-flex", minHeight: 44, alignItems: "center", marginTop: 18, padding: "0 18px", background: "#f5b900", color: "#080909", fontSize: 10, fontWeight: 800 }}>Return to Team Sign In</Link>
+      <Link href="/#team-sign-in" style={{ display: "inline-flex", minHeight: 44, alignItems: "center", marginTop: 18, padding: "0 18px", background: "#f5b900", color: "#080909", fontSize: 10, fontWeight: 800 }}>Return to Team Sign In</Link>
     </section>
   </main>;
 }

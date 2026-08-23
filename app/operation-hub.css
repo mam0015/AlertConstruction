@@ -546,3 +546,196 @@
     min-height: 104px !important;
   }
 }
+
+/*
+ * V69 executive dark layer.
+ *
+ * V64 introduced a pale compatibility skin after the original V52 command
+ * centre.  That layer made the protected workspaces look like a generic
+ * administration template.  Keep the accessible component structure, but
+ * restore the approved black / graphite / warm-gold visual language here.
+ * This block intentionally comes last because the compatibility rules above
+ * use !important declarations.
+ */
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) {
+  --gold: #d7ac4a !important;
+  --gold2: #f4d47d !important;
+  --ink: #f8f5ed !important;
+  --muted: #9a9c98 !important;
+  --line: rgba(255, 255, 255, .09) !important;
+  --line2: rgba(215, 172, 74, .28) !important;
+  --panel: #111313 !important;
+  color: #f8f5ed !important;
+  background:
+    radial-gradient(circle at 78% -12%, rgba(215, 172, 74, .13), transparent 34%),
+    radial-gradient(circle at 15% 120%, rgba(81, 99, 107, .13), transparent 30%),
+    #070808 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="mainPanel"] {
+  color: #f8f5ed !important;
+  background:
+    linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .018) 1px, transparent 1px),
+    radial-gradient(circle at 90% 0, rgba(215, 172, 74, .075), transparent 28%),
+    #090a0a !important;
+  background-size: 48px 48px, 48px 48px, auto, auto !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] {
+  border-bottom: 1px solid rgba(215, 172, 74, .22) !important;
+  background: rgba(7, 8, 8, .9) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .24) !important;
+  backdrop-filter: blur(22px) saturate(135%);
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) {
+  border-bottom-color: rgba(215, 172, 74, .18) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) h1 {
+  color: #fffdf8 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -.055em !important;
+  text-shadow: 0 18px 55px rgba(0, 0, 0, .25);
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="commandHeading"], [class*="pageHeading"]) p:last-child,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] span {
+  color: #8e928e !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panel"]:not([class*="mainPanel"]),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectCards"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="requestGrid"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="staffCard"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="controlBar"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="transactionsPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectProfitPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="permissionsPanel"] {
+  border-color: rgba(255, 255, 255, .09) !important;
+  color: #f7f4ed !important;
+  background:
+    linear-gradient(145deg, rgba(24, 26, 26, .98), rgba(13, 14, 14, .98)) !important;
+  box-shadow:
+    0 30px 75px rgba(0, 0, 0, .22),
+    inset 0 1px rgba(255, 255, 255, .025) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] {
+  border-bottom-color: rgba(255, 255, 255, .075) !important;
+  background: transparent !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] :is(h2, button),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectRow"] strong,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="staffCard"] h2 {
+  color: #f8f5ed !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) article {
+  border: 1px solid rgba(255, 255, 255, .085) !important;
+  border-top: 1px solid rgba(215, 172, 74, .32) !important;
+  color: #fffdf8 !important;
+  background:
+    radial-gradient(circle at 105% -20%, rgba(215, 172, 74, .12), transparent 48%),
+    linear-gradient(145deg, #171919, #0e0f0f) !important;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, .22) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) :is(span, small) {
+  color: #838783 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) strong {
+  color: #fffdf8 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-weight: 400 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="tableHeader"], [class*="requestHeader"]) {
+  color: #777c78 !important;
+  background: rgba(255, 255, 255, .025) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="attendanceRow"], [class*="scheduleList"] > div) {
+  border-color: rgba(255, 255, 255, .075) !important;
+  color: #e9e7e0 !important;
+  background: transparent !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="attendanceRow"]) :is(small, span) {
+  color: #858a86 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is(input, select, textarea) {
+  border-color: rgba(255, 255, 255, .13) !important;
+  color: #f5f2eb !important;
+  background: #0b0c0c !important;
+  caret-color: #d7ac4a;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is(input, select, textarea):focus {
+  border-color: rgba(215, 172, 74, .72) !important;
+  box-shadow: 0 0 0 3px rgba(215, 172, 74, .09) !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="executiveLogin"], [class*="loginFrame"]) {
+  border-color: rgba(215, 172, 74, .3) !important;
+  background:
+    linear-gradient(135deg, rgba(215, 172, 74, .09), transparent 36%),
+    #090a0a !important;
+  box-shadow: 0 48px 140px rgba(0, 0, 0, .56) !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is([class*="ownerLoginForm"], [class*="loginForm"]) {
+  border-color: rgba(255, 255, 255, .105) !important;
+  background: rgba(16, 18, 18, .94) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .28) !important;
+  backdrop-filter: blur(22px);
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is(h1, h2, strong) {
+  color: #fffdf8 !important;
+}
+
+:is([class*="accessShell"], [class*="loginShell"]) :is(p, small, label span) {
+  color: #929792 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is([class*="primaryButton"], [class*="loginSubmit"]) {
+  border: 1px solid #d7ac4a !important;
+  border-radius: 9px !important;
+  color: #090a0a !important;
+  background: linear-gradient(135deg, #f4d47d, #d7ac4a) !important;
+  box-shadow: 0 16px 34px rgba(215, 172, 74, .16) !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"], [class*="accessShell"], [class*="loginShell"]) :is([class*="primaryButton"], [class*="loginSubmit"]):hover {
+  border-color: #f8e1a1 !important;
+  color: #050606 !important;
+  background: linear-gradient(135deg, #ffeaa8, #e1b956) !important;
+  transform: translateY(-1px);
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="secondaryButton"], [class*="outlineButton"]) {
+  border-color: rgba(215, 172, 74, .3) !important;
+  border-radius: 9px !important;
+  color: #ded9ce !important;
+  background: #101212 !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="panel"]:not([class*="mainPanel"]),
+  :is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"]) article {
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="panel"]:not([class*="mainPanel"]):hover,
+  :is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"]) article:hover {
+    border-color: rgba(215, 172, 74, .22) !important;
+    box-shadow: 0 34px 88px rgba(0, 0, 0, .3) !important;
+    transform: translateY(-2px);
+  }
+}

@@ -1,6 +1,17 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import OwnerDashboard from "./OwnerDashboard";
-import OwnerLogin from "./OwnerLogin";
-import { ownerCookieName,verifyOwnerSession } from "../owner-auth";
-export const dynamic="force-dynamic";
-export default async function OwnerPage({searchParams}:{searchParams:Promise<{preview?:string}>}){const params=await searchParams;if(process.env.NODE_ENV==="development"&&params.preview==="operation-hub")return <OwnerDashboard ownerName="Ali Mobini" ownerEmail="mamobiniali@gmail.com"/>;const c=await cookies();const s=await verifyOwnerSession(c.get(ownerCookieName())?.value);if(!s)return <OwnerLogin/>;return <OwnerDashboard ownerName="Ali Mobini" ownerEmail={s.email}/>;}
+import { ownerCookieName, ownerDisplayName, verifyOwnerSession } from "../owner-auth";
+
+export const dynamic = "force-dynamic";
+
+export default async function OwnerPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+  const params = await searchParams;
+  if (process.env.NODE_ENV === "development" && params.preview === "operation-hub") {
+    return <OwnerDashboard ownerName="Owner Preview" ownerEmail="owner.preview@example.invalid" />;
+  }
+  const cookieStore = await cookies();
+  const session = await verifyOwnerSession(cookieStore.get(ownerCookieName())?.value);
+  if (!session) redirect("/#team-sign-in");
+  return <OwnerDashboard ownerName={await ownerDisplayName(session.email)} ownerEmail={session.email} />;
+}

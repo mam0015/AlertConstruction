@@ -5,7 +5,8 @@ import { stageLabels, type WorkflowRole, type WorkflowSnapshot } from "./types";
 import styles from "./workflow.module.css";
 
 const empty: WorkflowSnapshot = { cases: [], events: [], supervisors: [], role: "admin" };
-const journey = ["request_submitted", "admin_review", "customer_contacted", "site_visit_scheduled", "site_visit_submitted", "site_visit_approved", "estimate_ready", "estimate_sent", "customer_approved", "active_project"] as const;
+const journey = ["request_submitted", "admin_review", "customer_contacted", "site_visit_scheduled", "site_visit_submitted", "site_visit_approved", "estimate_ready", "estimate_sent", "customer_approved", "active_project", "quality_inspection", "completion_ready", "complete"] as const;
+const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(new Date());
 
 function when(value: string) {
   if (!value) return "Not set";
@@ -16,7 +17,7 @@ function when(value: string) {
 function currentJourneyIndex(stage: string) {
   if (stage === "visit_changes_requested") return 4;
   if (stage === "estimate_declined") return 7;
-  if (stage === "complete") return journey.length;
+  if (stage === "complete") return journey.length - 1;
   return journey.indexOf(stage as (typeof journey)[number]);
 }
 
@@ -29,11 +30,12 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
   const [error, setError] = useState("");
   const [contactNote, setContactNote] = useState("");
   const [reviewNote, setReviewNote] = useState("");
-  const [visitAt, setVisitAt] = useState("2026-08-12T09:30");
-  const [supervisorEmail, setSupervisorEmail] = useState("site.supervisor@alerttradiepro.demo");
-  const [visitForm, setVisitForm] = useState({ visitDate: "2026-08-12", summary: "", findings: "", recommendations: "", internalNotes: "" });
-  const [estimateForm, setEstimateForm] = useState({ amount: "", scope: "", terms: "Subject to final selections and contract." });
-  const [updateForm, setUpdateForm] = useState({ workDate: "2026-08-10", internalUpdate: "", customerUpdate: "" });
+  const [visitAt, setVisitAt] = useState("");
+  const [supervisorEmail, setSupervisorEmail] = useState("");
+  const [visitForm, setVisitForm] = useState({ visitDate: today(), summary: "", findings: "", recommendations: "", internalNotes: "" });
+  const [estimateForm, setEstimateForm] = useState({ amount: "", scope: "", terms: "Final price and variations are governed by the signed contract and applicable Victorian law." });
+  const [updateForm, setUpdateForm] = useState({ workDate: today(), internalUpdate: "", customerUpdate: "" });
+  const [qualityForm, setQualityForm] = useState({ inspectedAt: today(), summary: "", defects: "" });
   const [sitePhotoIds, setSitePhotoIds] = useState<number[]>([]);
   const [progressPhotoIds, setProgressPhotoIds] = useState<number[]>([]);
 
@@ -90,7 +92,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
     finally { setWorking(false); }
   }
 
-  async function upload(category: "site_visit" | "progress", file?: File) {
+  async function upload(category: "site_visit" | "progress" | "quality", file?: File) {
     if (!selected || !file) return;
     setWorking(true); setError("");
     try {
@@ -113,7 +115,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
 
   return <section className={styles.workflowShell}>
     <div className={styles.workflowHeader}>
-      <div><span>REQUEST → SITE VISIT → ESTIMATE → ACTIVE PROJECT</span><h2>Project workflow control</h2><p>Every hand-off is recorded. Customer updates stay private until Admin and Owner approve them.</p></div>
+      <div><span>REQUEST → SITE VISIT → ESTIMATE → DELIVERY → QUALITY → COMPLETE</span><h2>Project workflow control</h2><p>Every hand-off is recorded. Customer updates stay private until Admin and Owner approve them.</p></div>
       <div className={styles.roleBadge}><i />{role === "supervisor" ? "Site Supervisor" : role[0].toUpperCase() + role.slice(1)} workspace</div>
     </div>
     {(notice || error) && <div className={`${styles.notice} ${error ? styles.error : ""}`}><strong>{error ? "Action stopped" : "Saved"}</strong><span>{error || notice}</span><button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
@@ -154,6 +156,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
           {selected.stage === "estimate_ready" && <button disabled={working} onClick={() => void action("send_estimate", {}, "Estimate sent to the Customer portal.")}>Send estimate to Customer <span>→</span></button>}
           {selected.stage === "estimate_sent" && <p className={styles.waiting}>Waiting for the Customer to accept or decline the estimate in their portal.</p>}
           {selected.stage === "customer_approved" && <button disabled={working} onClick={() => void action("activate_project", {}, "Customer-approved work is now an active project.")}>Confirm approval & activate project <span>→</span></button>}
+          {selected.stage === "quality_inspection" && <div className={styles.reviewBox}><div><strong>{selected.qualityInspection?.summary}</strong><p>{selected.qualityInspection?.defects || "No defects recorded by the Site Supervisor."}</p></div><label><span>Admin quality note</span><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label><div><button disabled={working} onClick={() => void action("review_quality_inspection", { decision: "changes_requested", note: reviewNote }, "Rectification returned to the Site Supervisor.")}>Request rectification</button><button disabled={working} onClick={() => void action("review_quality_inspection", { decision: "approved", note: reviewNote }, "Quality inspection approved for Owner completion.")}>Approve quality inspection</button></div></div>}
           {selected.updates.filter((update) => update.status === "pending_admin").map((update) => <article className={styles.updateApproval} key={update.id}><span>Customer update waiting for Admin</span><strong>{update.customerUpdate}</strong><p>Internal: {update.internalUpdate}</p><div><button onClick={() => void action("reject_update", { updateId: update.id, note: reviewNote || "Please revise the customer update." }, "Update returned to Site Supervisor.")}>Return</button><button onClick={() => void action("admin_approve_update", { updateId: update.id, note: reviewNote }, "Admin approved the update. Owner approval is next.")}>Approve for Owner</button></div></article>)}
         </section>}
 
@@ -174,6 +177,13 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
             <label><span>Customer update · hidden until Admin + Owner approval</span><textarea value={updateForm.customerUpdate} onChange={(event) => setUpdateForm((form) => ({ ...form, customerUpdate: event.target.value }))} placeholder="Clear customer-safe progress update without internal notes or pricing…" required /></label>
             <button disabled={working}>Submit both updates for approval</button>
           </form>}
+          {selected.stage === "active_project" && <form onSubmit={(event: FormEvent) => { event.preventDefault(); void action("submit_quality_inspection", { ...qualityForm, fileIds: progressPhotoIds }, "Quality inspection sent to Admin."); }}>
+            <div className={styles.uploadBox}><input type="file" accept="image/*" onChange={(event) => void upload("quality", event.target.files?.[0])} /><strong>Upload completion and quality evidence</strong><span>{progressPhotoIds.length} photo(s) ready</span></div>
+            <label><span>Inspection date</span><input type="date" value={qualityForm.inspectedAt} onChange={(event) => setQualityForm((form) => ({ ...form, inspectedAt: event.target.value }))} required /></label>
+            <label><span>Quality inspection summary</span><textarea value={qualityForm.summary} onChange={(event) => setQualityForm((form) => ({ ...form, summary: event.target.value }))} placeholder="Work inspected, tests completed and handover readiness…" required /></label>
+            <label><span>Defects or rectification items</span><textarea value={qualityForm.defects} onChange={(event) => setQualityForm((form) => ({ ...form, defects: event.target.value }))} placeholder="Leave blank only when no defects were identified." /></label>
+            <button disabled={working}>Submit quality inspection</button>
+          </form>}
           {["site_visit_submitted", "site_visit_approved", "estimate_ready", "estimate_sent", "customer_approved"].includes(selected.stage) && <p className={styles.waiting}>Your Site Visit is complete. Admin is handling the estimate and Customer approval stages.</p>}
         </section>}
 
@@ -181,6 +191,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
           <header><div><span>OWNER AUTHORITY</span><h3>Publication and complete oversight</h3></div><b>{data.events.length} recorded events</b></header>
           {selected.updates.filter((update) => update.status === "pending_owner").map((update) => <article className={styles.updateApproval} key={update.id}><span>Admin approved · Owner decision required</span><strong>{update.customerUpdate}</strong><p>Internal: {update.internalUpdate}</p><div><button onClick={() => void action("reject_update", { updateId: update.id, note: reviewNote || "Please revise before publication." }, "Update returned for changes.")}>Return</button><button onClick={() => void action("owner_approve_update", { updateId: update.id, note: reviewNote }, "Update published to the Customer portal.")}>Approve & publish</button></div></article>)}
           {!selected.updates.some((update) => update.status === "pending_owner") && <p className={styles.waiting}>No customer update is waiting for Owner approval on this project.</p>}
+          {selected.stage === "completion_ready" && <div className={styles.reviewBox}><div><strong>Quality inspection approved by Admin</strong><p>{selected.qualityInspection?.summary}</p><small>{selected.qualityInspection?.defects || "No outstanding defects recorded."}</small></div><label><span>Owner completion note</span><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label><div><button disabled={working} onClick={() => void action("complete_project", { note: reviewNote }, "Project completed and customer status updated.")}>Owner approve & complete project</button></div></div>}
         </section>}
 
         <div className={styles.lowerGrid}>

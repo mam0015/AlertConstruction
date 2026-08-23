@@ -247,7 +247,7 @@
   flex: 0 0 126px;
   place-items: center;
   border-radius: 50%;
-  background: conic-gradient(var(--portal-gold) 0 62%, #2c3032 62% 100%);
+  background: conic-gradient(var(--portal-gold) 0 0%, #2c3032 0% 100%);
 }
 
 .progressRing::before {

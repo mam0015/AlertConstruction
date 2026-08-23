@@ -3,6 +3,15 @@ import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-aut
 import { addWorkflowFile, getWorkflowFile, getWorkflowSnapshot } from "../../../../db/workflow-store";
 import type { WorkflowRole } from "../../../workflow/types";
 
+async function imageSignatureMatches(file: File) {
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (file.type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (file.type === "image/png") return bytes.slice(0, 8).every((byte, index) => byte === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index]);
+  if (file.type === "image/webp") return new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
+  if (file.type === "image/heic" || file.type === "image/heif") return new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
+  return false;
+}
+
 async function actor(request: Request): Promise<{ role: WorkflowRole; email: string } | null> {
   const owner = await ownerSessionFromRequest(request);
   if (owner) return { role: "owner", email: owner.email };
@@ -25,8 +34,10 @@ export async function POST(request: Request) {
     const file = form.get("file");
     const caseId = Number(form.get("caseId"));
     const category = String(form.get("category") ?? "");
-    if (!(file instanceof File) || !Number.isInteger(caseId) || !["site_visit", "progress"].includes(category)) throw new Error("Choose a valid project photo.");
-    if (!file.type.startsWith("image/")) throw new Error("Site uploads must be image files.");
+    if (!(file instanceof File) || !Number.isInteger(caseId) || !["site_visit", "progress", "quality"].includes(category)) throw new Error("Choose a valid project photo.");
+    const safeImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+    if (!safeImageTypes.has(file.type.toLowerCase())) throw new Error("Only JPEG, PNG, WebP or HEIC site photos are accepted.");
+    if (!await imageSignatureMatches(file)) throw new Error("The uploaded file content does not match its image type.");
     if (file.size > 12 * 1024 * 1024) throw new Error("Each photo must be 12 MB or smaller.");
     const snapshot = await getWorkflowSnapshot(identity.role, identity.email);
     const item = snapshot.cases.find((entry) => entry.id === caseId);
@@ -53,10 +64,11 @@ export async function GET(request: Request) {
   if (!record || !env.BUCKET) return Response.json({ error: "File not found." }, { status: 404 });
   const object = await env.BUCKET.get(record.objectKey);
   if (!object) return Response.json({ error: "File not found." }, { status: 404 });
+  const disposition = record.mimeType.startsWith("image/") ? "inline" : "attachment";
   return new Response(object.body, {
     headers: {
       "Content-Type": record.mimeType,
-      "Content-Disposition": `inline; filename="${record.fileName.replaceAll('"', '')}"`,
+      "Content-Disposition": `${disposition}; filename="${record.fileName.replace(/[\r\n"\\]/g, "").slice(-100)}"`,
       "Cache-Control": identity ? "private, no-store" : "public, max-age=300",
     },
   });

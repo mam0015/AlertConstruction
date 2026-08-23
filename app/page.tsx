@@ -78,8 +78,18 @@ const brands = [
 type PortalType = "customer" | "team" | null;
 type InfoPanel = "privacy" | "terms" | "support" | null;
 type Theme = "light" | "dark";
+type CustomerAccessMethod = "code" | "email" | "phone";
+type CustomerProjectMatch = { requestCode: string; service: string; suburb: string; updatedAt: string };
 
-const supportEmail = "MAMOBINI@gmail.com";
+async function readApiResult<T>(response: Response) {
+  const body = await response.text();
+  if (!body) return {} as T;
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(response.ok ? "The server returned an unreadable response." : "The service is temporarily unavailable. Please try again.");
+  }
+}
 
 export default function Home() {
   const router = useRouter();
@@ -90,8 +100,16 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState("");
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [requestError, setRequestError] = useState("");
+  const [requestUploadWarning, setRequestUploadWarning] = useState("");
+  const [requestBusy, setRequestBusy] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
-  const [trackingCode, setTrackingCode] = useState("ATP-2026-00124");
+  const [trackingCode, setTrackingCode] = useState("");
+  const [customerAccessMethod, setCustomerAccessMethod] = useState<CustomerAccessMethod>("code");
+  const [customerContact, setCustomerContact] = useState("");
+  const [customerError, setCustomerError] = useState("");
+  const [customerSuccess, setCustomerSuccess] = useState("");
+  const [customerMatches, setCustomerMatches] = useState<CustomerProjectMatch[]>([]);
+  const [customerBusy, setCustomerBusy] = useState(false);
   const [teamEmail, setTeamEmail] = useState("");
   const [teamPassword, setTeamPassword] = useState("");
   const [teamCode, setTeamCode] = useState("");
@@ -110,6 +128,15 @@ export default function Home() {
       document.documentElement.dataset.theme = initialTheme;
     });
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    const openTeamLogin = () => {
+      if (window.location.hash === "#team-sign-in") setPortal("team");
+    };
+    openTeamLogin();
+    window.addEventListener("hashchange", openTeamLogin);
+    return () => window.removeEventListener("hashchange", openTeamLogin);
   }, []);
 
   useEffect(() => {
@@ -166,31 +193,116 @@ export default function Home() {
 
   async function handleRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const requestForm = event.currentTarget;
+    setRequestBusy(true);
     setRequestError("");
-    const form = new FormData(event.currentTarget);
+    setRequestUploadWarning("");
+    const form = new FormData(requestForm);
+    const files = form.getAll("files").filter((value): value is File => value instanceof File && value.size > 0);
+    if (files.length > 5) {
+      setRequestError("Choose no more than five files.");
+      setRequestBusy(false);
+      return;
+    }
+    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+      setRequestError("Each photo or PDF must be 5 MB or smaller.");
+      setRequestBusy(false);
+      return;
+    }
     const payload = Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === "string"));
     try {
       const response = await fetch("/api/workflow/public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json() as { data?: { code: string }; error?: string };
+      const result = await readApiResult<{ data?: { caseId: number; code: string }; error?: string }>(response);
       if (!response.ok || !result.data) throw new Error(result.error ?? "Your request could not be submitted.");
+
+      const uploads = [] as Array<Promise<{ ok: boolean; fileName: string }>>;
+      for (const file of files) {
+        const upload = new FormData();
+        upload.set("caseId", String(result.data.caseId));
+        upload.set("code", result.data.code);
+        upload.set("file", file);
+        uploads.push(fetch("/api/workflow/public/files", { method: "POST", body: upload })
+          .then(async (uploadResponse) => ({ ok: uploadResponse.ok, fileName: file.name }))
+          .catch(() => ({ ok: false, fileName: file.name })));
+      }
+      const uploadResults = await Promise.all(uploads);
+      const failedUploads = uploadResults.filter((item) => !item.ok).map((item) => item.fileName);
       setTrackingCode(result.data.code);
       setSubmitted(result.data.code);
+      if (failedUploads.length) setRequestUploadWarning(`Your request was saved, but ${failedUploads.length} file${failedUploads.length === 1 ? "" : "s"} could not be uploaded. Please quote your reference when contacting support.`);
+      requestForm.reset();
+      setSelectedService("");
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : "Your request could not be submitted.");
+      const message = error instanceof Error ? error.message : "Your request could not be submitted.";
+      setRequestError(message === "The string did not match the expected pattern." ? "The service could not read that request. Please check the details and try again." : message);
+    } finally {
+      setRequestBusy(false);
     }
   }
 
-  function handleTracking(event: FormEvent<HTMLFormElement>) {
+  async function handleTracking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setCustomerError("");
+    setCustomerSuccess("");
     const normalised = trackingCode.trim().toUpperCase().replace(/\/+|\s+/g, "-");
-    if (!normalised) return;
-    router.push(`/track/${encodeURIComponent(normalised)}`);
+    if (!/^REQ-\d{4}-[A-F0-9]{32}$/.test(normalised)) {
+      setCustomerError("Enter the complete private reference issued with your request.");
+      return;
+    }
+    setCustomerBusy(true);
+    try {
+      const response = await fetch(`/api/workflow/public?code=${encodeURIComponent(normalised)}`, { cache: "no-store" });
+      const result = await readApiResult<{ data?: unknown; error?: string }>(response);
+      if (!response.ok || !result.data) throw new Error(result.error ?? "We could not find that project reference.");
+      router.push(`/track/${encodeURIComponent(normalised)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Project access is temporarily unavailable.";
+      setCustomerError(message === "The string did not match the expected pattern." ? "The service could not read that reference. Please check it and try again." : message);
+    } finally {
+      setCustomerBusy(false);
+    }
+  }
+
+  async function handleCustomerContactAccess(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (customerAccessMethod === "code") return;
+    setCustomerError("");
+    setCustomerSuccess("");
+    setCustomerMatches([]);
+    setCustomerBusy(true);
+    try {
+      const response = await fetch("/api/workflow/public/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: customerAccessMethod, contact: customerContact }),
+      });
+      const result = await readApiResult<{ projects?: CustomerProjectMatch[]; error?: string }>(response);
+      if (!response.ok || !result.projects?.length) throw new Error(result.error ?? "No project matches those details.");
+      if (result.projects.length === 1) {
+        router.push(`/track/${encodeURIComponent(result.projects[0].requestCode)}`);
+        return;
+      }
+      setCustomerMatches(result.projects);
+      setCustomerSuccess(`${result.projects.length} projects found. Choose the project you want to open.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Project recovery is temporarily unavailable.";
+      setCustomerError(message === "The string did not match the expected pattern." ? "The service could not read those details. Please check them and try again." : message);
+    } finally {
+      setCustomerBusy(false);
+    }
+  }
+
+  function chooseCustomerAccess(method: CustomerAccessMethod) {
+    setCustomerAccessMethod(method);
+    setCustomerError("");
+    setCustomerSuccess("");
+    setCustomerMatches([]);
   }
 
   async function handleTeamSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setTeamBusy(true); setTeamError("");
-    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await response.json() as {error?:string;redirect?:string}; if(!response.ok)throw new Error(result.error??"Sign-in failed."); router.push(result.redirect??"/admin"); router.refresh(); }
-    catch(error){setTeamError(error instanceof Error?error.message:"Sign-in failed.")} finally{setTeamBusy(false)}
+    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); router.push(result.redirect??"/team/pending"); router.refresh(); }
+    catch(error){const message=error instanceof Error?error.message:"Sign-in failed.";setTeamError(message==="The string did not match the expected pattern."?"Sign-in is temporarily unavailable. Please try again.":message)} finally{setTeamBusy(false)}
   }
 
   function toggleTheme() {
@@ -451,13 +563,18 @@ export default function Home() {
             </label>
 
             <label className="upload-field">
-              <input type="file" name="files" accept="image/*,.pdf,.doc,.docx,.dwg" multiple />
+              <input type="file" name="files" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" multiple />
               <span className="upload-icon">＋</span>
               <strong>Add photos, plans or documents</strong>
-              <small>Choose files or drag and drop · JPG, PNG, PDF, DOC or DWG</small>
+              <small>Up to 5 files · JPG, PNG, WebP or PDF · 5 MB each</small>
             </label>
 
-            <button className="submit-button" type="submit">Submit Request <span>→</span></button>
+            <label className="terms-consent">
+              <input type="checkbox" name="termsAccepted" required />
+              <span>I have read and accept the <button type="button" onClick={() => setInfoPanel("privacy")}>Privacy Notice</button> and <button type="button" onClick={() => setInfoPanel("terms")}>Request Terms</button>. I understand this request is not a building contract or fixed price.</span>
+            </label>
+
+            <button className="submit-button" type="submit" disabled={requestBusy}>{requestBusy ? "Saving your request…" : "Submit Request"} <span>→</span></button>
 
             {submitted && (
               <div className="preview-notice" role="status">
@@ -465,6 +582,7 @@ export default function Home() {
                 <span>Keep this reference to follow Admin review, Site Visit, estimate and approved project updates.</span>
               </div>
             )}
+            {requestUploadWarning && <div className="preview-notice warning-notice" role="alert"><strong>Request saved with an upload warning</strong><span>{requestUploadWarning}</span></div>}
             {requestError && <div className="preview-notice" role="alert"><strong>Request not submitted</strong><span>{requestError}</span></div>}
           </form>
         </div>
@@ -498,7 +616,7 @@ export default function Home() {
             <button type="button" onClick={() => setInfoPanel("privacy")}>Privacy</button>
             <button type="button" onClick={() => setInfoPanel("terms")}>Terms &amp; Conditions</button>
             <button type="button" onClick={() => setInfoPanel("support")}>Support</button>
-            <a href={`mailto:${supportEmail}?subject=Alert%20Tradie%20Pro%20-%20Report%20an%20Issue&body=Please%20describe%20the%20issue%2C%20the%20page%20you%20were%20using%20and%20what%20you%20expected%20to%20happen.%0A%0AIssue%3A%0APage%3A%0ADevice%3A`}>Report an Issue</a>
+            <a href="#request">Report an Issue</a>
           </div>
         </div>
       </footer>
@@ -506,7 +624,7 @@ export default function Home() {
       {portal && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setPortal(null)}>
           <section
-            className="portal-modal"
+            className={`portal-modal ${portal === "team" ? "team-access-modal" : "customer-access-modal"}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={dialogTitleId}
@@ -517,42 +635,116 @@ export default function Home() {
               <BrandLogo kind="tradie" className="modal-lockup" />
             </div>
             {portal === "customer" ? (
-              <>
-                <p className="section-kicker">Customer portal</p>
-                <h2 id={dialogTitleId}>Track your request</h2>
-                <p>Enter the unique reference code provided after your request is submitted.</p>
-                <form className="tracking-form" onSubmit={handleTracking}>
-                  <label>
-                    <span>Request or project code</span>
-                    <input
-                      value={trackingCode}
-                      onChange={(event) => setTrackingCode(event.target.value)}
-                      placeholder="ATP-2026-00124"
-                      autoCapitalize="characters"
-                      required
-                    />
-                  </label>
-                  <button type="submit" className="submit-button">View project status <span>→</span></button>
-                </form>
-                <small className="modal-note">A preview reference is ready so you can review the customer experience.</small>
-              </>
-            ) : (
-              <>
-                <p className="section-kicker">Owner-controlled team access</p>
-                <h2 id={dialogTitleId}>Team Sign In</h2>
-                <p>Owner access requires the registered email and password. Staff enter email, password and Team Code, then wait for the Owner to approve their role.</p>
-                <div className="owner-access-note">
-                  <strong>Owner account</strong>
-                  <span>Email-only entry is disabled. Your password is verified securely on the server.</span>
+              <div className="customer-access-layout">
+                <div className="customer-access-intro">
+                  <span className="access-badge">PRIVATE PROJECT ACCESS</span>
+                  <p className="section-kicker">Customer portal</p>
+                  <h2 id={dialogTitleId}>Your project.<br />One private reference.</h2>
+                  <p>Open the live record created for your request. You will only see information, documents and updates approved for customer viewing.</p>
+                  <div className="customer-access-points" aria-label="Customer portal protections">
+                    <span><i>✓</i> No public project search</span>
+                    <span><i>✓</i> Internal team notes stay private</span>
+                    <span><i>✓</i> Approved updates only</span>
+                  </div>
                 </div>
-                <form className="tracking-form" onSubmit={handleTeamSignIn}>
-                  <label><span>Work email</span><input type="email" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@company.com" required /></label>
-                  <label><span>Password</span><input type="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></label>
-                  <label><span>Team code <small>(team members only)</small></span><input type="password" value={teamCode} onChange={e=>setTeamCode(e.target.value)} placeholder="Owner can leave this blank" /></label>
+                <form className="customer-login-form" onSubmit={customerAccessMethod === "code" ? handleTracking : handleCustomerContactAccess}>
+                  <header>
+                    <span>CUSTOMER SIGN IN</span>
+                    <strong>Open your project record</strong>
+                    <small>Use your project code, or enter the exact email or phone saved when the request was created.</small>
+                  </header>
+                  <div className="customer-access-methods" role="tablist" aria-label="Customer sign-in method">
+                    <button type="button" role="tab" aria-selected={customerAccessMethod === "code"} onClick={() => chooseCustomerAccess("code")}>Project code</button>
+                    <button type="button" role="tab" aria-selected={customerAccessMethod === "email"} onClick={() => chooseCustomerAccess("email")}>Email</button>
+                    <button type="button" role="tab" aria-selected={customerAccessMethod === "phone"} onClick={() => chooseCustomerAccess("phone")}>Phone</button>
+                  </div>
+                  {customerAccessMethod === "code" ? (
+                    <label>
+                      <span>Private request reference</span>
+                      <div className="customer-reference-input">
+                        <i aria-hidden="true">ATP</i>
+                        <input
+                          value={trackingCode}
+                          onChange={(event) => { setTrackingCode(event.target.value.toUpperCase()); setCustomerError(""); }}
+                          placeholder="REQ-2026-…"
+                          autoCapitalize="characters"
+                          autoComplete="off"
+                          spellCheck={false}
+                          autoFocus
+                          required
+                        />
+                      </div>
+                    </label>
+                  ) : (
+                    <label>
+                      <span>{customerAccessMethod === "email" ? "Email saved with your request" : "Phone saved with your request"}</span>
+                      <div className="customer-reference-input customer-contact-input">
+                        <i aria-hidden="true">{customerAccessMethod === "email" ? "@" : "+61"}</i>
+                        <input
+                          type={customerAccessMethod === "email" ? "email" : "tel"}
+                          value={customerContact}
+                          onChange={(event) => { setCustomerContact(event.target.value); setCustomerError(""); setCustomerSuccess(""); setCustomerMatches([]); }}
+                          placeholder={customerAccessMethod === "email" ? "name@email.com" : "04XX XXX XXX"}
+                          autoComplete={customerAccessMethod === "email" ? "email" : "tel"}
+                          autoFocus
+                          required
+                        />
+                      </div>
+                    </label>
+                  )}
+                  {customerError && <p className="form-error" role="alert">{customerError}</p>}
+                  {customerSuccess && <p className="customer-access-success" role="status">✓ {customerSuccess}</p>}
+                  {customerMatches.length > 1 && (
+                    <div className="customer-project-matches" aria-label="Matching projects">
+                      {customerMatches.map((project) => (
+                        <button key={project.requestCode} type="button" onClick={() => router.push(`/track/${encodeURIComponent(project.requestCode)}`)}>
+                          <span><strong>{project.service || "Project request"}</strong><small>{project.suburb || "Location not specified"}</small></span>
+                          <i>Open →</i>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button type="submit" className="customer-access-submit" disabled={customerBusy}>{customerBusy ? "Checking your details…" : customerAccessMethod === "code" ? "Open project securely" : "Find my project"} <span>→</span></button>
+                  <p className="customer-access-footnote">{customerAccessMethod === "code" ? "Never share this reference publicly." : "No verification message is sent. The details must exactly match the email or phone saved with your request."}</p>
+                  <button type="button" className="customer-help-link" onClick={() => { setPortal(null); document.getElementById("request")?.scrollIntoView({ behavior: "smooth" }); }}>I need a new project request</button>
+                </form>
+              </div>
+            ) : (
+              <div className="team-access-layout">
+                <div className="team-access-intro">
+                  <span className="access-badge">ONE SECURE ENTRY</span>
+                  <p className="section-kicker">Owner &amp; team workspace</p>
+                  <h2 id={dialogTitleId}>Sign in to your<br/>company workspace.</h2>
+                  <p>One form recognises the account. Owner uses email and password only. A new team member also enters the company Team Code.</p>
+                  <div className="access-flow">
+                    <div><span>01</span><p><strong>Enter details</strong>Email, password and—when joining—the Team Code.</p></div>
+                    <div><span>02</span><p><strong>Owner approval</strong>New members wait while Owner assigns their position.</p></div>
+                    <div><span>03</span><p><strong>Saved access</strong>Approved members return with the same email and password.</p></div>
+                  </div>
+                </div>
+                <form className="team-login-form" onSubmit={handleTeamSignIn}>
+                  <header>
+                    <span>WORKSPACE ACCESS</span>
+                    <strong>Owner &amp; Team Sign In</strong>
+                    <small>There is no separate Owner button.</small>
+                  </header>
+                  <label>
+                    <span>Email / username</span>
+                    <div className="access-input"><i>01</i><input type="email" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@email.com" autoFocus required /></div>
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <div className="access-input"><i>02</i><input type="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></div>
+                  </label>
+                  <label>
+                    <span>Team Code <small>New team requests only</small></span>
+                    <div className="access-input"><i>03</i><input type="text" autoComplete="off" value={teamCode} onChange={e=>setTeamCode(e.target.value.toUpperCase())} placeholder="Owner leaves this blank" /></div>
+                  </label>
                   {teamError && <p className="form-error" role="alert">{teamError}</p>}
-                  <button type="submit" className="submit-button" disabled={teamBusy}>{teamBusy?"Checking with Owner…":"Check staff access"} <span>→</span></button>
-                </form><small className="modal-note">Five unsuccessful attempts temporarily lock further sign-in attempts.</small>
-              </>
+                  <button type="submit" className="team-access-submit" disabled={teamBusy}>{teamBusy?"Checking your account…":"Continue securely"} <span>→</span></button>
+                  <p className="team-access-footnote">New team members go to Waiting Approval. Approved roles are saved and can be changed later by Owner.</p>
+                </form>
+              </div>
             )}
           </section>
         </div>
@@ -577,10 +769,12 @@ export default function Home() {
                 <p className="section-kicker">Privacy</p>
                 <h2 id={dialogTitleId}>Your information matters.</h2>
                 <div className="info-copy">
-                  <p>When the live request system is connected, Alert Tradie Pro will collect only the information needed to review, route and manage your project request, including your contact details, project details and files you choose to upload.</p>
-                  <p>Your information will be used to contact you, assess the work, coordinate the appropriate Alert Construction or Alert Engineers team, and provide customer-visible project updates. We do not sell customer information.</p>
-                  <p>This current design preview does not transmit or store form entries. Do not upload confidential documents until the secure live workflow is activated.</p>
-                  <p>For a privacy question or correction request, email <a href={`mailto:${supportEmail}?subject=Alert%20Tradie%20Pro%20Privacy`}>{supportEmail}</a>.</p>
+                  <p><strong>What we collect.</strong> We collect the contact details, project location, scope, timing, budget range and files you choose to provide so we can review, route and manage your enquiry. Please do not upload identity documents, payment-card details or unrelated sensitive information.</p>
+                  <p><strong>How we use it.</strong> We use the information to contact you, assess the proposed work, prepare estimates or contracts, coordinate the appropriate Alert Construction or Alert Engineers team, and provide approved project updates. We do not sell customer information.</p>
+                  <p><strong>Who can see it.</strong> Access is limited by role. Owners and authorised Admin staff can access customer records needed for management; Site Supervisors and Workers receive only information needed for assigned work. Internal notes and private finance are not published to the customer portal.</p>
+                  <p><strong>Storage and security.</strong> Production records must be stored in the protected database and object storage, not in public GitHub files or browser storage. We use server-side authentication, access controls, audit records and retention controls. No online service can promise zero risk, but we take reasonable technical and organisational steps to prevent misuse, loss and unauthorised access or disclosure.</p>
+                  <p><strong>Access, correction and retention.</strong> Use the secure support form to request access or correction. We retain personal information only while needed for the enquiry, project, legal or dispute-resolution purposes, then delete or de-identify it where permitted.</p>
+                  <p><strong>Privacy incidents.</strong> Suspected incidents are assessed and, where the Notifiable Data Breaches scheme applies, affected people and the OAIC are notified when legally required.</p>
                 </div>
               </>
             )}
@@ -590,10 +784,15 @@ export default function Home() {
                 <p className="section-kicker">Terms &amp; Conditions</p>
                 <h2 id={dialogTitleId}>Using Alert Tradie Pro.</h2>
                 <div className="info-copy">
-                  <p>Submitting a request is an enquiry only. It does not create a building contract, guarantee availability, confirm a price or authorise work to begin.</p>
-                  <p>Project scopes, estimates, quotes, engineering advice, timeframes and approvals must be confirmed separately by the responsible Alert Construction or Alert Engineers team. Customers are responsible for providing accurate and lawful information and files.</p>
-                  <p>Tracking information is provided to help customers follow progress. Dates and activities may change because of site conditions, approvals, materials, weather or trade availability.</p>
-                  <p>This preview is for design review and does not yet create a live request. Contact <a href={`mailto:${supportEmail}?subject=Alert%20Tradie%20Pro%20Terms`}>{supportEmail}</a> with any questions.</p>
+                  <p><strong>1. Enquiry only.</strong> Submitting a request does not create a building contract, guarantee availability, confirm a fixed price or authorise work. A separate written estimate, scope and—where required—a compliant Victorian domestic building contract must be accepted before work begins.</p>
+                  <p><strong>2. Accurate information.</strong> You must provide accurate, lawful and reasonably complete project information and may upload only files you are entitled to share. Missing or inaccurate information can change the scope, price and timing.</p>
+                  <p><strong>3. Estimates, selections and variations.</strong> An estimate is based on the stated scope, assumptions and allowances. If you request additional work or select an item that costs more than the stated allowance, the additional amount may be charged only through the applicable contract and Victorian variation process. We will identify the change, price effect and time effect in writing and obtain approval where the law or contract requires it. Vague or undisclosed price increases are not authorised by this website term.</p>
+                  <p><strong>4. Site conditions and allowances.</strong> Latent conditions, permit requirements, engineering findings, unavailable materials and other matters outside the confirmed scope may require a written variation or revised proposal. Prime-cost and provisional-sum items must be reconciled as the signed contract and law require.</p>
+                  <p><strong>5. Invoices.</strong> Unless the signed contract states another lawful due date, an invoice is due 14 calendar days after issue. If it remains unpaid, we may issue a written notice, suspend work where the contract and law permit, recover agreed lawful costs or interest, and terminate only after the notice and termination requirements in the signed contract and applicable law have been satisfied. Non-payment does not create an automatic cancellation right.</p>
+                  <p><strong>6. Timing and access.</strong> Customer-visible dates are forecasts unless expressly confirmed in the signed contract. Weather, approvals, safety, access, latent conditions, materials and trade availability can affect timing. You must provide safe and reasonable site access when agreed.</p>
+                  <p><strong>7. Quality, defects and handover.</strong> Completion passes through Site Supervisor quality inspection, Admin review and Owner completion approval. Defects and incomplete items should be recorded through the project channel so they can be assessed and rectified under the contract and applicable statutory warranties.</p>
+                  <p><strong>8. Consumer rights.</strong> Nothing in these terms excludes rights or guarantees that cannot lawfully be excluded, including rights under Australian Consumer Law and Victorian building law. The signed project contract prevails over these request terms for project-specific work.</p>
+                  <p><strong>9. Legal review.</strong> These request terms are an operational draft for Victoria and must be reviewed against the company’s registration, insurance, services and chosen contract by a Victorian construction lawyer before production launch.</p>
                 </div>
               </>
             )}
@@ -607,7 +806,7 @@ export default function Home() {
                   <div><span>2</span><p><strong>Receive your ATP code</strong>After the live system accepts the request, you receive a unique code such as ATP/123456.</p></div>
                   <div><span>3</span><p><strong>Track the project</strong>Use Customer Sign In to view approved status updates, scheduled work and customer documents.</p></div>
                 </div>
-                <a className="support-email-button" href={`mailto:${supportEmail}?subject=Alert%20Tradie%20Pro%20Support`}>Email {supportEmail}</a>
+                <a className="support-email-button" href="#request" onClick={() => setInfoPanel(null)}>Open secure support form</a>
               </>
             )}
           </section>
