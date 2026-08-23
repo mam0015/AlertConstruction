@@ -1,0 +1,25 @@
+# Names only. Never put a real password, Team Code or session secret in this file.
+# Generate private values locally with: node scripts/security-setup.mjs
+
+# One Owner account. Owner signs in with email and password only.
+OWNER_EMAIL=<OWNER_EMAIL>
+OWNER_PASSWORD_HASH=<PBKDF2_HASH>
+OWNER_DISPLAY_NAME=<OWNER_NAME>
+OWNER_SESSION_SECRET=<RANDOM_SECRET>
+
+# Team Code is displayed only inside authenticated Owner Settings.
+# New staff enter it for their first access request.
+TEAM_CODE=<PRIVATE_TEAM_CODE>
+TEAM_CODE_HASH=<PBKDF2_HASH>
+TEAM_SESSION_SECRET=<RANDOM_SECRET>
+
+# Optional: send the Owner an email when a new team member requests access.
+# Customer email/phone project lookup does not send messages and needs no provider.
+RESEND_API_KEY=<RESEND_API_KEY>
+TEAM_NOTIFICATION_EMAIL_FROM=<VERIFIED_SENDER_NAME_AND_EMAIL>
+
+# This Cloudflare Worker build uses PBKDF2-SHA256 with exactly 100,000 iterations.
+# Always generate hashes with scripts/security-setup.mjs; older 600,000-iteration hashes are incompatible.
+
+# Production must never seed demonstration data.
+ATP_DEMO_SEED=false
