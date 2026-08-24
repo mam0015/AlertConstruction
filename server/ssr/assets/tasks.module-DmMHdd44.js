@@ -1,0 +1,28 @@
+var tasks_module_default = {
+	managerShell: "_managerShell_29s0h_1",
+	inbox: "_inbox_29s0h_1",
+	managerHeader: "_managerHeader_29s0h_1",
+	taskForm: "_taskForm_29s0h_1",
+	taskRegister: "_taskRegister_29s0h_1",
+	summary: "_summary_29s0h_1",
+	notice: "_notice_29s0h_1",
+	error: "_error_29s0h_1",
+	loading: "_loading_29s0h_1",
+	spin: "_spin_29s0h_1",
+	managementGrid: "_managementGrid_29s0h_1",
+	managementTask: "_managementTask_29s0h_1",
+	filters: "_filters_29s0h_1",
+	taskTop: "_taskTop_29s0h_1",
+	priorityNormal: "_priorityNormal_29s0h_1",
+	priorityHigh: "_priorityHigh_29s0h_1",
+	priorityUrgent: "_priorityUrgent_29s0h_1",
+	assignee: "_assignee_29s0h_1",
+	empty: "_empty_29s0h_1",
+	inboxGrid: "_inboxGrid_29s0h_1",
+	creator: "_creator_29s0h_1",
+	complete: "_complete_29s0h_1",
+	compact: "_compact_29s0h_1",
+	light: "_light_29s0h_1"
+};
+//#endregion
+export { tasks_module_default as t };
