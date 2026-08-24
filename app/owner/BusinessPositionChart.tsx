@@ -1,27 +1,30 @@
 "use client";
 
 import styles from "./owner.module.css";
+import { smoothPath } from "./chart-utils";
 
 type Row = { label: string; income: number; outcome: number };
 
-function pathFor(values: number[], max: number) {
-  const left = 56;
-  const right = 612;
-  const top = 34;
-  const bottom = 210;
+const left = 56;
+const right = 612;
+const top = 34;
+const bottom = 210;
+
+function points(values: number[], max: number) {
   const step = values.length > 1 ? (right - left) / (values.length - 1) : 0;
-  return values.map((value, index) => {
-    const x = left + step * index;
-    const y = bottom - (value / max) * (bottom - top);
-    return `${index ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(" ");
+  return values.map((value, index) => ({
+    x: left + step * index,
+    y: bottom - (value / max) * (bottom - top),
+  }));
 }
 
 export default function BusinessPositionChart({ rows }: { rows: Row[] }) {
   const chartRows = rows.length ? rows : [{ label: "No entries", income: 0, outcome: 0 }];
   const max = Math.max(1, ...chartRows.flatMap((row) => [row.income, row.outcome]));
-  const incomePath = pathFor(chartRows.map((row) => row.income), max);
-  const outcomePath = pathFor(chartRows.map((row) => row.outcome), max);
+  const incomePoints = points(chartRows.map((row) => row.income), max);
+  const outcomePoints = points(chartRows.map((row) => row.outcome), max);
+  const incomePath = smoothPath(incomePoints);
+  const outcomePath = smoothPath(outcomePoints);
   const net = chartRows.reduce((sum, row) => sum + row.income - row.outcome, 0);
   const formatter = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
 
@@ -46,16 +49,17 @@ export default function BusinessPositionChart({ rows }: { rows: Row[] }) {
         </filter>
       </defs>
       {[34, 78, 122, 166, 210].map((y) => <line key={y} x1="56" x2="612" y1={y} y2={y} className={styles.businessGridLine} />)}
-      <path d={`${outcomePath} L 612 210 L 56 210 Z`} fill="url(#outcomeArea)" />
-      <path d={`${incomePath} L 612 210 L 56 210 Z`} fill="url(#incomeArea)" />
+      <path d={`${outcomePath} L ${right} ${bottom} L ${left} ${bottom} Z`} fill="url(#outcomeArea)" />
+      <path d={`${incomePath} L ${right} ${bottom} L ${left} ${bottom} Z`} fill="url(#incomeArea)" />
       <path d={outcomePath} className={styles.outcomePath} />
       <path d={incomePath} className={styles.incomePath} filter="url(#lineGlow)" />
       {chartRows.map((row, index) => {
-        const x = chartRows.length > 1 ? 56 + (556 / (chartRows.length - 1)) * index : 56;
-        const y = 210 - (row.income / max) * 176;
+        const incomePoint = incomePoints[index];
+        const outcomePoint = outcomePoints[index];
         return <g key={`${row.label}-${index}`}>
-          <circle cx={x} cy={y} r="4" className={styles.incomePoint}><title>{row.label}: {formatter.format(row.income / 100)}</title></circle>
-          <text x={x} y="238" textAnchor="middle" className={styles.businessAxisLabel}>{row.label}</text>
+          <circle cx={outcomePoint.x} cy={outcomePoint.y} r="3.5" className={styles.outcomePoint}><title>{row.label} outcome: {formatter.format(row.outcome / 100)}</title></circle>
+          <circle cx={incomePoint.x} cy={incomePoint.y} r="4" className={styles.incomePoint}><title>{row.label} income: {formatter.format(row.income / 100)}</title></circle>
+          <text x={incomePoint.x} y="238" textAnchor="middle" className={styles.businessAxisLabel}>{row.label}</text>
         </g>;
       })}
     </svg>

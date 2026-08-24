@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLogo from "../../BrandLogo";
 import styles from "../team.module.css";
 
 export default function PendingAccess({ email, preview = false }: { email: string; preview?: boolean }) {
-  const router = useRouter();
   const [status, setStatus] = useState<"Pending" | "Rejected">("Pending");
 
   useEffect(() => {
@@ -18,14 +16,13 @@ export default function PendingAccess({ email, preview = false }: { email: strin
       const result = await response.json().catch(() => ({})) as { status?: "Pending" | "Approved" | "Rejected"; redirect?: string };
       if (!active) return;
       if (result.status === "Approved" && result.redirect) {
-        router.replace(result.redirect);
-        router.refresh();
+        window.location.href = result.redirect;
       } else if (result.status === "Rejected") setStatus("Rejected");
     }
     void check();
     const timer = window.setInterval(check, 5000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [router, preview]);
+  }, [preview]);
 
   return <main className={styles.teamShell}>
     <section className={styles.accessCard}>

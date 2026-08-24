@@ -17,3 +17,5 @@
 .emptyState{display:flex;min-height:130px;align-items:center;justify-content:center;padding:28px;color:#858a86;text-align:center;flex-direction:column;gap:8px;grid-column:1/-1}.emptyState strong{color:#d8d4cb;font-size:11px}.emptyState span{font-size:8px;line-height:1.6}
 .dataNotice{display:flex;margin-top:18px;padding:15px 18px;border:1px solid rgba(214,106,106,.3);color:#dca3a3;background:rgba(214,106,106,.07);flex-direction:column;gap:5px}.dataNotice strong{font-size:10px}.dataNotice span{font-size:8px}
 .report button:disabled,.formGrid textarea:disabled{opacity:.45;cursor:not-allowed}
+.sidebar nav i{display:flex;align-items:center;justify-content:center}
+.metricIcon{display:grid;width:34px;height:34px;margin-bottom:12px;place-items:center;border-radius:11px;border:1px solid rgba(215,172,74,.3);background:rgba(215,172,74,.09);color:var(--gold)}

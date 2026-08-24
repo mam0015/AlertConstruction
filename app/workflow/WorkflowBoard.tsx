@@ -18,6 +18,7 @@ function currentJourneyIndex(stage: string) {
   if (stage === "visit_changes_requested") return 4;
   if (stage === "estimate_declined") return 7;
   if (stage === "complete") return journey.length - 1;
+  if (stage === "closed") return 0;
   return journey.indexOf(stage as (typeof journey)[number]);
 }
 
@@ -38,6 +39,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
   const [qualityForm, setQualityForm] = useState({ inspectedAt: today(), summary: "", defects: "" });
   const [sitePhotoIds, setSitePhotoIds] = useState<number[]>([]);
   const [progressPhotoIds, setProgressPhotoIds] = useState<number[]>([]);
+  const [closeNote, setCloseNote] = useState("");
 
   async function load() {
     setLoading(true);
@@ -92,19 +94,19 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
     finally { setWorking(false); }
   }
 
-  async function upload(category: "site_visit" | "progress" | "quality", file?: File) {
+  async function upload(category: "site_visit" | "progress" | "quality" | "document", file?: File) {
     if (!selected || !file) return;
     setWorking(true); setError("");
     try {
       const form = new FormData(); form.set("caseId", String(selected.id)); form.set("category", category); form.set("file", file);
       const response = await fetch(`/api/workflow/files?previewRole=${role}`, { method: "POST", body: form });
       const result = await response.json() as { data?: { id: number; fileName: string }; error?: string };
-      if (!response.ok || !result.data) throw new Error(result.error ?? "Photo upload failed.");
+      if (!response.ok || !result.data) throw new Error(result.error ?? "Upload failed.");
       if (category === "site_visit") setSitePhotoIds((ids) => [...ids, result.data!.id]);
-      else setProgressPhotoIds((ids) => [...ids, result.data!.id]);
-      setNotice(`${result.data.fileName} uploaded to ${selected.projectCode || selected.requestCode}.`);
+      else if (category === "progress" || category === "quality") setProgressPhotoIds((ids) => [...ids, result.data!.id]);
+      setNotice(`${result.data.fileName} added to ${selected.projectCode || selected.requestCode}.`);
       await load();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Photo upload failed."); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Upload failed."); }
     finally { setWorking(false); }
   }
 
@@ -192,6 +194,15 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
           {selected.updates.filter((update) => update.status === "pending_owner").map((update) => <article className={styles.updateApproval} key={update.id}><span>Admin approved · Owner decision required</span><strong>{update.customerUpdate}</strong><p>Internal: {update.internalUpdate}</p><div><button onClick={() => void action("reject_update", { updateId: update.id, note: reviewNote || "Please revise before publication." }, "Update returned for changes.")}>Return</button><button onClick={() => void action("owner_approve_update", { updateId: update.id, note: reviewNote }, "Update published to the Customer portal.")}>Approve & publish</button></div></article>)}
           {!selected.updates.some((update) => update.status === "pending_owner") && <p className={styles.waiting}>No customer update is waiting for Owner approval on this project.</p>}
           {selected.stage === "completion_ready" && <div className={styles.reviewBox}><div><strong>Quality inspection approved by Admin</strong><p>{selected.qualityInspection?.summary}</p><small>{selected.qualityInspection?.defects || "No outstanding defects recorded."}</small></div><label><span>Owner completion note</span><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label><div><button disabled={working} onClick={() => void action("complete_project", { note: reviewNote }, "Project completed and customer status updated.")}>Owner approve & complete project</button></div></div>}
+        </section>}
+
+        {(role === "admin" || role === "owner") && <section className={styles.actionPanel}>
+          <header><div><span>PROJECT FOLDER · ADMIN &amp; OWNER ONLY</span><h3>Add documents &amp; close requests</h3></div></header>
+          <div className={styles.uploadBox}><input type="file" accept="image/*,application/pdf" onChange={(event) => void upload("document", event.target.files?.[0])} /><strong>Add a photo or PDF to this project&apos;s folder</strong><span>Invoices, quotes, extra photos — stored internally, never shown to the customer</span></div>
+          {!["complete", "closed"].includes(selected.stage) ? <form onSubmit={(event) => { event.preventDefault(); if (window.confirm("Close this request? It will leave the active pipeline and the customer will see it as closed. No records are deleted.")) void action("close_case", { note: closeNote }, "Request closed."); }}>
+            <label><span>Reason for closing</span><textarea value={closeNote} onChange={(event) => setCloseNote(event.target.value)} placeholder="e.g. duplicate submission, customer withdrew, test entry…" required /></label>
+            <button className={styles.dangerButton} disabled={working}>Close this request</button>
+          </form> : <p className={styles.waiting}>{selected.stage === "closed" ? "This request is closed." : "This project is complete."}</p>}
         </section>}
 
         <div className={styles.lowerGrid}>

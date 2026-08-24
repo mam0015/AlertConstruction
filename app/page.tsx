@@ -301,7 +301,7 @@ export default function Home() {
 
   async function handleTeamSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setTeamBusy(true); setTeamError("");
-    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); router.push(result.redirect??"/team/pending"); router.refresh(); }
+    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); window.location.href = result.redirect??"/team/pending"; return; }
     catch(error){const message=error instanceof Error?error.message:"Sign-in failed.";setTeamError(message==="The string did not match the expected pattern."?"Sign-in is temporarily unavailable. Please try again.":message)} finally{setTeamBusy(false)}
   }
 

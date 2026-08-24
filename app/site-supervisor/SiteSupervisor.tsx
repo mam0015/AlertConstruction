@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { LayoutDashboard, Workflow as WorkflowIcon, ListChecks, TriangleAlert, ArrowRight as ArrowRightIcon, FolderKanban, CalendarDays, ClipboardCheck, FileText, MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 import Link from "next/link";
 import WorkflowBoard from "../workflow/WorkflowBoard";
@@ -10,18 +11,20 @@ import styles from "./supervisor.module.css";
 
 type View = "overview" | "workflow" | "tasks" | "issues" | "followups" | "projects" | "schedule" | "checklist" | "report" | "messages";
 
-const nav: Array<{ id: View; icon: string; label: string }> = [
-  { id: "overview", icon: "◇", label: "Site overview" },
-  { id: "workflow", icon: "↻", label: "Site Visit workflow" },
-  { id: "tasks", icon: "✓", label: "Assigned tasks" },
-  { id: "issues", icon: "!", label: "Delays & site problems" },
-  { id: "followups", icon: "→", label: "Tomorrow follow-ups" },
-  { id: "projects", icon: "▦", label: "Assigned projects" },
-  { id: "schedule", icon: "□", label: "My schedule" },
-  { id: "checklist", icon: "✓", label: "Site checklist" },
-  { id: "report", icon: "+", label: "End-of-day report" },
-  { id: "messages", icon: "↗", label: "Team messages" },
+const nav: Array<{ id: View; icon: LucideIcon; label: string }> = [
+  { id: "overview", icon: LayoutDashboard, label: "Site overview" },
+  { id: "workflow", icon: WorkflowIcon, label: "Site Visit workflow" },
+  { id: "tasks", icon: ListChecks, label: "Assigned tasks" },
+  { id: "issues", icon: TriangleAlert, label: "Delays & site problems" },
+  { id: "followups", icon: ArrowRightIcon, label: "Tomorrow follow-ups" },
+  { id: "projects", icon: FolderKanban, label: "Assigned projects" },
+  { id: "schedule", icon: CalendarDays, label: "My schedule" },
+  { id: "checklist", icon: ClipboardCheck, label: "Site checklist" },
+  { id: "report", icon: FileText, label: "End-of-day report" },
+  { id: "messages", icon: MessageSquare, label: "Team messages" },
 ];
+function NavIcon({ icon: Icon }: { icon: LucideIcon }) { return <Icon size={17} strokeWidth={1.75} />; }
+function MetricIcon({ icon: Icon }: { icon: LucideIcon }) { return <i className={styles.metricIcon}><Icon size={16} strokeWidth={1.75} /></i>; }
 
 type AssignedProject = { caseId: number; projectCode: string; service: string; suburb: string; stage: string; progress: number; assignedSupervisorName?: string };
 type AssignedTask = { id: number; projectCode: string; title: string; instructions: string; priority: string; status: string };
@@ -104,7 +107,7 @@ export default function SiteSupervisor({ previewTasks = false }: { previewTasks?
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href="/"><BrandLogo kind="tradie" tone="dark" className={styles.logo} /></Link>
       <div className={styles.roleCard}><span>SS</span><div><small>AUTHENTICATED ROLE</small><strong>Site Supervisor 01</strong><b>Site delivery access</b></div></div>
-      <nav>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.active : ""} onClick={() => setView(item.id)}><i>{item.icon}</i><span>{item.label}</span>{item.id === "checklist" && <b>{completed}/6</b>}</button>)}</nav>
+      <nav>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.active : ""} onClick={() => setView(item.id)}><i><NavIcon icon={item.icon} /></i><span>{item.label}</span>{item.id === "checklist" && <b>{completed}/6</b>}</button>)}</nav>
       <div className={styles.restricted}><span>RESTRICTED BY OWNER</span><strong>Finance · Quotes · Profit</strong><small>Private pricing and management controls are never sent to this role.</small></div>
       <div className={styles.sidebarFoot}><span><i /> Secure session active</span><Link href="/">Public website ↗</Link></div>
     </aside>
@@ -122,7 +125,7 @@ export default function SiteSupervisor({ previewTasks = false }: { previewTasks?
         {view === "followups" && <OperationsControlPanel role="supervisor" mode="followups" preview={previewTasks} />}
         {view === "overview" && <>
           <OperationsControlPanel role="supervisor" mode="alerts" preview={previewTasks} />
-          <section className={styles.metrics}><article><span>ASSIGNED PROJECTS</span><strong>{projects.length}</strong><small>{projects.filter((project) => project.stage.toLowerCase() !== "complete").length} active</small></article><article><span>OPEN DIRECTIONS</span><strong>{openDirections.length}</strong><small>{directions.filter((task) => task.status === "completed").length} completed</small></article><article><span>CHECKLIST</span><strong>{completed}/{checks.length}</strong><small>Today&apos;s site checks</small></article><article><span>OPEN SITE ISSUES</span><strong>{openIssues}</strong><small>Live operations record</small></article></section>
+          <section className={styles.metrics}><article><MetricIcon icon={Briefcase} /><span>ASSIGNED PROJECTS</span><strong>{projects.length}</strong><small>{projects.filter((project) => project.stage.toLowerCase() !== "complete").length} active</small></article><article><MetricIcon icon={ListChecks} /><span>OPEN DIRECTIONS</span><strong>{openDirections.length}</strong><small>{directions.filter((task) => task.status === "completed").length} completed</small></article><article><MetricIcon icon={ClipboardCheck} /><span>CHECKLIST</span><strong>{completed}/{checks.length}</strong><small>Today&apos;s site checks</small></article><article><MetricIcon icon={TriangleAlert} /><span>OPEN SITE ISSUES</span><strong>{openIssues}</strong><small>Live operations record</small></article></section>
           <div className={styles.overviewGrid}>
             <section className={styles.panel}><header><div><span>MANAGEMENT DIRECTION</span><h2>Assigned work</h2></div><button onClick={() => setView("tasks")}>Open tasks →</button></header><div className={styles.taskList}>{directions.slice(0, 5).map((task) => <article key={task.id}><time>{task.status === "completed" ? "DONE" : "OPEN"}</time><i className={styles[task.priority === "Urgent" ? "orange" : task.priority === "High" ? "gold" : "blue"]} /><div><strong>{task.title}</strong><small>{task.projectCode} · {task.instructions}</small></div><button onClick={() => setView("tasks")}>Open →</button></article>)}{directions.length === 0 && <div className={styles.emptyState}><strong>No direction assigned.</strong><span>New Owner or Admin tasks will appear here.</span></div>}</div></section>
             <section className={styles.panel}><header><div><span>QUALITY CONTROL</span><h2>Checklist progress</h2></div><button onClick={() => setView("checklist")}>Open checklist →</button></header><div className={styles.progressRing}><div style={{ "--progress": `${completed / checks.length * 360}deg` } as CSSProperties}><span><strong>{completed}</strong> of {checks.length}</span></div><p><strong>Framing checks underway</strong><small>Complete every relevant item before submitting today&apos;s report.</small></p></div></section>

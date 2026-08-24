@@ -9,6 +9,7 @@ async function imageSignatureMatches(file: File) {
   if (file.type === "image/png") return bytes.slice(0, 8).every((byte, index) => byte === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index]);
   if (file.type === "image/webp") return new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   if (file.type === "image/heic" || file.type === "image/heif") return new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
+  if (file.type === "application/pdf") return new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
   return false;
 }
 
@@ -34,11 +35,14 @@ export async function POST(request: Request) {
     const file = form.get("file");
     const caseId = Number(form.get("caseId"));
     const category = String(form.get("category") ?? "");
-    if (!(file instanceof File) || !Number.isInteger(caseId) || !["site_visit", "progress", "quality"].includes(category)) throw new Error("Choose a valid project photo.");
+    if (!(file instanceof File) || !Number.isInteger(caseId) || !["site_visit", "progress", "quality", "document"].includes(category)) throw new Error("Choose a valid project photo.");
+    if (category === "document" && !["admin", "owner"].includes(identity.role)) throw new Error("Only Admin or Owner can add documents to the project folder.");
     const safeImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-    if (!safeImageTypes.has(file.type.toLowerCase())) throw new Error("Only JPEG, PNG, WebP or HEIC site photos are accepted.");
-    if (!await imageSignatureMatches(file)) throw new Error("The uploaded file content does not match its image type.");
-    if (file.size > 12 * 1024 * 1024) throw new Error("Each photo must be 12 MB or smaller.");
+    const safeTypes = category === "document" ? new Set([...safeImageTypes, "application/pdf"]) : safeImageTypes;
+    if (!safeTypes.has(file.type.toLowerCase())) throw new Error(category === "document" ? "Only JPEG, PNG, WebP, HEIC or PDF files are accepted." : "Only JPEG, PNG, WebP or HEIC site photos are accepted.");
+    if (!await imageSignatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
+    const maxSize = category === "document" ? 20 * 1024 * 1024 : 12 * 1024 * 1024;
+    if (file.size > maxSize) throw new Error(`Each file must be ${category === "document" ? 20 : 12} MB or smaller.`);
     const snapshot = await getWorkflowSnapshot(identity.role, identity.email);
     const item = snapshot.cases.find((entry) => entry.id === caseId);
     if (!item) throw new Error("This project is not available to your role.");

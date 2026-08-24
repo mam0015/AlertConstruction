@@ -39,9 +39,22 @@ export function normaliseCustomerContact(kind: CustomerContactKind, value: strin
   return digits;
 }
 
+function requiredContactHashSecret() {
+  const value = process.env.CUSTOMER_CONTACT_HASH_SECRET?.trim();
+  if (!value) throw new Error("CUSTOMER_CONTACT_HASH_SECRET is not configured.");
+  return value;
+}
+
 async function customerContactHash(kind: CustomerContactKind, value: string) {
   const normalised = normaliseCustomerContact(kind, value);
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${kind}:${normalised}`)));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(requiredContactHashSecret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${kind}:${normalised}`)));
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -372,6 +385,12 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
       db.prepare("UPDATE workflow_files SET visibility='published',published_at=? WHERE case_id=? AND update_id=?").bind(now, caseId, updateId),
     ]);
     await event(db, caseId, "Owner", actorEmail, action, "Owner approved and published the customer update", "The approved text and photos are now visible to the customer.", "customer");
+  } else if (action === "close_case") {
+    if (!["admin", "owner"].includes(role)) throw new Error("Admin or Owner access is required to close a request.");
+    if (["complete", "closed"].includes(stage)) throw new Error("This request is already finished.");
+    const note = required(payload.note, "Closing reason");
+    await db.prepare("UPDATE workflow_cases SET stage='closed',updated_at=? WHERE id=?").bind(now, caseId).run();
+    await event(db, caseId, role === "owner" ? "Owner" : "Admin", actorEmail, action, "Request closed", note, "customer");
   } else if (action === "reject_update") {
     if (!['admin', 'owner'].includes(role)) throw new Error("Management access is required.");
     const updateId = number(payload.updateId);
@@ -488,8 +507,9 @@ export async function addWorkflowFile(caseId: number, category: string, objectKe
   const db = await database();
   const created = await db.prepare("INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at) VALUES (?,?,?,?,?,?,?,'internal',?)")
     .bind(caseId, category, objectKey, file.name, file.type, file.size, uploadedBy, new Date().toISOString()).run();
-  const label = category === "site_visit" ? "Site visit" : category === "quality" ? "Quality inspection" : "Progress";
-  await event(db, caseId, uploadedBy.includes("@") ? "Site Supervisor" : "Team", uploadedBy, "photo_uploaded", `${label} photo uploaded`, file.name);
+  const label = category === "site_visit" ? "Site visit" : category === "quality" ? "Quality inspection" : category === "document" ? "Project folder" : "Progress";
+  const verb = category === "document" ? "file added" : "photo uploaded";
+  await event(db, caseId, uploadedBy.includes("@") ? "Site Supervisor" : "Team", uploadedBy, "photo_uploaded", `${label} ${verb}`, file.name);
   return Number(created.meta.last_row_id);
 }
 

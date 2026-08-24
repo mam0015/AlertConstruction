@@ -1,4 +1,4 @@
-import { getLoginAttempt, recordLoginFailure } from "../../../../../db/owner-store";
+import { clearLoginFailures, getLoginAttempt, recordLoginFailure } from "../../../../../db/owner-store";
 import { findCustomerProjectsByContact, normaliseCustomerContact, type CustomerContactKind } from "../../../../../db/workflow-store";
 import { requestIsSameOrigin } from "../../../../owner-auth";
 
@@ -23,12 +23,13 @@ export async function POST(request: Request) {
   const attempt = await getLoginAttempt(key);
   if (attempt && attempt.lockedUntil > Date.now()) return Response.json({ error: "Too many lookup attempts. Try again later." }, { status: 429 });
 
-  const count = (attempt?.failedCount ?? 0) + 1;
-  await recordLoginFailure(key, count, count >= 5 ? Date.now() + 60 * 60 * 1000 : 0);
   const projects = await findCustomerProjectsByContact(kind, contact);
   if (!projects.length) {
+    const count = (attempt?.failedCount ?? 0) + 1;
+    await recordLoginFailure(key, count, count >= 5 ? Date.now() + 60 * 60 * 1000 : 0);
     return Response.json({ error: "No project matches that saved email or phone number." }, { status: 404, headers: { "Cache-Control": "no-store" } });
   }
 
+  await clearLoginFailures(key);
   return Response.json({ ok: true, projects }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LayoutDashboard, Workflow as WorkflowIcon, TriangleAlert, ArrowRight as ArrowRightIcon, HardHat, ListChecks, FolderKanban, Inbox, CalendarDays, MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 import WorkflowBoard from "../workflow/WorkflowBoard";
 import WorkerManagementPanel from "../workers/WorkerManagementPanel";
@@ -21,18 +22,20 @@ type Permissions = { role: string; projects: number; schedule: number; finance: 
 type Snapshot = { projects: Project[]; requests: JobRequest[]; scheduleEvents: ScheduleEvent[]; messages: Message[]; permissions: Permissions };
 
 const empty: Snapshot = { projects: [], requests: [], scheduleEvents: [], messages: [], permissions: { role: "Admin", projects: 1, schedule: 1, finance: 0, financeExport: 0 } };
-const nav: { id: View; label: string; icon: string }[] = [
-  { id: "overview", label: "Operations overview", icon: "◇" },
-  { id: "workflow", label: "Project workflow", icon: "↻" },
-  { id: "issues", label: "Site delays & problems", icon: "!" },
-  { id: "followups", label: "Upcoming follow-ups", icon: "→" },
-  { id: "workers", label: "Worker assignments", icon: "⌁" },
-  { id: "tasks", label: "Team tasks", icon: "✓" },
-  { id: "projects", label: "Projects", icon: "▦" },
-  { id: "requests", label: "New requests", icon: "◎" },
-  { id: "schedule", label: "Schedule", icon: "□" },
-  { id: "messages", label: "Team messages", icon: "↗" },
+const nav: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "overview", label: "Operations overview", icon: LayoutDashboard },
+  { id: "workflow", label: "Project workflow", icon: WorkflowIcon },
+  { id: "issues", label: "Site delays & problems", icon: TriangleAlert },
+  { id: "followups", label: "Upcoming follow-ups", icon: ArrowRightIcon },
+  { id: "workers", label: "Worker assignments", icon: HardHat },
+  { id: "tasks", label: "Team tasks", icon: ListChecks },
+  { id: "projects", label: "Projects", icon: FolderKanban },
+  { id: "requests", label: "New requests", icon: Inbox },
+  { id: "schedule", label: "Schedule", icon: CalendarDays },
+  { id: "messages", label: "Team messages", icon: MessageSquare },
 ];
+function NavIcon({ icon: Icon }: { icon: LucideIcon }) { return <Icon size={18} strokeWidth={1.75} />; }
+function MetricIcon({ icon: Icon }: { icon: LucideIcon }) { return <i className={styles.metricIcon}><Icon size={16} strokeWidth={1.75} /></i>; }
 const services = ["Home Renovation", "Bathroom Renovation", "Kitchen Renovation", "Home Extension", "New Home", "Building Inspection", "Maintenance & Repairs", "Engineering"];
 const stages = ["Admin review", "Site inspection", "Estimate", "Quote sent", "Customer approval", "Scheduled", "Construction", "Handover", "Complete"];
 const requestStatuses = ["New", "Contacted", "Needs review", "Site visit booked", "Converted", "Closed"];
@@ -186,7 +189,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
     <aside className={styles.sidebar}>
       <Link className={styles.brandLink} href="/"><BrandLogo kind="tradie" tone="dark" className={styles.sidebarLogo} /></Link>
       <div className={styles.roleCard}><span>AD</span><div><small>{previewAsOwner ? "Owner preview mode" : "Authenticated role"}</small><strong>{previewAsOwner ? "Admin workspace" : viewerName}</strong><b>Operational access</b></div></div>
-      <nav className={styles.sidebarNav}>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.activeNav : ""} onClick={() => choose(item.id)}><i>{item.icon}</i><span>{item.label}</span>{item.id === "requests" && newRequests.length > 0 && <b>{newRequests.length}</b>}</button>)}</nav>
+      <nav className={styles.sidebarNav}>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.activeNav : ""} onClick={() => choose(item.id)}><i><NavIcon icon={item.icon} /></i><span>{item.label}</span>{item.id === "requests" && newRequests.length > 0 && <b>{newRequests.length}</b>}</button>)}</nav>
       <div className={styles.restrictedCard}><span>Restricted by Owner</span><strong>Finance · Owner settings</strong><small>Worker delivery controls are available; private Owner authority remains locked.</small></div>
       <div className={styles.sidebarBottom}><div><i /><span>Secure session active</span></div>{previewAsOwner ? <Link href="/owner">← Back to Owner</Link> : <button onClick={signOut}>Sign out</button>}<Link href="/">Public website ↗</Link></div>
     </aside>
@@ -203,7 +206,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
           {view === "tasks" && <>{!previewAsOwner && <TaskInbox role="Admin" preview={viewerEmail.includes(".local")} compact />}<OperationsControlPanel role="admin" mode="followups" preview={viewerEmail.includes(".local")} /><TaskManagementPanel role="admin" scope="operations" /></>}
           {view === "overview" && <>
             <OperationsControlPanel role="admin" mode="alerts" preview={viewerEmail.includes(".local")} />
-            <section className={styles.metricStrip}><article><span>New requests</span><strong>{newRequests.length}</strong><small>Need follow-up</small></article><article><span>Active projects</span><strong>{activeProjects.length}</strong><small>{data.projects.length} project records</small></article><article><span>Today on site</span><strong>{todayItems.length}</strong><small>Scheduled actions</small></article><article><span>Team messages</span><strong>{data.messages.length}</strong><small>Saved conversation entries</small></article></section>
+            <section className={styles.metricStrip}><article><MetricIcon icon={Inbox} /><span>New requests</span><strong>{newRequests.length}</strong><small>Need follow-up</small></article><article><MetricIcon icon={Briefcase} /><span>Active projects</span><strong>{activeProjects.length}</strong><small>{data.projects.length} project records</small></article><article><MetricIcon icon={CalendarDays} /><span>Today on site</span><strong>{todayItems.length}</strong><small>Scheduled actions</small></article><article><MetricIcon icon={MessageSquare} /><span>Team messages</span><strong>{data.messages.length}</strong><small>Saved conversation entries</small></article></section>
             <section className={styles.overviewGrid}><article className={styles.panel}><div className={styles.panelHeading}><div><span>Priority intake</span><h2>Requests requiring action</h2></div><button onClick={() => choose("requests")}>Open all →</button></div><div className={styles.requestQueue}>{newRequests.slice(0, 4).map((request) => <button key={request.id} onClick={() => openRequest(request)}><i className={styles[`priority${request.priority}`]} /><div><small>{request.requestType} · {request.code}</small><strong>{request.service} — {request.suburb}</strong><p>{request.customerName} · {request.status}</p></div><span>→</span></button>)}{newRequests.length === 0 && <p>No customer request requires action.</p>}</div></article><article className={styles.panel}><div className={styles.panelHeading}><div><span>Site direction</span><h2>Next scheduled work</h2></div><button onClick={() => choose("schedule")}>Full schedule →</button></div><div className={styles.nextSchedule}>{data.scheduleEvents.slice(0, 4).map((item) => <button key={item.id} onClick={() => openSchedule(item)}><time>{formatDate(item.eventDate, { day: "2-digit", month: "short" })}<small>{item.startTime}</small></time><i className={styles[`tone_${item.tone}`]} /><div><strong>{item.title}</strong><small>{item.assignee} · {item.projectCode}</small></div></button>)}{data.scheduleEvents.length === 0 && <p>No work has been scheduled.</p>}</div></article></section>
             <section className={`${styles.panel} ${styles.projectTable}`}><div className={styles.panelHeading}><div><span>Operational portfolio</span><h2>Projects in motion</h2></div><button onClick={() => choose("projects")}>Manage projects →</button></div><div className={styles.tableHeader}><span>Project</span><span>Stage</span><span>Delivery</span><span>Next action</span></div>{activeProjects.slice(0, 5).map((project) => <button className={styles.projectRow} key={project.id} onClick={() => openProject(project)}><div><i /><span><strong>{project.name}</strong><small>{project.code} · {project.suburb || project.service}</small></span></div><span>{project.stage}</span><div><i><b style={{ width: `${project.progress}%` }} /></i><span>{project.progress}%</span></div><strong>{project.notes || "Review project record"}</strong></button>)}{activeProjects.length === 0 && <p>No active project records.</p>}</section>
           </>}
@@ -219,7 +222,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
       </div>
     </section>
 
-    <nav className={styles.mobileNav}>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.activeMobileNav : ""} onClick={() => choose(item.id)}><i>{item.icon}</i><span>{item.label.split(" ")[0]}</span></button>)}</nav>
+    <nav className={styles.mobileNav}>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.activeMobileNav : ""} onClick={() => choose(item.id)}><i><NavIcon icon={item.icon} /></i><span>{item.label.split(" ")[0]}</span></button>)}</nav>
 
     {projectModal && <div className={styles.modalBackdrop} onMouseDown={() => setProjectModal(null)}><form className={styles.recordModal} onSubmit={saveProject} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setProjectModal(null)}>×</button><p className={styles.eyebrow}>Operational project record</p><h2>{projectModal === "new" ? "Create project" : "Edit project"}</h2><div className={styles.formGrid}>{[["ATP project code", "code", "text"], ["Project name", "name", "text"], ["Customer name", "customerName", "text"], ["Suburb", "suburb", "text"], ["Progress %", "progress", "number"], ["Start date", "startDate", "date"]].map(([label, key, type]) => <label key={key}><span>{label}</span><input type={type} value={projectForm[key as keyof typeof projectForm]} onChange={(event) => setProjectForm((current) => ({ ...current, [key]: event.target.value }))} required={["code", "name"].includes(key)} /></label>)}<label><span>Service</span><select value={projectForm.service} onChange={(event) => setProjectForm((current) => ({ ...current, service: event.target.value }))}>{services.map((service) => <option key={service}>{service}</option>)}</select></label><label><span>Stage</span><select value={projectForm.stage} onChange={(event) => setProjectForm((current) => ({ ...current, stage: event.target.value }))}>{stages.map((stage) => <option key={stage}>{stage}</option>)}</select></label><label className={styles.fullField}><span>Operational note</span><textarea value={projectForm.notes} onChange={(event) => setProjectForm((current) => ({ ...current, notes: event.target.value }))} /></label></div><div className={styles.restrictedNotice}>Private contract values, balances and Finance records remain Owner-only.</div><button className={styles.primaryButton} disabled={working}>{working ? "Saving…" : "Save project"}</button></form></div>}
 

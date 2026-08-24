@@ -15,6 +15,7 @@ export const workflowStages = [
   "quality_inspection",
   "completion_ready",
   "complete",
+  "closed",
 ] as const;
 
 export type WorkflowStage = typeof workflowStages[number];
@@ -37,6 +38,7 @@ export const stageLabels: Record<WorkflowStage, string> = {
   quality_inspection: "Quality inspection",
   completion_ready: "Ready for completion",
   complete: "Complete",
+  closed: "Closed",
 };
 
 export type QualityInspection = {
