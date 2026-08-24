@@ -18,6 +18,10 @@ TEAM_SESSION_SECRET=<RANDOM_SECRET>
 RESEND_API_KEY=<RESEND_API_KEY>
 TEAM_NOTIFICATION_EMAIL_FROM=<VERIFIED_SENDER_NAME_AND_EMAIL>
 
+# Secret pepper for the customer email/phone lookup index (db/workflow-store.ts).
+# Without this, the customer contact index cannot be written or searched.
+CUSTOMER_CONTACT_HASH_SECRET=<RANDOM_SECRET>
+
 # This Cloudflare Worker build uses PBKDF2-SHA256 with exactly 100,000 iterations.
 # Always generate hashes with scripts/security-setup.mjs; older 600,000-iteration hashes are incompatible.
 

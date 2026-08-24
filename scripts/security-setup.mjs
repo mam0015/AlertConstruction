@@ -49,10 +49,13 @@ async function askHidden(label) {
 }
 
 try {
-  const kind = (await ask("Create Owner credentials or Team Code? [owner/team]: ")).toLowerCase();
-  if (!["owner", "team"].includes(kind)) throw new Error("Choose owner or team.");
+  const kind = (await ask("Create Owner credentials, Team Code or Contact hash secret? [owner/team/contact]: ")).toLowerCase();
+  if (!["owner", "team", "contact"].includes(kind)) throw new Error("Choose owner, team or contact.");
 
-  if (kind === "owner") {
+  if (kind === "contact") {
+    console.log("\nCopy this value into the private runtime settings. Do not add it to GitHub.\n");
+    console.log(`CUSTOMER_CONTACT_HASH_SECRET=${base64url(randomBytes(48))}`);
+  } else if (kind === "owner") {
     const email = (await ask("Owner email address: ")).toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Enter a valid email address.");
     const displayName = (await ask("Owner display name [Owner]: ")) || "Owner";

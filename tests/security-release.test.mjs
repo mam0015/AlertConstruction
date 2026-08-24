@@ -110,7 +110,8 @@ test("uploads reject active content and verify image signatures", async () => {
   assert.match(route, /safeImageTypes/);
   assert.match(route, /imageSignatureMatches/);
   assert.doesNotMatch(route, /image\/svg\+xml/);
-  assert.match(route, /\["site_visit", "progress", "quality"\]/);
+  assert.match(route, /\["site_visit", "progress", "quality", "document"\]/);
+  assert.match(route, /category === "document" && !\["admin", "owner"\]\.includes\(identity\.role\)/);
 });
 
 test("security headers and controlled quality-to-completion lifecycle are present", async () => {
