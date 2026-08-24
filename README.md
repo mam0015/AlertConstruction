@@ -1,19 +1,19 @@
-# @babel/helper-compilation-targets
+# @babel/helper-module-imports
 
-> Helper functions on Babel compilation targets
+> Babel helper functions for inserting module loads
 
-See our website [@babel/helper-compilation-targets](https://babeljs.io/docs/babel-helper-compilation-targets) for more information.
+See our website [@babel/helper-module-imports](https://babeljs.io/docs/babel-helper-module-imports) for more information.
 
 ## Install
 
 Using npm:
 
 ```sh
-npm install --save @babel/helper-compilation-targets
+npm install --save @babel/helper-module-imports
 ```
 
 or using yarn:
 
 ```sh
-yarn add @babel/helper-compilation-targets
+yarn add @babel/helper-module-imports
 ```
