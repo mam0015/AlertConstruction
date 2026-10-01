@@ -69,6 +69,7 @@ export async function ensureWorkflowDatabase() {
     db.prepare(`CREATE TABLE IF NOT EXISTS workflow_estimates (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL UNIQUE, amount_cents INTEGER NOT NULL, scope TEXT NOT NULL, terms TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', created_by TEXT NOT NULL, created_at TEXT NOT NULL, sent_at TEXT NOT NULL DEFAULT '', customer_decided_at TEXT NOT NULL DEFAULT '', confirmed_at TEXT NOT NULL DEFAULT '')`),
     db.prepare(`CREATE TABLE IF NOT EXISTS project_updates (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL, work_date TEXT NOT NULL, supervisor_email TEXT NOT NULL, internal_update TEXT NOT NULL, customer_update TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_admin', admin_note TEXT NOT NULL DEFAULT '', owner_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, admin_reviewed_at TEXT NOT NULL DEFAULT '', owner_reviewed_at TEXT NOT NULL DEFAULT '', published_at TEXT NOT NULL DEFAULT '')`),
     db.prepare(`CREATE TABLE IF NOT EXISTS quality_inspections (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL UNIQUE, supervisor_email TEXT NOT NULL, inspected_at TEXT NOT NULL, summary TEXT NOT NULL, defects TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'submitted', admin_note TEXT NOT NULL DEFAULT '', owner_note TEXT NOT NULL DEFAULT '', submitted_at TEXT NOT NULL, reviewed_at TEXT NOT NULL DEFAULT '', completed_at TEXT NOT NULL DEFAULT '')`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS change_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'sent', created_by TEXT NOT NULL, created_at TEXT NOT NULL, customer_reply TEXT NOT NULL DEFAULT '', decided_at TEXT NOT NULL DEFAULT '')`),
     db.prepare(`CREATE TABLE IF NOT EXISTS workflow_events (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL, actor_role TEXT NOT NULL, actor_email TEXT NOT NULL DEFAULT '', event_type TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT 'internal', created_at TEXT NOT NULL)`),
     db.prepare("CREATE INDEX IF NOT EXISTS workflow_cases_stage_idx ON workflow_cases(stage)"),
     db.prepare("CREATE INDEX IF NOT EXISTS workflow_cases_supervisor_idx ON workflow_cases(assigned_supervisor_email)"),
@@ -76,6 +77,7 @@ export async function ensureWorkflowDatabase() {
     db.prepare("CREATE INDEX IF NOT EXISTS workflow_files_case_idx ON workflow_files(case_id, category)"),
     db.prepare("CREATE INDEX IF NOT EXISTS project_updates_case_idx ON project_updates(case_id, created_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS quality_inspections_case_idx ON quality_inspections(case_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS change_proposals_case_idx ON change_proposals(case_id)"),
     db.prepare(`CREATE TABLE IF NOT EXISTS request_consents (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER NOT NULL UNIQUE, terms_version TEXT NOT NULL, accepted_at TEXT NOT NULL)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS customer_contact_index (
       case_id INTEGER NOT NULL,
@@ -172,6 +174,7 @@ export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string
     db.prepare("SELECT id,case_id AS caseId,supervisor_email AS supervisorEmail,inspected_at AS inspectedAt,summary,defects,status,admin_note AS adminNote,owner_note AS ownerNote,submitted_at AS submittedAt,reviewed_at AS reviewedAt,completed_at AS completedAt FROM quality_inspections"),
     db.prepare("SELECT id,case_id AS caseId,actor_role AS actorRole,actor_email AS actorEmail,event_type AS eventType,title,detail,audience,created_at AS createdAt FROM workflow_events ORDER BY created_at DESC,id DESC LIMIT 250"),
     db.prepare("SELECT email,COALESCE(NULLIF(trade_title,''),role) AS name FROM staff_access_requests WHERE status='Approved' AND role='Site Supervisor' ORDER BY email"),
+    db.prepare("SELECT id,case_id AS caseId,title,detail,status,created_by AS createdBy,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals ORDER BY created_at DESC"),
   ];
   const result = await db.batch(statements);
   const cases = result[0].results as Raw[];
@@ -180,6 +183,7 @@ export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string
   const estimates = result[3].results as Raw[];
   const updates = result[4].results as Raw[];
   const inspections = result[5].results as Raw[];
+  const proposals = result[8].results as Raw[];
   const allowedIds = new Set(cases.map((item) => Number(item.id)));
   const shaped = cases.map((item) => {
     const caseId = Number(item.id);
@@ -197,6 +201,7 @@ export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string
       estimate: role === "supervisor" ? null : estimates.find((estimate) => Number(estimate.caseId) === caseId) ?? null,
       files: caseFiles,
       updates: updates.filter((update) => Number(update.caseId) === caseId).map((update) => ({ ...update, files: caseFiles.filter((file) => Number(file.updateId) === Number(update.id)) })),
+      proposals: role === "supervisor" ? [] : proposals.filter((proposal) => Number(proposal.caseId) === caseId),
     };
   });
   const supervisors = (result[7].results as Raw[]).map((row) => ({ email: String(row.email), name: String(row.name) }));
@@ -385,6 +390,13 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
       db.prepare("UPDATE workflow_files SET visibility='published',published_at=? WHERE case_id=? AND update_id=?").bind(now, caseId, updateId),
     ]);
     await event(db, caseId, "Owner", actorEmail, action, "Owner approved and published the customer update", "The approved text and photos are now visible to the customer.", "customer");
+  } else if (action === "propose_change") {
+    if (!["admin", "owner"].includes(role)) throw new Error("Admin or Owner access is required to propose a change.");
+    requireStage(stage, ["active_project"]);
+    const title = required(payload.title, "Change title");
+    const detail = required(payload.detail, "Change detail");
+    await db.prepare("INSERT INTO change_proposals (case_id,title,detail,status,created_by,created_at) VALUES (?,?,?,'sent',?,?)").bind(caseId, title, detail, actorEmail, now).run();
+    await event(db, caseId, role === "owner" ? "Owner" : "Admin", actorEmail, action, "Proposed a change to the customer", title, "customer");
   } else if (action === "close_case") {
     if (!["admin", "owner"].includes(role)) throw new Error("Admin or Owner access is required to close a request.");
     if (["complete", "closed"].includes(stage)) throw new Error("This request is already finished.");
@@ -476,6 +488,7 @@ export async function getPublicWorkflow(code: string) {
     db.prepare("SELECT id,work_date AS workDate,customer_update AS customerUpdate,published_at AS publishedAt FROM project_updates WHERE case_id=? AND status='published' ORDER BY published_at DESC").bind(caseId),
     db.prepare("SELECT id,update_id AS updateId,file_name AS fileName,mime_type AS mimeType,published_at AS publishedAt FROM workflow_files WHERE case_id=? AND visibility='published' ORDER BY published_at DESC").bind(caseId),
     db.prepare("SELECT title,detail,created_at AS createdAt FROM workflow_events WHERE case_id=? AND audience='customer' ORDER BY created_at DESC").bind(caseId),
+    db.prepare("SELECT id,title,detail,status,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals WHERE case_id=? ORDER BY created_at DESC").bind(caseId),
   ]);
   const files = (result[2].results as Raw[]).map((file): Raw & { url: string } => ({ ...file, url: `/api/workflow/files?id=${file.id}` }));
   return {
@@ -483,6 +496,7 @@ export async function getPublicWorkflow(code: string) {
     estimate: result[0].results[0] ?? null,
     updates: (result[1].results as Raw[]).map((update) => ({ ...update, files: files.filter((file) => Number(file.updateId) === Number(update.id)) })),
     activity: result[3].results,
+    proposals: result[4].results,
   };
 }
 
@@ -500,6 +514,21 @@ export async function customerEstimateDecision(code: string, decision: "accept" 
     db.prepare("UPDATE workflow_cases SET stage=?,updated_at=? WHERE id=?").bind(accepted ? "customer_approved" : "estimate_declined", now, caseId),
   ]);
   await event(db, caseId, "Customer", String(item.customerEmail), "customer_estimate_decision", accepted ? "Customer accepted the estimate" : "Customer declined the estimate", "", "customer");
+}
+
+export async function customerChangeDecision(code: string, proposalId: number, decision: "accept" | "decline", reply: string) {
+  await ensureWorkflowDatabase();
+  const db = await database();
+  const item = await db.prepare("SELECT id,customer_email AS customerEmail FROM workflow_cases WHERE UPPER(request_code)=? LIMIT 1").bind(code.toUpperCase()).first<Raw>();
+  if (!item) throw new Error("Project was not found.");
+  const caseId = Number(item.id);
+  const proposal = await db.prepare("SELECT id,status,title FROM change_proposals WHERE id=? AND case_id=?").bind(proposalId, caseId).first<Raw>();
+  if (!proposal || proposal.status !== "sent") throw new Error("This change request is no longer waiting for a decision.");
+  const now = new Date().toISOString();
+  const accepted = decision === "accept";
+  const safeReply = clean(reply).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").slice(0, 500);
+  await db.prepare("UPDATE change_proposals SET status=?,customer_reply=?,decided_at=? WHERE id=?").bind(accepted ? "accepted" : "declined", safeReply, now, proposalId).run();
+  await event(db, caseId, "Customer", String(item.customerEmail), "customer_change_decision", accepted ? `Customer approved the change: ${proposal.title}` : `Customer declined the change: ${proposal.title}`, safeReply, "customer");
 }
 
 export async function addWorkflowFile(caseId: number, category: string, objectKey: string, file: File, uploadedBy: string) {

@@ -123,3 +123,18 @@ export async function deleteAdminRecord(resource: AdminResource, id: number) {
   const db = await database();
   await db.prepare("DELETE FROM schedule_events WHERE id=?").bind(id).run();
 }
+
+export async function getTeamMessagesFor(label: string) {
+  await getOwnerSnapshot();
+  const db = await database();
+  const result = await db.prepare("SELECT id,sender,recipient,body,sent_at AS sentAt FROM team_messages WHERE sender=? OR recipient=? ORDER BY sent_at,id")
+    .bind(label, label).all<{ id: number; sender: string; recipient: string; body: string; sentAt: string }>();
+  return result.results;
+}
+
+export async function sendTeamMessage(sender: string, recipient: string, body: string) {
+  await getOwnerSnapshot();
+  const db = await database();
+  await db.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)")
+    .bind(sender, recipient, body, new Date().toISOString()).run();
+}
