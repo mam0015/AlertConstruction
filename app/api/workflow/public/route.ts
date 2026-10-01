@@ -1,4 +1,4 @@
-import { createPublicWorkflowRequest, customerEstimateDecision, getPublicWorkflow } from "../../../../db/workflow-store";
+import { createPublicWorkflowRequest, customerChangeDecision, customerEstimateDecision, getPublicWorkflow } from "../../../../db/workflow-store";
 import { clearLoginFailures, getLoginAttempt, recordLoginFailure } from "../../../../db/owner-store";
 import { requestIsSameOrigin } from "../../../owner-auth";
 
@@ -15,7 +15,7 @@ async function blocked(key: string) {
 
 function failed(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  const safe = /(?:required|too long|valid email|accept the Privacy Notice|current project stage|project was not found)/i.test(message)
+  const safe = /(?:required|too long|valid email|accept the Privacy Notice|current project stage|project was not found|no longer waiting for a decision)/i.test(message)
     ? message
     : "The request could not be completed.";
   return Response.json({ error: safe }, { status: 400 });
@@ -56,9 +56,10 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-    const body = await request.json() as { code?: string; decision?: "accept" | "decline" };
-    if (!body.code || !body.decision || !["accept", "decline"].includes(body.decision)) return Response.json({ error: "Invalid estimate decision." }, { status: 400 });
-    await customerEstimateDecision(body.code, body.decision);
+    const body = await request.json() as { code?: string; decision?: "accept" | "decline"; proposalId?: number; reply?: string };
+    if (!body.code || !body.decision || !["accept", "decline"].includes(body.decision)) return Response.json({ error: "Invalid decision." }, { status: 400 });
+    if (Number.isInteger(body.proposalId)) await customerChangeDecision(body.code, body.proposalId!, body.decision, body.reply ?? "");
+    else await customerEstimateDecision(body.code, body.decision);
     return Response.json({ data: await getPublicWorkflow(body.code) });
   } catch (error) {
     return failed(error);

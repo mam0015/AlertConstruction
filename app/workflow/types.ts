@@ -117,6 +117,18 @@ export type ProjectUpdate = {
   files: WorkflowFile[];
 };
 
+export type ChangeProposal = {
+  id: number;
+  caseId: number;
+  title: string;
+  detail: string;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+  customerReply: string;
+  decidedAt: string;
+};
+
 export type WorkflowEvent = {
   id: number;
   caseId: number;
@@ -154,6 +166,7 @@ export type WorkflowCase = {
   estimate: WorkflowEstimate | null;
   files: WorkflowFile[];
   updates: ProjectUpdate[];
+  proposals: ChangeProposal[];
 };
 
 export type WorkflowSnapshot = {

@@ -40,6 +40,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
   const [sitePhotoIds, setSitePhotoIds] = useState<number[]>([]);
   const [progressPhotoIds, setProgressPhotoIds] = useState<number[]>([]);
   const [closeNote, setCloseNote] = useState("");
+  const [changeForm, setChangeForm] = useState({ title: "", detail: "" });
 
   async function load() {
     setLoading(true);
@@ -203,6 +204,21 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
             <label><span>Reason for closing</span><textarea value={closeNote} onChange={(event) => setCloseNote(event.target.value)} placeholder="e.g. duplicate submission, customer withdrew, test entry…" required /></label>
             <button className={styles.dangerButton} disabled={working}>Close this request</button>
           </form> : <p className={styles.waiting}>{selected.stage === "closed" ? "This request is closed." : "This project is complete."}</p>}
+        </section>}
+
+        {(role === "admin" || role === "owner") && <section className={styles.actionPanel}>
+          <header><div><span>CUSTOMER COMMUNICATION</span><h3>Propose a change and get customer sign-off</h3></div></header>
+          {selected.stage === "active_project" ? <form onSubmit={(event) => { event.preventDefault(); void action("propose_change", changeForm, "Change proposed to the customer."); setChangeForm({ title: "", detail: "" }); }}>
+            <label><span>Change title</span><input value={changeForm.title} onChange={(event) => setChangeForm((form) => ({ ...form, title: event.target.value }))} placeholder="e.g. Move the hot water outlet 300mm left" required /></label>
+            <label><span>Details for the customer</span><textarea value={changeForm.detail} onChange={(event) => setChangeForm((form) => ({ ...form, detail: event.target.value }))} placeholder="Explain what's changing and why, so the customer can decide…" required /></label>
+            <button disabled={working}>Send to customer for approval</button>
+          </form> : <p className={styles.waiting}>Change proposals can be sent once the project is active.</p>}
+          {selected.proposals.length > 0 && selected.proposals.map((proposal) => <article className={styles.updateApproval} key={proposal.id}>
+            <span>{proposal.status === "sent" ? "Waiting for customer" : proposal.status === "accepted" ? "Customer approved" : "Customer declined"}</span>
+            <strong>{proposal.title}</strong>
+            <p>{proposal.detail}</p>
+            {proposal.customerReply && <p>Customer reply: &quot;{proposal.customerReply}&quot;</p>}
+          </article>)}
         </section>}
 
         <div className={styles.lowerGrid}>

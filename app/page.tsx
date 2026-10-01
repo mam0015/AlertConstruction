@@ -115,6 +115,10 @@ export default function Home() {
   const [teamCode, setTeamCode] = useState("");
   const [teamError, setTeamError] = useState("");
   const [teamBusy, setTeamBusy] = useState(false);
+  const [teamPinOk, setTeamPinOk] = useState(false);
+  const [teamPin, setTeamPin] = useState("");
+  const [teamPinError, setTeamPinError] = useState("");
+  const [teamPinBusy, setTeamPinBusy] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const dialogTitleId = useId();
 
@@ -299,6 +303,19 @@ export default function Home() {
     setCustomerMatches([]);
   }
 
+  async function submitTeamPin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setTeamPinBusy(true); setTeamPinError("");
+    try {
+      const response = await fetch("/api/team/pin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: teamPin }) });
+      const result = await readApiResult<{ ok?: boolean; error?: string }>(response);
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "Incorrect PIN.");
+      setTeamPinOk(true); setTeamPin("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Incorrect PIN.";
+      setTeamPinError(message === "The string did not match the expected pattern." ? "This service is temporarily unavailable. Please try again." : message);
+    } finally { setTeamPinBusy(false); }
+  }
+
   async function handleTeamSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setTeamBusy(true); setTeamError("");
     try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); window.location.href = result.redirect??"/team/pending"; return; }
@@ -329,7 +346,6 @@ export default function Home() {
           <a href="#about">About Us</a>
           <a href="#services">Services</a>
           <button type="button" onClick={() => setPortal("customer")}>Customer Sign In</button>
-          <button type="button" onClick={() => setPortal("team")}>Team Sign In</button>
           <a href="#support">Support</a>
           <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}>
             <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
@@ -356,7 +372,6 @@ export default function Home() {
           <a href="#about" onClick={closeMenu}>About Us</a>
           <a href="#services" onClick={closeMenu}>Services</a>
           <button type="button" onClick={() => { closeMenu(); setPortal("customer"); }}>Customer Sign In</button>
-          <button type="button" onClick={() => { closeMenu(); setPortal("team"); }}>Team Sign In</button>
           <a href="#support" onClick={closeMenu}>Support</a>
           <a className="mobile-cta" href="#request" onClick={closeMenu}>Request a Job</a>
         </div>
@@ -715,35 +730,51 @@ export default function Home() {
                   <span className="access-badge">ONE SECURE ENTRY</span>
                   <p className="section-kicker">Owner &amp; team workspace</p>
                   <h2 id={dialogTitleId}>Sign in to your<br/>company workspace.</h2>
-                  <p>One form recognises the account. Owner uses email and password only. A new team member also enters the company Team Code.</p>
+                  <p>This entry needs the access PIN first. One form then recognises the account. Owner uses email and password only. A new team member also enters the company Team Code.</p>
                   <div className="access-flow">
-                    <div><span>01</span><p><strong>Enter details</strong>Email, password and—when joining—the Team Code.</p></div>
-                    <div><span>02</span><p><strong>Owner approval</strong>New members wait while Owner assigns their position.</p></div>
-                    <div><span>03</span><p><strong>Saved access</strong>Approved members return with the same email and password.</p></div>
+                    <div><span>01</span><p><strong>Enter the access PIN</strong>Given to you separately from your email and password.</p></div>
+                    <div><span>02</span><p><strong>Enter your details</strong>Email, password and—when joining—the Team Code.</p></div>
+                    <div><span>03</span><p><strong>Saved access</strong>Once approved, return with the same email and password—no PIN or Team Code needed again.</p></div>
                   </div>
                 </div>
-                <form className="team-login-form" onSubmit={handleTeamSignIn}>
-                  <header>
-                    <span>WORKSPACE ACCESS</span>
-                    <strong>Owner &amp; Team Sign In</strong>
-                    <small>There is no separate Owner button.</small>
-                  </header>
-                  <label>
-                    <span>Email / username</span>
-                    <div className="access-input"><i>01</i><input type="email" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@email.com" autoFocus required /></div>
-                  </label>
-                  <label>
-                    <span>Password</span>
-                    <div className="access-input"><i>02</i><input type="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></div>
-                  </label>
-                  <label>
-                    <span>Team Code <small>New team requests only</small></span>
-                    <div className="access-input"><i>03</i><input type="text" autoComplete="off" value={teamCode} onChange={e=>setTeamCode(e.target.value.toUpperCase())} placeholder="Owner leaves this blank" /></div>
-                  </label>
-                  {teamError && <p className="form-error" role="alert">{teamError}</p>}
-                  <button type="submit" className="team-access-submit" disabled={teamBusy}>{teamBusy?"Checking your account…":"Continue securely"} <span>→</span></button>
-                  <p className="team-access-footnote">New team members go to Waiting Approval. Approved roles are saved and can be changed later by Owner.</p>
-                </form>
+                {!teamPinOk ? (
+                  <form className="team-login-form" onSubmit={submitTeamPin}>
+                    <header>
+                      <span>STEP 1 OF 2</span>
+                      <strong>Enter the access PIN</strong>
+                      <small>Ask the Owner if you do not have this yet.</small>
+                    </header>
+                    <label>
+                      <span>Access PIN</span>
+                      <div className="access-input"><i>01</i><input type="password" inputMode="numeric" autoComplete="off" value={teamPin} onChange={e=>setTeamPin(e.target.value)} placeholder="••••••" autoFocus required /></div>
+                    </label>
+                    {teamPinError && <p className="form-error" role="alert">{teamPinError}</p>}
+                    <button type="submit" className="team-access-submit" disabled={teamPinBusy}>{teamPinBusy?"Checking…":"Continue"} <span>→</span></button>
+                  </form>
+                ) : (
+                  <form className="team-login-form" onSubmit={handleTeamSignIn}>
+                    <header>
+                      <span>STEP 2 OF 2</span>
+                      <strong>Owner &amp; Team Sign In</strong>
+                      <small>There is no separate Owner button.</small>
+                    </header>
+                    <label>
+                      <span>Email / username</span>
+                      <div className="access-input"><i>01</i><input type="email" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@email.com" autoFocus required /></div>
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <div className="access-input"><i>02</i><input type="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></div>
+                    </label>
+                    <label>
+                      <span>Team Code <small>New team requests only</small></span>
+                      <div className="access-input"><i>03</i><input type="text" autoComplete="off" value={teamCode} onChange={e=>setTeamCode(e.target.value.toUpperCase())} placeholder="Owner leaves this blank" /></div>
+                    </label>
+                    {teamError && <p className="form-error" role="alert">{teamError}</p>}
+                    <button type="submit" className="team-access-submit" disabled={teamBusy}>{teamBusy?"Checking your account…":"Continue securely"} <span>→</span></button>
+                    <p className="team-access-footnote">New team members go to Waiting Approval. Approved roles are saved and can be changed later by Owner.</p>
+                  </form>
+                )}
               </div>
             )}
           </section>
