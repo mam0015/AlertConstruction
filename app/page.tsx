@@ -75,6 +75,8 @@ const brands = [
   },
 ];
 
+const TEAM_REMEMBER_KEY = "alert-tradie-pro-team-username";
+const CUSTOMER_REMEMBER_KEY = "alert-tradie-pro-customer-access";
 type PortalType = "customer" | "team" | null;
 type InfoPanel = "privacy" | "terms" | "support" | null;
 type Theme = "light" | "dark";
@@ -115,10 +117,8 @@ export default function Home() {
   const [teamCode, setTeamCode] = useState("");
   const [teamError, setTeamError] = useState("");
   const [teamBusy, setTeamBusy] = useState(false);
-  const [teamPinOk, setTeamPinOk] = useState(false);
-  const [teamPin, setTeamPin] = useState("");
-  const [teamPinError, setTeamPinError] = useState("");
-  const [teamPinBusy, setTeamPinBusy] = useState(false);
+  const [teamRemember, setTeamRemember] = useState(false);
+  const [customerRemember, setCustomerRemember] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const dialogTitleId = useId();
 
@@ -133,6 +133,30 @@ export default function Home() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    // Remember-me convenience: only the username / project reference is kept on this device. Passwords are left to the browser's own password manager.
+    const frame = window.requestAnimationFrame(() => {
+    try {
+      const savedTeam = window.localStorage.getItem(TEAM_REMEMBER_KEY);
+      if (savedTeam) { setTeamEmail(savedTeam); setTeamRemember(true); }
+      const savedCustomer = JSON.parse(window.localStorage.getItem(CUSTOMER_REMEMBER_KEY) ?? "null") as { method?: CustomerAccessMethod; value?: string } | null;
+      if (savedCustomer?.value && (savedCustomer.method === "code" || savedCustomer.method === "email" || savedCustomer.method === "phone")) {
+        setCustomerRemember(true);
+        setCustomerAccessMethod(savedCustomer.method);
+        if (savedCustomer.method === "code") setTrackingCode(savedCustomer.value); else setCustomerContact(savedCustomer.value);
+      }
+    } catch { /* storage unavailable (private mode) */ }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  function rememberCustomer(method: CustomerAccessMethod, value: string) {
+    try {
+      if (customerRemember) window.localStorage.setItem(CUSTOMER_REMEMBER_KEY, JSON.stringify({ method, value }));
+      else window.localStorage.removeItem(CUSTOMER_REMEMBER_KEY);
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     const openTeamLogin = () => {
@@ -258,6 +282,7 @@ export default function Home() {
       const response = await fetch(`/api/workflow/public?code=${encodeURIComponent(normalised)}`, { cache: "no-store" });
       const result = await readApiResult<{ data?: unknown; error?: string }>(response);
       if (!response.ok || !result.data) throw new Error(result.error ?? "We could not find that project reference.");
+      rememberCustomer("code", normalised);
       router.push(`/track/${encodeURIComponent(normalised)}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Project access is temporarily unavailable.";
@@ -287,6 +312,7 @@ export default function Home() {
         return;
       }
       setCustomerMatches(result.projects);
+      rememberCustomer(customerAccessMethod, customerContact.trim());
       setCustomerSuccess(`${result.projects.length} projects found. Choose the project you want to open.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Project recovery is temporarily unavailable.";
@@ -303,22 +329,9 @@ export default function Home() {
     setCustomerMatches([]);
   }
 
-  async function submitTeamPin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setTeamPinBusy(true); setTeamPinError("");
-    try {
-      const response = await fetch("/api/team/pin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: teamPin }) });
-      const result = await readApiResult<{ ok?: boolean; error?: string }>(response);
-      if (!response.ok || !result.ok) throw new Error(result.error ?? "Incorrect PIN.");
-      setTeamPinOk(true); setTeamPin("");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Incorrect PIN.";
-      setTeamPinError(message === "The string did not match the expected pattern." ? "This service is temporarily unavailable. Please try again." : message);
-    } finally { setTeamPinBusy(false); }
-  }
-
   async function handleTeamSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setTeamBusy(true); setTeamError("");
-    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); window.location.href = result.redirect??"/team/pending"; return; }
+    try { const response=await fetch("/api/team/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:teamEmail,password:teamPassword,teamCode,remember:teamRemember})}); const result=await readApiResult<{error?:string;redirect?:string}>(response); if(!response.ok)throw new Error(result.error??"Sign-in failed."); try{if(teamRemember)window.localStorage.setItem(TEAM_REMEMBER_KEY,teamEmail.trim().toLowerCase());else window.localStorage.removeItem(TEAM_REMEMBER_KEY)}catch{} window.location.href = result.redirect??"/team/pending"; return; }
     catch(error){const message=error instanceof Error?error.message:"Sign-in failed.";setTeamError(message==="The string did not match the expected pattern."?"Sign-in is temporarily unavailable. Please try again.":message)} finally{setTeamBusy(false)}
   }
 
@@ -346,6 +359,7 @@ export default function Home() {
           <a href="#about">About Us</a>
           <a href="#services">Services</a>
           <button type="button" onClick={() => setPortal("customer")}>Customer Sign In</button>
+          <button type="button" onClick={() => setPortal("team")}>Team Sign In</button>
           <a href="#support">Support</a>
           <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}>
             <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
@@ -372,6 +386,7 @@ export default function Home() {
           <a href="#about" onClick={closeMenu}>About Us</a>
           <a href="#services" onClick={closeMenu}>Services</a>
           <button type="button" onClick={() => { closeMenu(); setPortal("customer"); }}>Customer Sign In</button>
+          <button type="button" onClick={() => { closeMenu(); setPortal("team"); }}>Team Sign In</button>
           <a href="#support" onClick={closeMenu}>Support</a>
           <a className="mobile-cta" href="#request" onClick={closeMenu}>Request a Job</a>
         </div>
@@ -707,6 +722,10 @@ export default function Home() {
                       </div>
                     </label>
                   )}
+                  <label className="remember-row">
+                    <input type="checkbox" checked={customerRemember} onChange={(event) => setCustomerRemember(event.target.checked)} />
+                    <span>Remember me on this device <small>Saves this reference or contact so you do not have to type it again.</small></span>
+                  </label>
                   {customerError && <p className="form-error" role="alert">{customerError}</p>}
                   {customerSuccess && <p className="customer-access-success" role="status">✓ {customerSuccess}</p>}
                   {customerMatches.length > 1 && (
@@ -730,51 +749,39 @@ export default function Home() {
                   <span className="access-badge">ONE SECURE ENTRY</span>
                   <p className="section-kicker">Owner &amp; team workspace</p>
                   <h2 id={dialogTitleId}>Sign in to your<br/>company workspace.</h2>
-                  <p>This entry needs the access PIN first. One form then recognises the account. Owner uses email and password only. A new team member also enters the company Team Code.</p>
+                  <p>One form recognises the account. Owner uses email and password only. A new team member also enters the company Team Code.</p>
                   <div className="access-flow">
-                    <div><span>01</span><p><strong>Enter the access PIN</strong>Given to you separately from your email and password.</p></div>
-                    <div><span>02</span><p><strong>Enter your details</strong>Email, password and—when joining—the Team Code.</p></div>
-                    <div><span>03</span><p><strong>Saved access</strong>Once approved, return with the same email and password—no PIN or Team Code needed again.</p></div>
+                    <div><span>01</span><p><strong>Enter details</strong>Email, password and—when joining—the Team Code.</p></div>
+                    <div><span>02</span><p><strong>Owner approval</strong>New members wait while Owner assigns their position.</p></div>
+                    <div><span>03</span><p><strong>Saved access</strong>Approved members return with the same email and password.</p></div>
                   </div>
                 </div>
-                {!teamPinOk ? (
-                  <form className="team-login-form" onSubmit={submitTeamPin}>
-                    <header>
-                      <span>STEP 1 OF 2</span>
-                      <strong>Enter the access PIN</strong>
-                      <small>Ask the Owner if you do not have this yet.</small>
-                    </header>
-                    <label>
-                      <span>Access PIN</span>
-                      <div className="access-input"><i>01</i><input type="password" inputMode="numeric" autoComplete="off" value={teamPin} onChange={e=>setTeamPin(e.target.value)} placeholder="••••••" autoFocus required /></div>
-                    </label>
-                    {teamPinError && <p className="form-error" role="alert">{teamPinError}</p>}
-                    <button type="submit" className="team-access-submit" disabled={teamPinBusy}>{teamPinBusy?"Checking…":"Continue"} <span>→</span></button>
-                  </form>
-                ) : (
-                  <form className="team-login-form" onSubmit={handleTeamSignIn}>
-                    <header>
-                      <span>STEP 2 OF 2</span>
-                      <strong>Owner &amp; Team Sign In</strong>
-                      <small>There is no separate Owner button.</small>
-                    </header>
-                    <label>
-                      <span>Email / username</span>
-                      <div className="access-input"><i>01</i><input type="email" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@email.com" autoFocus required /></div>
-                    </label>
-                    <label>
-                      <span>Password</span>
-                      <div className="access-input"><i>02</i><input type="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></div>
-                    </label>
-                    <label>
-                      <span>Team Code <small>New team requests only</small></span>
-                      <div className="access-input"><i>03</i><input type="text" autoComplete="off" value={teamCode} onChange={e=>setTeamCode(e.target.value.toUpperCase())} placeholder="Owner leaves this blank" /></div>
-                    </label>
-                    {teamError && <p className="form-error" role="alert">{teamError}</p>}
-                    <button type="submit" className="team-access-submit" disabled={teamBusy}>{teamBusy?"Checking your account…":"Continue securely"} <span>→</span></button>
-                    <p className="team-access-footnote">New team members go to Waiting Approval. Approved roles are saved and can be changed later by Owner.</p>
-                  </form>
-                )}
+                <form className="team-login-form" onSubmit={handleTeamSignIn} autoComplete="on" method="post">
+                  <header>
+                    <span>WORKSPACE ACCESS</span>
+                    <strong>Owner &amp; Team Sign In</strong>
+                    <small>There is no separate Owner button.</small>
+                  </header>
+                  <label>
+                    <span>Email / username</span>
+                    <div className="access-input"><i>01</i><input type="email" name="username" autoComplete="username" value={teamEmail} onChange={e=>setTeamEmail(e.target.value)} placeholder="name@email.com" autoFocus required /></div>
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <div className="access-input"><i>02</i><input type="password" name="password" autoComplete="current-password" value={teamPassword} onChange={e=>setTeamPassword(e.target.value)} placeholder="Enter your password" required /></div>
+                  </label>
+                  <label>
+                    <span>Team Code <small>New team requests only</small></span>
+                    <div className="access-input"><i>03</i><input type="text" autoComplete="off" value={teamCode} onChange={e=>setTeamCode(e.target.value.toUpperCase())} placeholder="Owner leaves this blank" /></div>
+                  </label>
+                  <label className="remember-row">
+                    <input type="checkbox" checked={teamRemember} onChange={e=>setTeamRemember(e.target.checked)} />
+                    <span>Remember me on this device <small>Keeps your username filled in and stays signed in for 30 days.</small></span>
+                  </label>
+                  {teamError && <p className="form-error" role="alert">{teamError}</p>}
+                  <button type="submit" className="team-access-submit" disabled={teamBusy}>{teamBusy?"Checking your account…":"Continue securely"} <span>→</span></button>
+                  <p className="team-access-footnote">New team members go to Waiting Approval. Approved roles are saved and can be changed later by Owner.</p>
+                </form>
               </div>
             )}
           </section>

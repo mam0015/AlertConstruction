@@ -49,17 +49,10 @@ async function askHidden(label) {
 }
 
 try {
-  const kind = (await ask("Create Owner credentials, Team Code, Contact hash secret or Access PIN? [owner/team/contact/pin]: ")).toLowerCase();
-  if (!["owner", "team", "contact", "pin"].includes(kind)) throw new Error("Choose owner, team, contact or pin.");
+  const kind = (await ask("Create Owner credentials, Team Code or Contact hash secret? [owner/team/contact]: ")).toLowerCase();
+  if (!["owner", "team", "contact"].includes(kind)) throw new Error("Choose owner, team or contact.");
 
-  if (kind === "pin") {
-    const first = await askHidden("Access PIN (numbers, at least 6 digits): ");
-    const second = await askHidden("Repeat PIN: ");
-    if (first !== second) throw new Error("PINs did not match.");
-    if (first.length < 6) throw new Error("Use at least 6 digits.");
-    console.log("\nCopy this value into the private runtime settings. Do not add it to GitHub.\n");
-    console.log(`TEAM_PIN_HASH=${passwordHash(first)}`);
-  } else if (kind === "contact") {
+  if (kind === "contact") {
     console.log("\nCopy this value into the private runtime settings. Do not add it to GitHub.\n");
     console.log(`CUSTOMER_CONTACT_HASH_SECRET=${base64url(randomBytes(48))}`);
   } else if (kind === "owner") {

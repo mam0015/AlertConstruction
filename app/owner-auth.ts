@@ -3,6 +3,7 @@ import { safeEqual, verifyPbkdf2 } from "./secret-utils";
 
 const OWNER_COOKIE = "atp_owner_session";
 const SESSION_SECONDS = 60 * 60 * 12;
+export const REMEMBER_SESSION_SECONDS = 60 * 60 * 24 * 30;
 const encoder = new TextEncoder();
 
 function base64UrlEncode(input: Uint8Array | string) {
@@ -51,10 +52,10 @@ export async function verifyOwnerPassword(email: string, password: string) {
   return Boolean(account && valid);
 }
 
-export async function createOwnerSession(email: string) {
+export async function createOwnerSession(email: string, seconds = SESSION_SECONDS) {
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
-    expires: Date.now() + SESSION_SECONDS * 1000,
+    expires: Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
 }
@@ -74,7 +75,7 @@ export async function verifyOwnerSession(token?: string | null) {
 }
 
 export function ownerCookieName() { return OWNER_COOKIE; }
-export function ownerSessionCookie(token: string, secure: boolean) { return `${OWNER_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_SECONDS}${secure ? "; Secure" : ""}`; }
+export function ownerSessionCookie(token: string, secure: boolean, seconds = SESSION_SECONDS) { return `${OWNER_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${seconds}${secure ? "; Secure" : ""}`; }
 export function clearOwnerSessionCookie(secure: boolean) { return `${OWNER_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`; }
 
 export function cookieValue(request: Request, name: string) {

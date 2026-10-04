@@ -4,7 +4,7 @@ Secure construction request, project delivery and role-based operations portal f
 
 ## Production status
 
-This repository contains the working full-stack application used by the hosted Alert Tradie Pro site. It includes the public website, customer request and tracking portal, unified Owner/Team sign-in, Owner approval and role assignment, Admin/Supervisor/Worker workspaces, D1 records and private R2 files.
+This repository contains the working full-stack application used by the hosted Alert Tradie Pro site. It includes the public website, customer request and tracking portal, unified Owner/Team sign-in, Owner approval and role assignment, Admin/Supervisor/Worker workspaces, mid-project change proposals with customer sign-off, D1 records and private R2 files.
 
 No real credential, Team Code, session secret or customer record belongs in GitHub. Production secrets are configured in the host environment only.
 

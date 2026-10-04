@@ -1,11 +1,6 @@
 # Names only. Never put a real password, Team Code or session secret in this file.
 # Generate private values locally with: node scripts/security-setup.mjs
 
-# Access PIN gates the Owner/Team sign-in form itself. The "Team Sign In" link
-# is hidden from the public site; only someone with the PIN can open the form
-# (via the direct #team-sign-in link) before it even asks for email/password.
-TEAM_PIN_HASH=<PBKDF2_HASH>
-
 # One Owner account. Owner signs in with email and password only.
 OWNER_EMAIL=<OWNER_EMAIL>
 OWNER_PASSWORD_HASH=<PBKDF2_HASH>

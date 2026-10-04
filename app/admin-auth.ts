@@ -45,11 +45,11 @@ async function hmac(value: string) {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
 
-export async function createAdminSession(email: string, role: StaffRole) {
+export async function createAdminSession(email: string, role: StaffRole, seconds = SESSION_SECONDS) {
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
     role,
-    expires: Date.now() + SESSION_SECONDS * 1000,
+    expires: Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
 }
@@ -94,7 +94,7 @@ export async function verifyPendingStaffSession(token?: string | null) {
 }
 
 export function adminCookieName() { return TEAM_COOKIE; }
-export function adminSessionCookie(token: string, secure: boolean) { return `${TEAM_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_SECONDS}${secure ? "; Secure" : ""}`; }
+export function adminSessionCookie(token: string, secure: boolean, seconds = SESSION_SECONDS) { return `${TEAM_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${seconds}${secure ? "; Secure" : ""}`; }
 export function clearAdminSessionCookie(secure: boolean) { return `${TEAM_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`; }
 export function pendingStaffCookieName() { return PENDING_COOKIE; }
 export function pendingStaffSessionCookie(token: string, secure: boolean) { return `${PENDING_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${PENDING_SECONDS}${secure ? "; Secure" : ""}`; }

@@ -2351,3 +2351,7 @@ html[data-theme="dark"] .support-steps strong {
     animation-iteration-count: 1 !important;
   }
 }
+
+.remember-row{display:flex;align-items:flex-start;gap:.6rem;margin:.25rem 0 .5rem;font-size:.9rem;cursor:pointer}
+.remember-row input{width:1.1rem;height:1.1rem;margin-top:.15rem;flex:none;accent-color:currentColor}
+.remember-row small{display:block;opacity:.7;font-size:.78rem}

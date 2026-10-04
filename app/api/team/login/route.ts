@@ -1,6 +1,6 @@
 import { clearLoginFailures, getLoginAttempt, recordLoginFailure } from "../../../../db/owner-store";
 import { adminSessionCookie, clearPendingStaffSessionCookie, createAdminSession, createPendingStaffSession, pendingStaffSessionCookie } from "../../../admin-auth";
-import { createOwnerSession, isRegisteredOwnerEmail, ownerSessionCookie, requestIsSameOrigin, verifyOwnerPassword } from "../../../owner-auth";
+import { createOwnerSession, isRegisteredOwnerEmail, ownerSessionCookie, REMEMBER_SESSION_SECONDS, requestIsSameOrigin, verifyOwnerPassword } from "../../../owner-auth";
 import { processStaffSignIn, staffRedirect } from "../../../staff-access";
 
 async function loginKey(email: string, request: Request) {
@@ -12,10 +12,11 @@ async function loginKey(email: string, request: Request) {
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-  const payload = await request.json().catch(() => ({})) as { email?: string; password?: string; teamCode?: string };
+  const payload = await request.json().catch(() => ({})) as { email?: string; password?: string; teamCode?: string; remember?: boolean };
   const email = payload.email?.trim().toLowerCase() ?? "";
   const password = payload.password ?? "";
   const teamCode = payload.teamCode?.trim() ?? "";
+  const sessionSeconds = payload.remember === true ? REMEMBER_SESSION_SECONDS : undefined;
   const key = await loginKey(email, request);
   const attempts = await getLoginAttempt(key);
   const now = Date.now();
@@ -29,9 +30,9 @@ export async function POST(request: Request) {
     }
     await clearLoginFailures(key);
     const secure = new URL(request.url).protocol === "https:";
-    const token = await createOwnerSession(email);
+    const token = await createOwnerSession(email, sessionSeconds);
     return Response.json({ ok: true, role: "Owner", redirect: "/owner" }, {
-      headers: { "Set-Cookie": ownerSessionCookie(token, secure), "Cache-Control": "no-store" },
+      headers: { "Set-Cookie": ownerSessionCookie(token, secure, sessionSeconds), "Cache-Control": "no-store" },
     });
   }
 
@@ -51,9 +52,9 @@ export async function POST(request: Request) {
       headers: { "Set-Cookie": pendingStaffSessionCookie(token, secure), "Cache-Control": "no-store" },
     });
   }
-  const token = await createAdminSession(email, result.role);
+  const token = await createAdminSession(email, result.role, sessionSeconds);
   const headers = new Headers({ "Cache-Control": "no-store" });
-  headers.append("Set-Cookie", adminSessionCookie(token, secure));
+  headers.append("Set-Cookie", adminSessionCookie(token, secure, sessionSeconds));
   headers.append("Set-Cookie", clearPendingStaffSessionCookie(secure));
   return Response.json({ ok: true, role: result.role, redirect: staffRedirect(result.role) }, { headers });
   } catch {
