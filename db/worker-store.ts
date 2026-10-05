@@ -248,6 +248,7 @@ export async function performWorkerManagementAction(actorRole: "Owner" | "Admin"
     else await db.prepare("DELETE FROM worker_file_access WHERE file_id=? AND worker_email=?").bind(fileId, worker.email).run();
     await workflowEvent(db, Number(file.caseId), actorRole, actorEmail, granted ? "worker_file_shared" : "worker_file_revoked", granted ? `File shared with ${worker.email}` : `File access removed for ${worker.email}`, String(file.fileName));
   } else if (action === "review_report") {
+    if (actorRole !== "Owner") throw new Error("Only the Owner can approve or comment on end-of-day reports.");
     const reportId = numeric(payload.reportId);
     const note = clean(payload.note);
     const report = await db.prepare("SELECT case_id AS caseId FROM worker_reports WHERE id=? LIMIT 1").bind(reportId).first<Raw>();

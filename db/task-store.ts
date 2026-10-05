@@ -6,7 +6,7 @@ import { ensureStaffAccessTable } from "./staff-store";
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
 
-const operationalRoles = new Set<string>(["Site Supervisor", ...workerStaffRoles]);
+const operationalRoles = new Set<string>(["Site Supervisor", "Estimator", ...workerStaffRoles]);
 const managementRoles = new Set<string>(["Admin", "Manager"]);
 const allowedPriorities = new Set(["Normal", "High", "Urgent"]);
 const allowedStatuses = new Set(["assigned", "in_progress", "completed"]);
