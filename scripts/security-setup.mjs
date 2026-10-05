@@ -49,10 +49,27 @@ async function askHidden(label) {
 }
 
 try {
-  const kind = (await ask("Create Owner credentials, Team Code or Contact hash secret? [owner/team/contact]: ")).toLowerCase();
-  if (!["owner", "team", "contact"].includes(kind)) throw new Error("Choose owner, team or contact.");
+  const kind = ((await ask("What do you need? all (first-time setup) / owner / team / contact [all]: ")) || "all").toLowerCase();
+  if (!["all", "owner", "team", "contact"].includes(kind)) throw new Error("Choose all, owner, team or contact.");
 
-  if (kind === "contact") {
+  if (kind === "all") {
+    const email = (await ask("Owner email address: ")).toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Enter a valid email address.");
+    const displayName = (await ask("Owner display name [Owner]: ")) || "Owner";
+    const first = await askHidden("Owner password (at least 10 characters): ");
+    const second = await askHidden("Repeat password: ");
+    if (first !== second) throw new Error("Passwords did not match.");
+    if (first.length < 10) throw new Error("Use at least 10 characters.");
+    console.log("\nCreate one GitHub secret for each line below (repository Settings > Secrets and variables > Actions).");
+    console.log("Name = text before '=', Value = text after '='. Never commit these values to a file.\n");
+    console.log(`OWNER_EMAIL=${email}`);
+    console.log(`OWNER_PASSWORD_HASH=${passwordHash(first)}`);
+    console.log(`OWNER_DISPLAY_NAME=${displayName}`);
+    console.log(`OWNER_SESSION_SECRET=${base64url(randomBytes(48))}`);
+    console.log(`TEAM_SESSION_SECRET=${base64url(randomBytes(48))}`);
+    console.log(`CUSTOMER_CONTACT_HASH_SECRET=${base64url(randomBytes(48))}`);
+    console.log("\nThe company Team Code is generated automatically on first start; the Owner reads it in Owner > Settings.");
+  } else if (kind === "contact") {
     console.log("\nCopy this value into the private runtime settings. Do not add it to GitHub.\n");
     console.log(`CUSTOMER_CONTACT_HASH_SECRET=${base64url(randomBytes(48))}`);
   } else if (kind === "owner") {

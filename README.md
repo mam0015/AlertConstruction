@@ -30,6 +30,14 @@ npm test
 
 For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
 
+## Hosting from GitHub
+
+GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers: see `release-docs/DEPLOY-GITHUB-TO-CLOUDFLARE-FA.md`.
+
+## Positions and workflow
+
+Owner (no limits) · Admin · Manager · Estimator · Site Supervisor · Workers/trades. Request → Admin → Site Supervisor visit → Admin review → Estimator pricing → Admin → Customer approval → active project → quality inspection → Owner completion. Every position has a calendar, team messages (with files) and an end-of-day report that only the Owner reviews, in the Team hub (`/team/hub`).
+
 ## Sign-in behavior
 
 - Owner and Team use one form.
