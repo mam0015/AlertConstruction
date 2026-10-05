@@ -19,9 +19,10 @@ async function actor(request: Request): Promise<{ role: WorkflowRole; email: str
   const staff = await adminSessionFromRequest(request);
   if (staff?.role === "Admin") return { role: "admin", email: staff.email };
   if (staff?.role === "Site Supervisor") return { role: "supervisor", email: staff.email };
+  if (staff?.role === "Estimator") return { role: "estimator", email: staff.email };
   if (process.env.NODE_ENV === "development") {
     const role = new URL(request.url).searchParams.get("previewRole") as WorkflowRole | null;
-    if (role && ["owner", "admin", "supervisor"].includes(role)) return { role, email: role === "supervisor" ? "site.supervisor@alerttradiepro.demo" : `${role}@alerttradiepro.demo` };
+    if (role && ["owner", "admin", "supervisor", "estimator"].includes(role)) return { role, email: role === "supervisor" ? "site.supervisor@alerttradiepro.demo" : `${role}@alerttradiepro.demo` };
   }
   return null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import EstimateCalculator from "./EstimateCalculator";
 import { stageLabels, type WorkflowRole, type WorkflowSnapshot } from "./types";
 import styles from "./workflow.module.css";
 
@@ -34,13 +35,15 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
   const [visitAt, setVisitAt] = useState("");
   const [supervisorEmail, setSupervisorEmail] = useState("");
   const [visitForm, setVisitForm] = useState({ visitDate: today(), summary: "", findings: "", recommendations: "", internalNotes: "" });
-  const [estimateForm, setEstimateForm] = useState({ amount: "", scope: "", terms: "Final price and variations are governed by the signed contract and applicable Victorian law." });
+  const [estimateForm] = useState({ amount: "", scope: "", terms: "Final price and variations are governed by the signed contract and applicable Victorian law." });
   const [updateForm, setUpdateForm] = useState({ workDate: today(), internalUpdate: "", customerUpdate: "" });
   const [qualityForm, setQualityForm] = useState({ inspectedAt: today(), summary: "", defects: "" });
   const [sitePhotoIds, setSitePhotoIds] = useState<number[]>([]);
   const [progressPhotoIds, setProgressPhotoIds] = useState<number[]>([]);
   const [closeNote, setCloseNote] = useState("");
   const [changeForm, setChangeForm] = useState({ title: "", detail: "" });
+  const [customerMessage, setCustomerMessage] = useState("");
+  const [requestDocs, setRequestDocs] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -79,8 +82,10 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
   const selectedEvents = useMemo(() => data.events.filter((item) => item.caseId === selected?.id), [data.events, selected]);
   const queue = role === "owner"
     ? data.cases.flatMap((item) => item.updates.filter((update) => update.status === "pending_owner"))
+    : role === "estimator"
+      ? data.cases.filter((item) => item.stage === "site_visit_approved")
     : role === "admin"
-      ? data.cases.filter((item) => ["request_submitted", "site_visit_submitted", "customer_approved"].includes(item.stage)).concat(data.cases.filter((item) => item.updates.some((update) => update.status === "pending_admin")))
+      ? data.cases.filter((item) => ["request_submitted", "site_visit_submitted", "estimate_ready", "customer_approved"].includes(item.stage)).concat(data.cases.filter((item) => item.updates.some((update) => update.status === "pending_admin")))
       : data.cases;
 
   async function action(name: string, payload: Record<string, unknown> = {}, success = "Workflow updated.") {
@@ -155,7 +160,8 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
           {["admin_review", "customer_contacted"].includes(selected.stage) && <button disabled={working} onClick={() => void action("approve_intake", {}, "Project folder created and ready for Site Visit assignment.")}>Approve intake & create project folder <span>→</span></button>}
           {["site_visit_ready", "site_visit_scheduled", "visit_changes_requested"].includes(selected.stage) && <form onSubmit={(event) => { event.preventDefault(); void action("assign_visit", { supervisorEmail: selectedSupervisor?.email, supervisorName: selectedSupervisor?.name, visitAt }, "Site Visit assigned to the Site Supervisor."); }}><div className={styles.twoFields}><label><span>Site Supervisor</span><select value={supervisorEmail} onChange={(event) => setSupervisorEmail(event.target.value)}>{data.supervisors.map((item) => <option key={item.email} value={item.email}>{item.name} · {item.email}</option>)}</select></label><label><span>Visit date & time</span><input type="datetime-local" value={visitAt} onChange={(event) => setVisitAt(event.target.value)} required /></label></div><button disabled={working}>Assign Site Visit</button></form>}
           {selected.stage === "site_visit_submitted" && <div className={styles.reviewBox}><div><strong>{selected.visitReport?.summary}</strong><p>{selected.visitReport?.findings}</p><small>{selected.visitReport?.recommendations}</small></div><label><span>Admin review note</span><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label><div><button disabled={working} onClick={() => void action("review_site_visit", { decision: "changes_requested", note: reviewNote }, "Site Visit returned to the Site Supervisor.")}>Request changes</button><button disabled={working} onClick={() => void action("review_site_visit", { decision: "approved", note: reviewNote }, "Site Visit approved. Estimate can now be prepared.")}>Approve Site Visit</button></div></div>}
-          {["site_visit_approved", "estimate_ready"].includes(selected.stage) && <form onSubmit={(event) => { event.preventDefault(); void action("save_estimate", estimateForm, "Estimate saved internally."); }}><div className={styles.twoFields}><label><span>Estimate total (AUD)</span><input type="number" min="1" value={estimateForm.amount} onChange={(event) => setEstimateForm((form) => ({ ...form, amount: event.target.value }))} required /></label><label><span>Terms</span><input value={estimateForm.terms} onChange={(event) => setEstimateForm((form) => ({ ...form, terms: event.target.value }))} /></label></div><label><span>Scope included</span><textarea value={estimateForm.scope} onChange={(event) => setEstimateForm((form) => ({ ...form, scope: event.target.value }))} required /></label><button disabled={working}>Save estimate</button></form>}
+          {selected.stage === "site_visit_approved" && <p className={styles.waiting}>Site visit approved. The Estimator now prices this job from the photos and measurements; it returns here for you to send to the customer.</p>}
+          {selected.stage === "estimate_ready" && selected.estimate && <div className={styles.reviewBox}><div><strong>Estimate approved by the Estimator: {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(selected.estimate.amountCents / 100)}</strong><p style={{ whiteSpace: "pre-wrap" }}>{selected.estimate.scope}</p><small>{selected.estimate.terms}</small></div></div>}
           {selected.stage === "estimate_ready" && <button disabled={working} onClick={() => void action("send_estimate", {}, "Estimate sent to the Customer portal.")}>Send estimate to Customer <span>→</span></button>}
           {selected.stage === "estimate_sent" && <p className={styles.waiting}>Waiting for the Customer to accept or decline the estimate in their portal.</p>}
           {selected.stage === "customer_approved" && <button disabled={working} onClick={() => void action("activate_project", {}, "Customer-approved work is now an active project.")}>Confirm approval & activate project <span>→</span></button>}
@@ -190,6 +196,15 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
           {["site_visit_submitted", "site_visit_approved", "estimate_ready", "estimate_sent", "customer_approved"].includes(selected.stage) && <p className={styles.waiting}>Your Site Visit is complete. Admin is handling the estimate and Customer approval stages.</p>}
         </section>}
 
+        {role === "estimator" && <section className={styles.actionPanel}>
+          <header><div><span>ESTIMATOR WORKSPACE</span><h3>Price the job from the site evidence</h3></div><b>{stageLabels[selected.stage]}</b></header>
+          {selected.visitReport ? <div className={styles.reviewBox}><div><strong>{selected.visitReport.summary}</strong><p>{selected.visitReport.findings}</p><small>Supervisor recommendation: {selected.visitReport.recommendations}</small></div></div> : <p className={styles.waiting}>No site visit report is attached to this project yet.</p>}
+          {["site_visit_approved", "estimate_ready"].includes(selected.stage) ? <>
+            {selected.stage === "estimate_ready" && <p className={styles.waiting}>You already sent an estimate to Admin. You can recalculate and resend it until Admin sends it to the customer.</p>}
+            <EstimateCalculator initialTerms={estimateForm.terms} busy={working} onSubmit={(payload) => void action("save_estimate", payload, "Estimate approved and sent to Admin.")} />
+          </> : <p className={styles.waiting}>This estimate is with Admin or the customer. Nothing more is needed from the Estimator at this stage.</p>}
+        </section>}
+
         {role === "owner" && <section className={styles.actionPanel}>
           <header><div><span>OWNER AUTHORITY</span><h3>Publication and complete oversight</h3></div><b>{data.events.length} recorded events</b></header>
           {selected.updates.filter((update) => update.status === "pending_owner").map((update) => <article className={styles.updateApproval} key={update.id}><span>Admin approved · Owner decision required</span><strong>{update.customerUpdate}</strong><p>Internal: {update.internalUpdate}</p><div><button onClick={() => void action("reject_update", { updateId: update.id, note: reviewNote || "Please revise before publication." }, "Update returned for changes.")}>Return</button><button onClick={() => void action("owner_approve_update", { updateId: update.id, note: reviewNote }, "Update published to the Customer portal.")}>Approve & publish</button></div></article>)}
@@ -207,7 +222,13 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
         </section>}
 
         {(role === "admin" || role === "owner") && <section className={styles.actionPanel}>
-          <header><div><span>CUSTOMER COMMUNICATION</span><h3>Propose a change and get customer sign-off</h3></div></header>
+          <header><div><span>CUSTOMER COMMUNICATION</span><h3>Message the customer, request documents, propose changes</h3></div></header>
+          {selected.messages.length > 0 && <div>{selected.messages.map((message) => <article className={styles.updateApproval} key={message.id}><span>{message.sender === "Admin" ? "Sent by our team" : "Customer replied"}{message.kind === "document_request" ? " · documents requested" : ""} · {when(message.createdAt)}</span><p>{message.body}</p></article>)}</div>}
+          {selected.stage !== "closed" && <form onSubmit={(event) => { event.preventDefault(); void action("message_customer", { body: customerMessage, kind: requestDocs ? "document_request" : "message" }, requestDocs ? "Document request sent to the customer portal." : "Message sent to the customer portal."); setCustomerMessage(""); setRequestDocs(false); }}>
+            <label><span>Message shown in the customer&apos;s portal</span><textarea value={customerMessage} onChange={(event) => setCustomerMessage(event.target.value)} placeholder="e.g. Today we completed the framing. Please send the updated floor plan." required /></label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={requestDocs} onChange={(event) => setRequestDocs(event.target.checked)} /><span>This is a request for documents / plans — highlight it for the customer</span></label>
+            <button disabled={working}>Send to customer</button>
+          </form>}
           {selected.stage === "active_project" ? <form onSubmit={(event) => { event.preventDefault(); void action("propose_change", changeForm, "Change proposed to the customer."); setChangeForm({ title: "", detail: "" }); }}>
             <label><span>Change title</span><input value={changeForm.title} onChange={(event) => setChangeForm((form) => ({ ...form, title: event.target.value }))} placeholder="e.g. Move the hot water outlet 300mm left" required /></label>
             <label><span>Details for the customer</span><textarea value={changeForm.detail} onChange={(event) => setChangeForm((form) => ({ ...form, detail: event.target.value }))} placeholder="Explain what's changing and why, so the customer can decide…" required /></label>

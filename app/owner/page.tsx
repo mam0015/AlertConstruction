@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import OwnerDashboard from "./OwnerDashboard";
 import { ownerCookieName, ownerDisplayName, verifyOwnerSession } from "../owner-auth";
 
+import HubLink from "../team/HubLink";
+
 export const dynamic = "force-dynamic";
 
 export default async function OwnerPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
@@ -13,5 +15,5 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
   const cookieStore = await cookies();
   const session = await verifyOwnerSession(cookieStore.get(ownerCookieName())?.value);
   if (!session) redirect("/#team-sign-in");
-  return <OwnerDashboard ownerName={await ownerDisplayName(session.email)} ownerEmail={session.email} />;
+  return <><OwnerDashboard ownerName={await ownerDisplayName(session.email)} ownerEmail={session.email} /><HubLink /></>;
 }

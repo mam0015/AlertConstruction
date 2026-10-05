@@ -15,6 +15,8 @@ export default async function TeamWorkspacePage() {
   if (!session) redirect("/");
   if (session.role === "Admin") redirect("/admin");
   if (session.role === "Site Supervisor") redirect("/site-supervisor");
+  if (session.role === "Estimator") redirect("/estimator");
+  if (session.role === "Manager") redirect("/manager");
   if (isWorkerRole(session.role)) redirect("/worker");
   return <main className={styles.teamShell}>
     <section className={styles.accessCard}>

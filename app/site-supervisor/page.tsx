@@ -3,6 +3,8 @@ import Link from "next/link";
 import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import SiteSupervisor from "./SiteSupervisor";
 
+import HubLink from "../team/HubLink";
+
 export const dynamic = "force-dynamic";
 
 export default async function SiteSupervisorPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
@@ -11,7 +13,7 @@ export default async function SiteSupervisorPage({ searchParams }: { searchParam
 
   const cookieStore = await cookies();
   const session = await verifyAdminSession(cookieStore.get(adminCookieName())?.value);
-  if (session?.role === "Site Supervisor") return <SiteSupervisor />;
+  if (session?.role === "Site Supervisor") return <><SiteSupervisor /><HubLink /></>;
 
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#080909", color: "white", fontFamily: "Arial, sans-serif" }}>
     <section style={{ width: "min(620px, 100%)", padding: 42, border: "1px solid #303131", background: "#111212" }}>

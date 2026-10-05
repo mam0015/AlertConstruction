@@ -4,6 +4,8 @@ import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import { ownerCookieName, verifyOwnerSession } from "../owner-auth";
 import AdminDashboard from "./AdminDashboard";
 
+import HubLink from "../team/HubLink";
+
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
@@ -13,8 +15,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
   const cookieStore = await cookies();
   const owner = await verifyOwnerSession(cookieStore.get(ownerCookieName())?.value);
-  if (owner) return <AdminDashboard viewerName="Owner" viewerEmail={owner.email} previewAsOwner />;
+  if (owner) return <><AdminDashboard viewerName="Owner" viewerEmail={owner.email} previewAsOwner /><HubLink /></>;
   const admin = await verifyAdminSession(cookieStore.get(adminCookieName())?.value);
   if (!admin || admin.role !== "Admin") redirect("/#team-sign-in");
-  return <AdminDashboard viewerName="Admin" viewerEmail={admin.email} previewAsOwner={false} />;
+  return <><AdminDashboard viewerName="Admin" viewerEmail={admin.email} previewAsOwner={false} /><HubLink /></>;
 }

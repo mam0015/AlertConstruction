@@ -12,6 +12,8 @@ export type StaffSignInResult =
 export function staffRedirect(role: StaffRole) {
   if (role === "Admin") return "/admin";
   if (role === "Site Supervisor") return "/site-supervisor";
+  if (role === "Estimator") return "/estimator";
+  if (role === "Manager") return "/manager";
   if (isWorkerRole(role)) return "/worker";
   return "/team/workspace";
 }

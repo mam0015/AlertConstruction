@@ -108,6 +108,7 @@ export default function Home() {
   const [trackingCode, setTrackingCode] = useState("");
   const [customerAccessMethod, setCustomerAccessMethod] = useState<CustomerAccessMethod>("code");
   const [customerContact, setCustomerContact] = useState("");
+  const [customerLocation, setCustomerLocation] = useState("");
   const [customerError, setCustomerError] = useState("");
   const [customerSuccess, setCustomerSuccess] = useState("");
   const [customerMatches, setCustomerMatches] = useState<CustomerProjectMatch[]>([]);
@@ -303,7 +304,7 @@ export default function Home() {
       const response = await fetch("/api/workflow/public/access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method: customerAccessMethod, contact: customerContact }),
+        body: JSON.stringify({ method: customerAccessMethod, contact: customerContact, location: customerLocation }),
       });
       const result = await readApiResult<{ projects?: CustomerProjectMatch[]; error?: string }>(response);
       if (!response.ok || !result.projects?.length) throw new Error(result.error ?? "No project matches those details.");
@@ -706,6 +707,7 @@ export default function Home() {
                       </div>
                     </label>
                   ) : (
+                    <>
                     <label>
                       <span>{customerAccessMethod === "email" ? "Email saved with your request" : "Phone saved with your request"}</span>
                       <div className="customer-reference-input customer-contact-input">
@@ -721,6 +723,21 @@ export default function Home() {
                         />
                       </div>
                     </label>
+                    <label>
+                      <span>Site address or suburb you gave us</span>
+                      <div className="customer-reference-input customer-contact-input">
+                        <i aria-hidden="true">⌖</i>
+                        <input
+                          value={customerLocation}
+                          onChange={(event) => { setCustomerLocation(event.target.value); setCustomerError(""); setCustomerSuccess(""); setCustomerMatches([]); }}
+                          placeholder="e.g. Parramatta"
+                          autoComplete="off"
+                          minLength={4}
+                          required
+                        />
+                      </div>
+                    </label>
+                    </>
                   )}
                   <label className="remember-row">
                     <input type="checkbox" checked={customerRemember} onChange={(event) => setCustomerRemember(event.target.checked)} />
@@ -739,7 +756,7 @@ export default function Home() {
                     </div>
                   )}
                   <button type="submit" className="customer-access-submit" disabled={customerBusy}>{customerBusy ? "Checking your details…" : customerAccessMethod === "code" ? "Open project securely" : "Find my project"} <span>→</span></button>
-                  <p className="customer-access-footnote">{customerAccessMethod === "code" ? "Never share this reference publicly." : "No verification message is sent. The details must exactly match the email or phone saved with your request."}</p>
+                  <p className="customer-access-footnote">{customerAccessMethod === "code" ? "Never share this reference publicly." : "No message is sent. The email or phone and the site address or suburb must match what you gave us."}</p>
                   <button type="button" className="customer-help-link" onClick={() => { setPortal(null); document.getElementById("request")?.scrollIntoView({ behavior: "smooth" }); }}>I need a new project request</button>
                 </form>
               </div>

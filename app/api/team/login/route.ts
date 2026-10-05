@@ -57,7 +57,9 @@ export async function POST(request: Request) {
   headers.append("Set-Cookie", adminSessionCookie(token, secure, sessionSeconds));
   headers.append("Set-Cookie", clearPendingStaffSessionCookie(secure));
   return Response.json({ ok: true, role: result.role, redirect: staffRedirect(result.role) }, { headers });
-  } catch {
-    return Response.json({ error: "Sign-in service is temporarily unavailable. Please try again." }, { status: 503 });
+  } catch (error) {
+    console.error("Team sign-in failed:", error instanceof Error ? error.message : error);
+    const setup = error instanceof Error && /not configured|unavailable/i.test(error.message);
+    return Response.json({ error: setup ? "Sign-in is not fully set up on the server yet (missing configuration). Please tell the Owner." : "Sign-in service is temporarily unavailable. Please try again." }, { status: 503 });
   }
 }

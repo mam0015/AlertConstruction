@@ -19,7 +19,9 @@ export const workflowStages = [
 ] as const;
 
 export type WorkflowStage = typeof workflowStages[number];
-export type WorkflowRole = "owner" | "admin" | "supervisor";
+export type WorkflowRole = "owner" | "admin" | "supervisor" | "estimator";
+
+export const estimatorStages: WorkflowStage[] = ["site_visit_approved", "estimate_ready", "estimate_sent", "estimate_declined", "customer_approved", "active_project", "quality_inspection", "completion_ready", "complete"];
 
 export const stageLabels: Record<WorkflowStage, string> = {
   request_submitted: "Request submitted",
@@ -29,8 +31,8 @@ export const stageLabels: Record<WorkflowStage, string> = {
   site_visit_scheduled: "Site visit scheduled",
   site_visit_submitted: "Visit report submitted",
   visit_changes_requested: "Visit changes requested",
-  site_visit_approved: "Site visit approved",
-  estimate_ready: "Estimate ready",
+  site_visit_approved: "Waiting for Estimator",
+  estimate_ready: "Estimate ready for Admin",
   estimate_sent: "Estimate sent",
   estimate_declined: "Estimate declined",
   customer_approved: "Customer approved",
@@ -129,6 +131,16 @@ export type ChangeProposal = {
   decidedAt: string;
 };
 
+export type CustomerMessage = {
+  id: number;
+  caseId: number;
+  sender: "Admin" | "Customer";
+  senderLabel: string;
+  body: string;
+  kind: "message" | "document_request";
+  createdAt: string;
+};
+
 export type WorkflowEvent = {
   id: number;
   caseId: number;
@@ -167,6 +179,7 @@ export type WorkflowCase = {
   files: WorkflowFile[];
   updates: ProjectUpdate[];
   proposals: ChangeProposal[];
+  messages: CustomerMessage[];
 };
 
 export type WorkflowSnapshot = {

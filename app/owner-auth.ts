@@ -52,9 +52,16 @@ export async function verifyOwnerPassword(email: string, password: string) {
   return Boolean(account && valid);
 }
 
+async function credentialFingerprint(passwordHash: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(`owner-session|${passwordHash}`)));
+  return base64UrlEncode(digest.slice(0, 9));
+}
+
 export async function createOwnerSession(email: string, seconds = SESSION_SECONDS) {
+  const account = await getOwnerAccountByEmail(email.trim().toLowerCase());
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
+    v: await credentialFingerprint(account?.passwordHash ?? ""),
     expires: Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
@@ -66,8 +73,11 @@ export async function verifyOwnerSession(token?: string | null) {
   if (!payload || !signatureText || extra) return null;
   if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number };
-    if (!parsed.email || !parsed.expires || parsed.expires < Date.now() || !await isRegisteredOwnerEmail(parsed.email)) return null;
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number; v?: string };
+    if (!parsed.email || !parsed.expires || parsed.expires < Date.now()) return null;
+    // Changing the Owner password changes the fingerprint and signs out every older session.
+    const account = await getOwnerAccountByEmail(parsed.email.trim().toLowerCase());
+    if (!account || !parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await credentialFingerprint(account.passwordHash)))) return null;
     return { email: parsed.email.toLowerCase(), expires: parsed.expires };
   } catch {
     return null;
@@ -89,7 +99,10 @@ export function cookieValue(request: Request, name: string) {
 
 export function requestIsSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  if (origin) return origin === new URL(request.url).origin;
+  // Browsers always send Origin on cross-site POSTs; with no Origin, accept only same-origin / direct navigation signals.
+  const site = request.headers.get("sec-fetch-site");
+  return site === "same-origin" || site === "none";
 }
 
 export async function ownerSessionFromRequest(request: Request) {

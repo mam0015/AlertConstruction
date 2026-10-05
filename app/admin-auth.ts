@@ -8,7 +8,7 @@ const SESSION_SECONDS = 60 * 60 * 12;
 const PENDING_SECONDS = 60 * 60 * 24 * 7;
 const encoder = new TextEncoder();
 
-export const staffRoles = ["Admin", "Manager", "Site Supervisor", "Worker", "Electrician", "Plumber", "Cleaner", "Carpenter", "Plasterer", "Tiler"] as const;
+export const staffRoles = ["Admin", "Manager", "Estimator", "Site Supervisor", "Worker", "Electrician", "Plumber", "Cleaner", "Carpenter", "Plasterer", "Tiler"] as const;
 export type StaffRole = typeof staffRoles[number];
 
 function base64UrlEncode(input: Uint8Array | string) {
@@ -26,8 +26,11 @@ function base64UrlDecode(input: string) {
 
 function requiredTeamSessionSecret() {
   const value = process.env.TEAM_SESSION_SECRET?.trim() || process.env.ADMIN_SESSION_SECRET?.trim();
-  if (!value) throw new Error("TEAM_SESSION_SECRET is not configured.");
-  return value;
+  if (value) return value;
+  // Team sign-in must never be the only thing broken by a missing variable: derive a separate team key from the Owner session secret.
+  const owner = process.env.OWNER_SESSION_SECRET?.trim();
+  if (owner) return `${owner}|team-sessions`;
+  throw new Error("TEAM_SESSION_SECRET is not configured.");
 }
 
 export const verifyStoredSecret = verifyPbkdf2;
@@ -45,9 +48,16 @@ async function hmac(value: string) {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
 
+async function credentialFingerprint(passwordHash: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(`staff-session|${passwordHash}`)));
+  return base64UrlEncode(digest.slice(0, 9));
+}
+
 export async function createAdminSession(email: string, role: StaffRole, seconds = SESSION_SECONDS) {
+  const record = await getStaffAccessRequest(email.toLowerCase());
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
+    v: await credentialFingerprint(record?.passwordHash ?? ""),
     role,
     expires: Date.now() + seconds * 1000,
   }));
@@ -60,10 +70,11 @@ export async function verifyAdminSession(token?: string | null) {
   if (!payload || !signatureText || extra) return null;
   if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; role?: string; expires?: number };
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; role?: string; expires?: number; v?: string };
     if (!parsed.email || !staffRoles.includes(parsed.role as StaffRole) || !parsed.expires || parsed.expires < Date.now()) return null;
     const current = await getStaffAccessRequest(parsed.email);
     if (!current || current.status !== "Approved" || current.role === "Unassigned") return null;
+    if (!parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await credentialFingerprint(current.passwordHash)))) return null;
     return { email: current.email.toLowerCase(), role: current.role, expires: parsed.expires };
   } catch {
     return null;
