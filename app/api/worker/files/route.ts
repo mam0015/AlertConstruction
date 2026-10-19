@@ -2,6 +2,7 @@ import { adminSessionFromRequest } from "../../../admin-auth";
 import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-auth";
 import { isWorkerRole } from "../../../staff-access";
 import { addWorkerProjectFile, getWorkerFile, getWorkerManagementSnapshot } from "../../../../db/worker-store";
+import { runtimeBindings } from "../../../../db/runtime";
 
 async function identity(request: Request) {
   const owner = await ownerSessionFromRequest(request);
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   const fileId = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(fileId)) return Response.json({ error: "Invalid file." }, { status: 400 });
   const record = await getWorkerFile(fileId, actor.email, actor.management);
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!record || !env.BUCKET) return Response.json({ error: "File not found or not shared with this account." }, { status: 404 });
   const object = await env.BUCKET.get(record.objectKey);
   if (!object) return Response.json({ error: "File not found." }, { status: 404 });

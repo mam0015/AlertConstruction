@@ -2,6 +2,7 @@ import { workerStaffRoles } from "../app/staff-access";
 import type { PersonalTaskSnapshot, TaskManagementSnapshot, TaskPerson, TeamTask } from "../app/tasks/types";
 import { ensureWorkflowDatabase } from "./workflow-store";
 import { ensureStaffAccessTable } from "./staff-store";
+import { runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -12,7 +13,7 @@ const allowedPriorities = new Set(["Normal", "High", "Urgent"]);
 const allowedStatuses = new Set(["assigned", "in_progress", "completed"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The task database is unavailable.");
   return env.DB;
 }

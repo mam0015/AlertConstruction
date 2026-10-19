@@ -1,8 +1,9 @@
 import { listStaffAccessRequests, reviewStaffAccessRequest } from "./staff-store";
 import { staffRoles, type StaffRole } from "../app/admin-auth";
+import { runtimeBindings } from "./runtime";
 
 type Resource = "project" | "finance" | "schedule" | "report" | "message" | "permission" | "staff";
-async function database() { const { env } = await import("cloudflare:workers"); if (!env.DB) throw new Error("The owner database is unavailable."); return env.DB; }
+async function database() { const env = await runtimeBindings(); if (!env.DB) throw new Error("The owner database is unavailable."); return env.DB; }
 export async function ensureOwnerDatabase() { const db = await database(); await db.batch([
   db.prepare(`CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, service TEXT NOT NULL, stage TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, contract_value INTEGER NOT NULL DEFAULT 0, balance INTEGER NOT NULL DEFAULT 0, customer_name TEXT NOT NULL DEFAULT '', suburb TEXT NOT NULL DEFAULT '', start_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`),
   db.prepare(`CREATE TABLE IF NOT EXISTS finance_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL, category TEXT NOT NULL, project_code TEXT NOT NULL DEFAULT 'Business / General', amount INTEGER NOT NULL, entry_date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`),

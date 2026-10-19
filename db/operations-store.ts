@@ -1,6 +1,7 @@
 import type { FollowUpItem, OperationsProject, OperationsRole, OperationsSnapshot, SiteIssue } from "../app/operations/types";
 import { ensureOwnerDatabase } from "./owner-store";
 import { ensureWorkflowDatabase } from "./workflow-store";
+import { runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -9,7 +10,7 @@ const followUpStatuses = new Set(["open", "completed", "cancelled"]);
 const severities = new Set(["Normal", "High", "Critical"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The operations database is unavailable.");
   return env.DB;
 }

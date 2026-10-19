@@ -1,11 +1,12 @@
 import { ensureWorkflowDatabase } from "./workflow-store";
 import type { WorkerManagementSnapshot, WorkerSnapshot } from "../app/workers/types";
+import { runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The Worker database is unavailable.");
   return env.DB;
 }
@@ -271,7 +272,7 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
     const assigned = await db.prepare("SELECT id FROM worker_project_assignments WHERE case_id=? AND worker_email=? AND status='active' LIMIT 1").bind(caseId, email).first();
     if (!assigned) throw new Error(`${email} must be assigned to this project before receiving a file.`);
   }
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.BUCKET) throw new Error("Private project file storage is not configured.");
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-120) || "project-file";
   const prefix = String(project.projectFolder || `projects/${project.projectCode}`);

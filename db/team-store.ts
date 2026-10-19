@@ -3,6 +3,7 @@ import { staffName } from "../app/team-identity";
 import { ensureOwnerDatabase } from "./owner-store";
 import { getPrimaryOwnerAccount } from "./access-settings-store";
 import { ensureStaffAccessTable, listStaffAccessRequests } from "./staff-store";
+import { runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -22,7 +23,7 @@ const CHANNEL = "*";
 const canPlan = new Set(["Owner", "Admin", "Manager"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The team database is unavailable.");
   return env.DB;
 }

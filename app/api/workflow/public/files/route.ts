@@ -1,5 +1,6 @@
 import { addCustomerRequestFile, getCustomerUploadTarget } from "../../../../../db/workflow-store";
 import { requestIsSameOrigin } from "../../../../owner-auth";
+import { runtimeBindings } from "../../../../../db/runtime";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     if (!await signatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
 
     const target = await getCustomerUploadTarget(caseId, code);
-    const { env } = await import("cloudflare:workers");
+    const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Customer document storage is not configured.");
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100) || "customer-file";
     const prefix = target.projectFolder || `requests/${target.requestCode}`;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     return Response.json({ data: { id, fileName: file.name } }, { status: 201 });
   } catch (error) {
     if (objectKey) {
-      const { env } = await import("cloudflare:workers");
+      const env = await runtimeBindings();
       await env.BUCKET?.delete(objectKey).catch(() => undefined);
     }
     const message = error instanceof Error ? error.message : "Customer document upload failed.";

@@ -1,9 +1,11 @@
 import { ensureOwnerDatabase, getOwnerSnapshot } from "./owner-store";
+import { ensureRequestFilesTable } from "./request-store";
+import { runtimeBindings } from "./runtime";
 
 type AdminResource = "project" | "request" | "schedule" | "message";
 
 async function database() {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The operations database is unavailable.");
   return env.DB;
 }
@@ -33,11 +35,12 @@ async function adminPermissions() {
 export async function getAdminSnapshot() {
   await getOwnerSnapshot();
   await seedAdminRequests();
+  await ensureRequestFilesTable();
   const db = await database();
   const permissions = await adminPermissions();
   const results = await db.batch([
     db.prepare("SELECT id,code,name,service,stage,progress,customer_name AS customerName,suburb,start_date AS startDate,notes,updated_at AS updatedAt FROM projects ORDER BY updated_at DESC,id DESC"),
-    db.prepare("SELECT id,code,request_type AS requestType,customer_name AS customerName,contact,service,suburb,submitted_at AS submittedAt,status,priority,summary,assigned_to AS assignedTo,updated_at AS updatedAt FROM job_requests ORDER BY submitted_at DESC,id DESC"),
+    db.prepare("SELECT id,code,request_type AS requestType,customer_name AS customerName,contact,service,suburb,submitted_at AS submittedAt,status,priority,summary,assigned_to AS assignedTo,updated_at AS updatedAt,(SELECT COUNT(*) FROM request_files WHERE request_code=job_requests.code) AS attachmentCount FROM job_requests ORDER BY submitted_at DESC,id DESC"),
     db.prepare("SELECT id,event_date AS eventDate,start_time AS startTime,title,assignee,project_code AS projectCode,tone,notes FROM schedule_events ORDER BY event_date,start_time"),
     db.prepare("SELECT id,sender,recipient,body,sent_at AS sentAt FROM team_messages ORDER BY sent_at,id"),
   ]);

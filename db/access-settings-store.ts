@@ -1,4 +1,5 @@
 import { hashPbkdf2, isSupportedPbkdf2Hash, pbkdf2Iterations, verifyPbkdf2 } from "../app/secret-utils";
+import { runtimeBindings } from "./runtime";
 
 export type OwnerAccountRecord = {
   email: string;
@@ -13,7 +14,7 @@ export type TeamAccessSettings = {
 };
 
 async function database() {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The access settings database is unavailable.");
   return env.DB;
 }

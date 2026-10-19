@@ -1,6 +1,7 @@
 import { requestIsSameOrigin } from "../../../owner-auth";
 import { teamIdentityFromRequest } from "../../../team-identity";
 import { getThread, getUnread, sendChat } from "../../../../db/team-store";
+import { runtimeBindings } from "../../../../db/runtime";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
       if (!allowedTypes.has(attached.type.toLowerCase())) throw new Error("Only JPG, PNG, WebP and PDF files can be sent.");
       if (attached.size > 8 * 1024 * 1024) throw new Error("Files must be 8 MB or smaller.");
       if (!await signatureMatches(attached)) throw new Error("The file content does not match its type.");
-      const { env } = await import("cloudflare:workers");
+      const env = await runtimeBindings();
       if (!env.BUCKET) throw new Error("File storage is not configured.");
       const safeName = attached.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100) || "file";
       objectKey = `team-chat/${crypto.randomUUID()}-${safeName}`;
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     return Response.json({ data: { messages: await getThread(me, to) } }, { status: 201 });
   } catch (error) {
     if (objectKey) {
-      const { env } = await import("cloudflare:workers");
+      const env = await runtimeBindings();
       await env.BUCKET?.delete(objectKey).catch(() => undefined);
     }
     return Response.json({ error: error instanceof Error ? error.message : "The message could not be sent." }, { status: 400 });

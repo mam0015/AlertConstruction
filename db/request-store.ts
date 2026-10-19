@@ -103,7 +103,8 @@ export async function createPublicRequest(input: PublicRequestInput, files: File
       }
     }
   } catch (error) {
-    if (env.BUCKET) await Promise.all(uploadedKeys.map((key) => env.BUCKET.delete(key).catch(() => undefined)));
+    const bucket = env.BUCKET;
+    if (bucket) await Promise.all(uploadedKeys.map((key) => bucket.delete(key).catch(() => undefined)));
     await db.prepare("DELETE FROM request_files WHERE request_code=?").bind(code).run().catch(() => undefined);
     await db.prepare("DELETE FROM job_requests WHERE code=?").bind(code).run().catch(() => undefined);
     throw error;

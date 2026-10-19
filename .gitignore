@@ -1,0 +1,26 @@
+# Dependencies and tool caches (recreated by `npm ci`)
+node_modules/
+.sites-runtime/
+.wrangler/
+.vinext/
+.next/
+.vite/
+
+# Build output (recreated by `npm run build` / `npm test`)
+dist/
+dist-github/
+*.tsbuildinfo
+
+# Private settings — never upload these (see release-docs/ENVIRONMENT-TEMPLATE.txt for the names only)
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+
+# Production ZIPs made by scripts/build-production-package.sh
+Alert-Tradie-Pro-*.zip
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+*.log

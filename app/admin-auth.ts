@@ -20,8 +20,12 @@ function base64UrlEncode(input: Uint8Array | string) {
 
 function base64UrlDecode(input: string) {
   const padded = input.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(input.length / 4) * 4, "=");
-  const binary = atob(padded);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  // A tampered or truncated cookie is simply "not signed in", never a server error.
+  try {
+    return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  } catch {
+    return new Uint8Array();
+  }
 }
 
 function requiredTeamSessionSecret() {
