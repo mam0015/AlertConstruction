@@ -15,6 +15,8 @@ No real credential, Team Code, session secret or customer record belongs in GitH
 - `release/wordpress/` — WordPress secure portal bridge
 - `release-docs/` — Persian installation, environment and security guides
 - `scripts/security-setup.mjs` — local password-hash and session-secret generator
+- `jarvis/` — the Owner's private, read-only assistant (company email, employee updates, client comments); see `jarvis/README.md`
+- `docs/REPO_MAP.md` — what every folder in this repository is (the root also holds the GitHub Pages copy and older static pages)
 - `tests/` — release, access-control and workflow checks
 
 The production delivery ZIP intentionally excludes all demonstration/preview folders, generated output, secrets and local dependencies.
@@ -28,7 +30,7 @@ npm ci
 npm test
 ```
 
-For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
+To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
 
 ## Hosting from GitHub
 
