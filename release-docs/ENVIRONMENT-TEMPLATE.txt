@@ -27,3 +27,10 @@ CUSTOMER_CONTACT_HASH_SECRET=<RANDOM_SECRET>
 
 # Production must never seed demonstration data.
 ATP_DEMO_SEED=false
+
+# Optional: Jarvis (Owner-only, read-only assistant) can read company email through Google's read-only Gmail permission.
+# Leave these out and Jarvis still reads employee updates and client comments; it just reports "Company email: not connected".
+# Get the account value by running: node jarvis/scripts/gmail-authorize.mjs <mailbox> (see jarvis/README.md)
+JARVIS_GMAIL_CLIENT_ID=<GOOGLE_OAUTH_CLIENT_ID>
+JARVIS_GMAIL_CLIENT_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+JARVIS_GMAIL_ACCOUNTS=<JSON_LIST_OF_MAILBOXES_AND_REFRESH_TOKENS>
