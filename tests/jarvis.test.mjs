@@ -349,3 +349,29 @@ test("Jarvis API: an approved Admin (a different signed-in role) is refused", as
   assert.equal((await request("/api/admin/data", { headers: { cookie: adminCookie } })).status, 200, "the Admin session itself is valid");
   assert.equal((await request("/api/owner/jarvis", { headers: { cookie: adminCookie } })).status, 401, "…but Jarvis is for the Owner only");
 });
+
+test("Jarvis shows a comment a customer sends from the real tracking page (the app's own writer feeds Jarvis's reader)", async () => {
+  const form = new FormData();
+  for (const [key, value] of Object.entries({
+    service: "Kitchen Renovations", name: "Jarvis Customer", phone: "0400 222 333", email: "jarvis.customer@example.com",
+    location: "Test Suburb", timeframe: "Within 1–3 months", budget: "$25,000–$75,000", material: "Premium",
+    details: "Request created by the Jarvis end-to-end test to prove customer comments reach the Owner.",
+  })) form.set(key, value);
+  const created = await request("/api/requests", { method: "POST", body: form });
+  assert.equal(created.status, 201);
+  const { code } = await created.json();
+
+  const sent = await request(`/api/track/${code}/messages`, json(null, { subject: "Leak in the ceiling", message: "Water is coming through the ceiling, please call urgently." }));
+  assert.equal(sent.status, 201);
+
+  const ownerCookie = cookieFrom(await request("/api/owner/login", json(null, { email: ownerEmail, password: ownerPassword })), "atp_owner_session");
+  const body = await (await request("/api/owner/jarvis?scopes=client_comments&q=ceiling", { headers: { cookie: ownerCookie } })).json();
+  assert.equal(body.items.length, 1);
+  const [item] = body.items;
+  assert.equal(item.title, "Comment: Leak in the ceiling");
+  assert.equal(item.project, code);
+  assert.match(item.preview, /Water is coming through the ceiling/);
+  assert.ok(item.urgent && item.flags.includes("urgent") && item.flags.includes("damage"));
+  const everything = JSON.stringify(body);
+  assert.ok(!everything.includes("jarvis.customer@example.com") && !everything.includes("0400 222 333"), "the customer's contact details never reach Jarvis");
+});
