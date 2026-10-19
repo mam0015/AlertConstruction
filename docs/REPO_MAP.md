@@ -43,7 +43,10 @@ first-party folders, and it leaves the root `LICENSE` alone — that file is Bab
   and switch Settings → Pages to the `/docs` folder) — a change to make together with the Pages setting, so it was not done blindly.
 * **Hidden folders are dropped by browser uploads.** `.openai/`, `.github/` and `.nojekyll` never arrive when files are dragged onto
   GitHub's upload page. The build no longer depends on `.openai/hosting.json` (it falls back to the standard `DB` / `BUCKET`
-  bindings). The deploy workflow named in `README.md` (`.github/workflows/deploy.yml`) is not in the repository, so GitHub does not
-  deploy automatically until that file is added with git (or GitHub's "Add file → Create new file" screen).
+  bindings). The deploy workflow named in `README.md` (`.github/workflows/deploy.yml`) is not in the repository, so a GitHub → Cloudflare
+  deployment that relied on it is not defined here (add the file with git or GitHub's "Add file → Create new file" screen, or use
+  Cloudflare's own Git connection).
+* **`npm run lint` checks the app** (`app/ db/ jarvis/ tests/ scripts/ worker/`). The minified vendor libraries, the published Pages bundle,
+  the Supabase edge function and the older static-site scripts are not linted — they produced thousands of irrelevant warnings.
 * **Shell scripts lose their "executable" flag on upload.** The build scripts now call each other through `bash`, so this no longer breaks `npm run build`.
 * **`drizzle/` has two `0003_*` and two `0004_*` migrations.** Left untouched on purpose — database history is not tidied without a backup.

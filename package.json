@@ -14,7 +14,7 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "package:production": "bash scripts/build-production-package.sh",
     "validate:artifact": "bash scripts/validate-artifact.sh",
-    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern dist-github --ignore-pattern .next",
+    "lint": "bash scripts/sites-env.sh -- eslint app db jarvis tests scripts worker vite.config.ts",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "setup:credentials": "node scripts/security-setup.mjs"
   },
