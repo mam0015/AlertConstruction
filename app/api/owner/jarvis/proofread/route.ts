@@ -1,3 +1,5 @@
+import { runtimeBindings } from "../../../../../db/runtime";
+import { noteAsk } from "../../../../../jarvis/audit.mjs";
 import { parseBrain, resolveBrain } from "../../../../../jarvis/brains.mjs";
 import { summariseProofread } from "../../../../../jarvis/assistant.mjs";
 import { proofread } from "../../../../../jarvis/proofread.mjs";
@@ -14,6 +16,8 @@ export async function POST(request: Request) {
     const body = await readJson(request) as { text?: unknown; brain?: unknown };
     if (typeof body?.text !== "string" || body.text.trim().length < 2) throw new JarvisAccessError("Write something to check first.", 400);
     const config = jarvisConfig();
+    // A check can be three AI calls, so it counts against the same per-10-minute question limit as asking.
+    await noteAsk((await runtimeBindings()).DB, gate.owner.email);
     const chosen = parseBrain(body.brain);
     if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
     const brain = resolveBrain(config, chosen, { testClient: hooks().aiClient ?? null, fetchImpl: networkFetch() });

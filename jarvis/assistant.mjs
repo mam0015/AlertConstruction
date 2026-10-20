@@ -83,7 +83,7 @@ function suggestionsFor(items, max = 6) {
 function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false }) {
   if (preview) {
     return {
-      reply: `${notice ? `${notice} ` : "Smart mode is off. "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
+      reply: `${notice ? `${notice} ` : "Basic mode (no AI is connected). "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
       suggestions: [],
       draft: { body: templateReply({ fromName: preview.toName || preview.original.from?.name, text: message, ownerName: owner.name, company }), note: "Written from your exact words — nothing was added." },
     };
@@ -91,7 +91,7 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
   if (failedOpen) {
     return { reply: `${notice} I did NOT write your reply, because I could not read that email. Please try again in a moment.`.trim(), suggestions: [], draft: null };
   }
-  const lead = `${notice ? `${notice} ` : "Smart mode is off, so I looked through your records. "}`;
+  const lead = `${notice ? `${notice} ` : "Basic mode (no AI is connected), so I looked through your records. "}`;
   if (PLANS_QUESTION.test(message) && !NEWS_QUESTION.test(message)) {
     return { reply: `${plans.length ? `${lead}This is what is planned, soonest first:\n${plansText(plans)}` : `${lead}Nothing is planned in the next ${LIMITS.planDays} days.`}${incomplete ? `\n\n${incomplete}` : ""}`, suggestions: [], draft: null };
   }
