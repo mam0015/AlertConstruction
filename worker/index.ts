@@ -30,7 +30,7 @@ function securityHeaders(response: Response, url: URL) {
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   if (url.protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  if (/^\/(?:api|owner|admin|site-supervisor|worker|team|track)(?:\/|$)/.test(url.pathname)) {
+  if (/^\/(?:api|owner|admin|manager|estimator|site-supervisor|worker|workers|team|track)(?:\/|$)/.test(url.pathname)) {
     headers.set("Cache-Control", "private, no-store, max-age=0");
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
@@ -39,8 +39,21 @@ function securityHeaders(response: Response, url: URL) {
 
 // Browsers parse every /api answer as JSON. A plain-text error (the framework's "Payload Too Large", an unhandled exception)
 // used to show up as "Unexpected token 'P'..." in the interface, so errors from /api/* always leave as {"error": "..."}.
+// Text that only a programmer should ever see: JavaScript and database error messages. A few routes still pass such a message on as
+// the "error" of a 400 answer; here it is replaced by a plain sentence (the original is written to the Worker log).
+const INTERNAL_ERROR = /(?:is not a function|Cannot read propert|Cannot convert|is not defined|is not valid JSON|Unexpected (?:token|end of)|D1_ERROR|SQLITE_|TypeError|ReferenceError|RangeError|SyntaxError|\bat \S+ \(|JSON\.parse|undefined)/;
+
 async function jsonErrors(response: Response, url: URL) {
-  if (!url.pathname.startsWith("/api/") || response.status < 400 || /json/i.test(response.headers.get("content-type") ?? "")) return response;
+  if (!url.pathname.startsWith("/api/") || response.status < 400) return response;
+  const type = response.headers.get("content-type") ?? "";
+  if (/json/i.test(type)) {
+    const text = await response.clone().text().catch(() => "");
+    if (text.length > 4000 || !INTERNAL_ERROR.test(text)) return response;
+    console.error("Internal error hidden from the client:", text.slice(0, 300));
+    const headers = new Headers(response.headers);
+    headers.delete("Content-Length");
+    return Response.json({ error: response.status >= 500 ? "Something went wrong on the server. Please try again." : "The request could not be completed. Please check the details and try again." }, { status: response.status, headers });
+  }
   const text = (await response.text()).slice(0, 200).trim();
   const error = response.status === 413 ? "That file is too large to upload."
     : response.status >= 500 ? "Something went wrong on the server. Please try again."

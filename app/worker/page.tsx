@@ -6,6 +6,9 @@ import WorkerDashboard from "./WorkerDashboard";
 
 import HubLink from "../team/HubLink";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "My workday", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function WorkerPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

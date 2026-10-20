@@ -7,6 +7,7 @@ export type StaffSignInResult =
   | { status: "pending"; email: string }
   | { status: "approved"; email: string; role: StaffRole; tradeTitle: string }
   | { status: "rejected"; email: string }
+  | { status: "weak" }
   | { status: "invalid" };
 
 export function staffRedirect(role: StaffRole) {
@@ -41,6 +42,8 @@ export async function processStaffSignIn(emailInput: string, password: string, t
   if (!existing) {
     if (!teamCode) return invalidAfterCheck(password);
     if (!await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
+    // Only someone who already holds the Team Code is told about the password rule, so this reveals nothing to a stranger.
+    if (password.length < 10) return { status: "weak" };
     await createStaffAccessRequest(email, await hashStaffPassword(password));
     await notifyOwnerOfStaffRequest(email).catch(() => undefined);
     return { status: "pending", email };

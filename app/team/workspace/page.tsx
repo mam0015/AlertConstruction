@@ -7,6 +7,9 @@ import { isWorkerRole } from "../../staff-access";
 import TaskInbox from "../../tasks/TaskInbox";
 import styles from "../team.module.css";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Team workspace", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function TeamWorkspacePage() {

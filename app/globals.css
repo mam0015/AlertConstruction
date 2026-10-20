@@ -2360,3 +2360,20 @@ html[data-theme="dark"] .support-steps strong {
 @media (max-width: 900px) {
   .atp-hub-link { bottom: 88px !important; }
 }
+
+/* Audit UI-02 / A11Y-01 */
+.request-form .terms-consent span,.terms-consent span{color:#2b2f33!important}
+html[data-theme="dark"] .terms-consent span{color:#e6e6e6!important}
+.request-form .terms-consent a,.request-form .terms-consent button{color:#8a5a00;text-decoration:underline}
+html[data-theme="dark"] .request-form .terms-consent a,html[data-theme="dark"] .request-form .terms-consent button{color:#f3c96a}
+.portal-modal,.portal-modal.team-access-modal,.portal-modal.customer-access-modal{max-height:calc(100dvh - 24px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+@media(max-height:700px),(max-width:900px){.portal-modal .team-access-layout,.portal-modal .customer-access-layout{grid-template-columns:1fr}}
+
+/* Audit UI-09: the three brand cards were wider than a 360px phone. */
+@media(max-width:700px){.brand-grid{grid-template-columns:minmax(0,1fr)}.brand-card{min-width:0}.brand-card img,.brand-card svg{max-width:100%;height:auto}}
+
+/* Audit UI-13 / A11Y-14: on phones the shortcut is a small round button above the bottom bar, so it no longer covers buttons and text. */
+@media(max-width:900px){
+  .atp-hub-link{bottom:104px!important;right:12px!important;width:48px;min-height:48px!important;padding:0!important;justify-content:center;border-radius:50%}
+  .atp-hub-link .atp-hub-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}

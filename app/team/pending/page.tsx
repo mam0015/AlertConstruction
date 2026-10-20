@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { pendingStaffCookieName, verifyPendingStaffSession } from "../../admin-auth";
 import PendingAccess from "./PendingAccess";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Waiting for approval", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function PendingStaffPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

@@ -28,6 +28,7 @@ export async function POST(request: Request) {
   }
 
   const result = await processStaffSignIn(email, password, teamCode).catch(() => ({ status: "invalid" as const }));
+  if (result.status === "weak") return Response.json({ error: "Choose a password with at least 10 characters." }, { status: 400 });
   if (result.status === "invalid") {
     await guard.failed();
     return Response.json({ error: "Username, password or Team Code is incorrect." }, { status: 401 });

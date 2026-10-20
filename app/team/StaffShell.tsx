@@ -12,9 +12,9 @@ export default function StaffShell({ title, subtitle, role, children }: { title:
   }
   return <main className={styles.shell}>
     <header className={styles.top}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", minWidth: 0 }}>
         <Link href="/" aria-label="Alert Tradie Pro home"><BrandLogo kind="tradie" tone="dark" /></Link>
-        <div><h1>{title}</h1><small>{subtitle}</small></div>
+        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}><h1>{title}</h1><small>{subtitle}</small></div>
       </div>
       <div className={styles.topLinks}>
         <Link className={`${styles.btn} ${styles.btnPrimary}`} href="/team/hub">Calendar &amp; messages</Link>

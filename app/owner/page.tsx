@@ -5,6 +5,9 @@ import { ownerCookieName, ownerDisplayName, verifyOwnerSession } from "../owner-
 
 import HubLink from "../team/HubLink";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Owner dashboard", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function OwnerPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

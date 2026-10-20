@@ -9,14 +9,18 @@ async function database(): Promise<D1> {
   return env.DB;
 }
 
+// No free-text field needs more than this; without a limit one account could fill the database with megabytes per note.
+const MAX_TEXT = 10_000;
+
 function clean(value: unknown, fallback = "") {
-  return typeof value === "string" ? value.trim() : fallback;
+  return typeof value === "string" ? value.trim().slice(0, MAX_TEXT) : fallback;
 }
 
 function required(value: unknown, label: string) {
-  const result = clean(value);
-  if (!result) throw new Error(`${label} is required.`);
-  return result;
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) throw new Error(`${label} is required.`);
+  if (raw.length > MAX_TEXT) throw new Error(`${label} is too long.`);
+  return raw;
 }
 
 function bounded(value: unknown, label: string, max: number) {
@@ -197,7 +201,8 @@ export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string
     db.prepare("SELECT id,case_id AS caseId,amount_cents AS amountCents,scope,terms,status,created_by AS createdBy,created_at AS createdAt,sent_at AS sentAt,customer_decided_at AS customerDecidedAt,confirmed_at AS confirmedAt FROM workflow_estimates"),
     db.prepare("SELECT id,case_id AS caseId,work_date AS workDate,supervisor_email AS supervisorEmail,internal_update AS internalUpdate,customer_update AS customerUpdate,status,admin_note AS adminNote,owner_note AS ownerNote,created_at AS createdAt,admin_reviewed_at AS adminReviewedAt,owner_reviewed_at AS ownerReviewedAt,published_at AS publishedAt FROM project_updates ORDER BY created_at DESC"),
     db.prepare("SELECT id,case_id AS caseId,supervisor_email AS supervisorEmail,inspected_at AS inspectedAt,summary,defects,status,admin_note AS adminNote,owner_note AS ownerNote,submitted_at AS submittedAt,reviewed_at AS reviewedAt,completed_at AS completedAt FROM quality_inspections"),
-    db.prepare("SELECT id,case_id AS caseId,actor_role AS actorRole,actor_email AS actorEmail,event_type AS eventType,title,detail,audience,created_at AS createdAt FROM workflow_events ORDER BY created_at DESC,id DESC LIMIT 250"),
+    // The newest 60 events of EACH project (one company-wide limit of 250 used to empty the timeline of older jobs).
+    db.prepare("SELECT id,caseId,actorRole,actorEmail,eventType,title,detail,audience,createdAt FROM (SELECT id,case_id AS caseId,actor_role AS actorRole,actor_email AS actorEmail,event_type AS eventType,title,detail,audience,created_at AS createdAt,ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY created_at DESC,id DESC) AS position FROM workflow_events) WHERE position<=60 ORDER BY createdAt DESC,id DESC"),
     db.prepare("SELECT email,COALESCE(NULLIF(trade_title,''),role) AS name FROM staff_access_requests WHERE status='Approved' AND role='Site Supervisor' ORDER BY email"),
     db.prepare("SELECT id,case_id AS caseId,title,detail,status,created_by AS createdBy,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals ORDER BY created_at DESC"),
     db.prepare("SELECT id,case_id AS caseId,sender,sender_label AS senderLabel,body,kind,created_at AS createdAt FROM customer_messages ORDER BY created_at,id"),
@@ -296,6 +301,11 @@ async function realPhotos(db: D1, caseId: number, input: unknown, category: stri
   return ids;
 }
 
+async function requireApprovedSupervisor(db: D1, email: string) {
+  const row = await db.prepare("SELECT email FROM staff_access_requests WHERE LOWER(email)=? AND status='Approved' AND role='Site Supervisor' LIMIT 1").bind(email.toLowerCase()).first();
+  if (!row) throw new Error("Choose an approved Site Supervisor account.");
+}
+
 export async function performWorkflowAction(role: WorkflowRole, actorEmail: string, action: string, caseId: number, payload: Record<string, unknown>) {
   await ensureWorkflowDatabase();
   const db = await database();
@@ -334,11 +344,21 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
   } else if (action === "assign_visit") {
     allow(role, "admin"); requireStage(stage, ["site_visit_ready", "site_visit_scheduled", "visit_changes_requested"]);
     const supervisorEmail = required(payload.supervisorEmail, "Site Supervisor").toLowerCase();
+    await requireApprovedSupervisor(db, supervisorEmail);
     const supervisorName = required(payload.supervisorName, "Site Supervisor name");
     const visitAt = required(payload.visitAt, "Site visit date and time");
     await db.prepare("UPDATE workflow_cases SET stage='site_visit_scheduled',assigned_supervisor_email=?,assigned_supervisor_name=?,site_visit_at=?,updated_at=? WHERE id=?")
       .bind(supervisorEmail, supervisorName, visitAt, now, caseId).run();
     await event(db, caseId, "Admin", actorEmail, action, `Site visit assigned to ${supervisorName}`, visitAt);
+  } else if (action === "reassign_supervisor") {
+    // When a Site Supervisor leaves or is unavailable, Admin or the Owner can hand the job to another approved Site Supervisor.
+    if (role !== "admin" && role !== "owner") throw new Error("Admin or Owner access is required for this action.");
+    requireStage(stage, ["site_visit_scheduled", "visit_changes_requested", "active_project", "quality_inspection"]);
+    const supervisorEmail = required(payload.supervisorEmail, "Site Supervisor").toLowerCase();
+    await requireApprovedSupervisor(db, supervisorEmail);
+    const supervisorName = required(payload.supervisorName, "Site Supervisor name");
+    await db.prepare("UPDATE workflow_cases SET assigned_supervisor_email=?,assigned_supervisor_name=?,updated_at=? WHERE id=?").bind(supervisorEmail, supervisorName, now, caseId).run();
+    await event(db, caseId, role === "owner" ? "Owner" : "Admin", actorEmail, action, `Site Supervisor changed to ${supervisorName}`, `Previously ${String(item.assignedSupervisorName || item.assignedSupervisorEmail)}.`);
   } else if (action === "submit_site_visit") {
     allow(role, "supervisor"); requireStage(stage, ["site_visit_scheduled", "visit_changes_requested"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
@@ -367,9 +387,9 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, decision === "approved" ? "Admin approved the site visit report" : "Admin returned the site visit report", note);
   } else if (action === "save_estimate") {
     if (role !== "estimator" && role !== "admin" && role !== "owner") throw new Error("Estimator access is required for this action.");
-    requireStage(stage, ["site_visit_approved", "estimate_ready"]);
+    requireStage(stage, ["site_visit_approved", "estimate_ready", "estimate_declined"]);
     const amountCents = Math.round(number(payload.amount) * 100);
-    if (amountCents <= 0) throw new Error("Enter a valid estimate amount.");
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 10_000_000_000) throw new Error("Enter a valid estimate amount (more than $0 and under $100,000,000).");
     const scope = required(payload.scope, "Estimate scope");
     const terms = clean(payload.terms);
     await db.batch([
@@ -436,7 +456,8 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
       db.prepare("UPDATE workflow_cases SET stage='complete',updated_at=? WHERE id=?").bind(now, caseId),
       db.prepare("UPDATE projects SET stage='Complete',progress=100,updated_at=? WHERE code=?").bind(now, item.projectCode),
     ]);
-    await event(db, caseId, "Owner", actorEmail, action, "Owner marked the project complete", note, "customer");
+    await event(db, caseId, "Owner", actorEmail, action, "Owner marked the project complete", "", "customer");
+    if (note) await event(db, caseId, "Owner", actorEmail, "completion_note", "Owner's completion note", note);
   } else if (action === "admin_approve_update") {
     allow(role, "admin");
     const updateId = number(payload.updateId);
@@ -582,10 +603,10 @@ export async function customerEstimateDecision(code: string, decision: "accept" 
   const caseId = Number(item.id);
   const now = new Date().toISOString();
   const accepted = decision === "accept";
-  await db.batch([
-    db.prepare("UPDATE workflow_estimates SET status=?,customer_decided_at=? WHERE case_id=? AND status='sent'").bind(accepted ? "customer_accepted" : "customer_declined", now, caseId),
-    db.prepare("UPDATE workflow_cases SET stage=?,updated_at=? WHERE id=?").bind(accepted ? "customer_approved" : "estimate_declined", now, caseId),
-  ]);
+  // The guard is in the statement itself: if Accept and Decline arrive together, only the first one changes anything.
+  const moved = await db.prepare("UPDATE workflow_cases SET stage=?,updated_at=? WHERE id=? AND stage='estimate_sent'").bind(accepted ? "customer_approved" : "estimate_declined", now, caseId).run();
+  if (Number(moved.meta.changes) !== 1) throw new Error("This estimate is no longer waiting for a decision.");
+  await db.prepare("UPDATE workflow_estimates SET status=?,customer_decided_at=? WHERE case_id=? AND status='sent'").bind(accepted ? "customer_accepted" : "customer_declined", now, caseId).run();
   await event(db, caseId, "Customer", String(item.customerEmail), "customer_estimate_decision", accepted ? "Customer accepted the estimate" : "Customer declined the estimate", "", "customer");
 }
 
@@ -612,7 +633,8 @@ export async function customerChangeDecision(code: string, proposalId: number, d
   const now = new Date().toISOString();
   const accepted = decision === "accept";
   const safeReply = clean(reply).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").slice(0, 500);
-  await db.prepare("UPDATE change_proposals SET status=?,customer_reply=?,decided_at=? WHERE id=?").bind(accepted ? "accepted" : "declined", safeReply, now, proposalId).run();
+  const decided = await db.prepare("UPDATE change_proposals SET status=?,customer_reply=?,decided_at=? WHERE id=? AND status='sent'").bind(accepted ? "accepted" : "declined", safeReply, now, proposalId).run();
+  if (Number(decided.meta.changes) !== 1) throw new Error("This change request is no longer waiting for a decision.");
   await event(db, caseId, "Customer", String(item.customerEmail), "customer_change_decision", accepted ? `Customer approved the change: ${proposal.title}` : `Customer declined the change: ${proposal.title}`, safeReply, "customer");
 }
 

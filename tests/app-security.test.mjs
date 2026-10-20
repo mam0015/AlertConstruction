@@ -266,3 +266,70 @@ test("sign-out: a copy of the session cookie stops working, for the Owner and fo
   assert.equal((await request("/api/admin/logout", { method: "POST", headers: { cookie: staff } })).status, 200);
   assert.equal((await request("/api/admin/data", { headers: { cookie: staff } })).status, 401);
 });
+
+test("finance: a wrong amount is refused instead of being saved as one cent", async () => {
+  const owner = await app.ownerCookie();
+  const entry = (payload) => request("/api/owner/data", json(owner, { resource: "finance", payload: { type: "Income", category: "Deposit", amount: 12345, entryDate: "2026-10-01", projectCode: "Business / General", note: "", ...payload } }));
+  assert.equal((await entry({})).status, 201);
+  for (const bad of [{ amount: -5000 }, { amount: 0 }, { amount: "" }, { amount: "abc" }, { amount: 1.5 }, { amount: 1e300 }, { type: "Bogus" }, { category: "" }, { entryDate: "not-a-date" }]) {
+    const response = await entry(bad);
+    assert.equal(response.status, 400, JSON.stringify(bad));
+  }
+  const rows = app.d1.sqlite.prepare("SELECT amount FROM finance_entries").all();
+  assert.deepEqual(rows.map((row) => row.amount), [12345], "only the valid entry was stored, and nothing became 1 cent");
+});
+
+test("customer decisions: accept and decline at the same moment cannot both win", async () => {
+  const { caseId, code } = await newRequest("decide1");
+  const now = new Date().toISOString();
+  app.d1.sqlite.prepare("UPDATE workflow_cases SET stage='estimate_sent' WHERE id = ?").run(caseId);
+  app.d1.sqlite.prepare("INSERT INTO workflow_estimates (case_id,amount_cents,scope,terms,status,created_by,created_at,sent_at,customer_decided_at,confirmed_at) VALUES (?,?,?,?,?,?,?,?,'','')").run(caseId, 100000, "Scope", "Terms", "sent", "admin", now, now);
+  const decide = (decision) => request("/api/workflow/public", { method: "PATCH", headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.200" }, body: JSON.stringify({ code, decision }) });
+  const answers = await Promise.all([decide("accept"), decide("decline")]);
+  assert.deepEqual(answers.map((answer) => answer.status).sort(), [200, 400], "exactly one answer counts");
+  const stage = app.d1.sqlite.prepare("SELECT stage FROM workflow_cases WHERE id = ?").get(caseId).stage;
+  const estimate = app.d1.sqlite.prepare("SELECT status FROM workflow_estimates WHERE case_id = ?").get(caseId).status;
+  assert.ok((stage === "customer_approved" && estimate === "customer_accepted") || (stage === "estimate_declined" && estimate === "customer_declined"), `consistent: ${stage} / ${estimate}`);
+  if (stage === "estimate_declined") {
+    // A declined estimate is not the end of the job: the price can be revised and sent again.
+    const revised = await request("/api/workflow", json(admin, { action: "save_estimate", caseId, payload: { amount: "900", scope: "Smaller scope", terms: "" } }));
+    assert.equal(revised.status, 200, await revised.clone().text());
+  }
+});
+
+test("a job whose Site Supervisor leaves can be handed to another approved Site Supervisor", async () => {
+  await app.staffCookie("super.old@alert.test", "Site Supervisor");
+  const next = await app.staffCookie("super.new@alert.test", "Site Supervisor");
+  await app.staffCookie("plain.worker@alert.test", "Worker");
+  const { caseId } = await newRequest("handover1");
+  app.d1.sqlite.prepare("UPDATE workflow_cases SET stage='active_project', assigned_supervisor_email='super.old@alert.test', assigned_supervisor_name='Old' WHERE id = ?").run(caseId);
+  const hand = (email, cookie = admin) => request("/api/workflow", json(cookie, { action: "reassign_supervisor", caseId, payload: { supervisorEmail: email, supervisorName: "New Super" } }));
+  assert.equal((await hand("plain.worker@alert.test")).status, 400, "only an approved Site Supervisor can take a job");
+  assert.equal((await hand("nobody@alert.test")).status, 400);
+  assert.equal((await hand("super.new@alert.test", next)).status, 400, "a Site Supervisor cannot hand jobs around");
+  assert.equal((await hand("super.new@alert.test")).status, 200);
+  assert.equal(app.d1.sqlite.prepare("SELECT assigned_supervisor_email AS e FROM workflow_cases WHERE id = ?").get(caseId).e, "super.new@alert.test");
+});
+
+test("staff accounts: a short password is refused at sign-up, and the Owner can reset a person who is locked out", async () => {
+  const join = (email, password) => request("/api/team/login", json(null, { email, password, teamCode: app.teamCode }));
+  const weak = await join("weak@alert.test", "short");
+  assert.equal(weak.status, 400);
+  assert.match((await weak.json()).error, /at least 10/);
+  assert.equal(app.d1.sqlite.prepare("SELECT COUNT(*) AS n FROM staff_access_requests WHERE email='weak@alert.test'").get().n, 0);
+
+  assert.equal((await join("forgetful@alert.test", "LongEnough-2026!")).status, 202);
+  assert.equal((await join("forgetful@alert.test", "a-different-password")).status, 401, "the forgotten password is not accepted");
+  const owner = await app.ownerCookie();
+  const row = app.d1.sqlite.prepare("SELECT id FROM staff_access_requests WHERE email='forgetful@alert.test'").get();
+  assert.equal((await request("/api/owner/data", { method: "DELETE", headers: { "content-type": "application/json", cookie: owner }, body: JSON.stringify({ resource: "staff", id: row.id }) })).status, 200);
+  assert.equal((await join("forgetful@alert.test", "A-new-password-2026")).status, 202, "after the reset they can join again with the Team Code");
+});
+
+test("errors: internal programming messages never reach the screen", async () => {
+  const owner = await app.ownerCookie();
+  const response = await request("/api/owner/data", { method: "POST", headers: { "content-type": "application/json", cookie: owner }, body: "null" });
+  assert.ok(response.status >= 400);
+  const text = await response.text();
+  assert.ok(!/Cannot read|is not a function|TypeError|D1_ERROR|SQLITE/.test(text), text);
+});

@@ -283,11 +283,14 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
     const created = await db.prepare("INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at) VALUES (?,'worker_document',?,?,?,?,?,'internal',?)")
       .bind(caseId, objectKey, file.name, file.type || "application/octet-stream", file.size, actorEmail, now).run();
     const fileId = Number(created.meta.last_row_id);
-    await db.batch(uniqueWorkers.map((email) => db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?)").bind(fileId, caseId, email, actorEmail, now)));
-    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_file_uploaded", `Project file shared with ${uniqueWorkers.length} Worker account(s)`, file.name);
+    // "Upload privately" (nobody ticked) is allowed: the file is only for Owner and Admin. (An empty batch used to fail with "No SQL statements".)
+    if (uniqueWorkers.length) await db.batch(uniqueWorkers.map((email) => db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?)").bind(fileId, caseId, email, actorEmail, now)));
+    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_file_uploaded", uniqueWorkers.length ? `Project file shared with ${uniqueWorkers.length} Worker account(s)` : "Project file stored privately", file.name);
     return fileId;
   } catch (error) {
-    await env.BUCKET.delete(objectKey);
+    // Undo both halves: the stored object and the file record (a record without an object showed up in lists and gave "File not found").
+    await env.BUCKET.delete(objectKey).catch(() => undefined);
+    await db.prepare("DELETE FROM workflow_files WHERE object_key=?").bind(objectKey).run().catch(() => undefined);
     throw error;
   }
 }
