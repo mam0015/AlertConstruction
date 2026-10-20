@@ -333,3 +333,23 @@ test("errors: internal programming messages never reach the screen", async () =>
   const text = await response.text();
   assert.ok(!/Cannot read|is not a function|TypeError|D1_ERROR|SQLITE/.test(text), text);
 });
+
+test("recovery: changing the Owner password in the private settings and restarting works, and an in-app change survives restarts", async () => {
+  const { pbkdf2Sync, randomBytes } = await import("node:crypto");
+  const hashOf = (password) => { const salt = randomBytes(16); return `pbkdf2$100000$${salt.toString("base64url")}$${pbkdf2Sync(password, salt, 100_000, 32, "sha256").toString("base64url")}`; };
+  const fresh = async (tag) => { const url = new URL("../dist/server/index.js", import.meta.url); url.searchParams.set(tag, `${process.pid}-${Date.now()}`); return (await import(url.href)).default; };
+  const ctx = { waitUntil() {}, passThroughOnException() {} };
+  const login = async (worker, password) => (await worker.fetch(new Request("http://localhost/api/owner/login", { method: "POST", headers: { "content-type": "application/json", origin: "http://localhost", "cf-connecting-ip": `203.0.113.${Math.floor(Math.random() * 200)}` }, body: JSON.stringify({ email: app.ownerEmail, password }) }), app.env, ctx)).status;
+
+  const original = process.env.OWNER_PASSWORD_HASH;
+  try {
+    assert.equal(await login(await fresh("rec1"), app.ownerPassword), 200);
+    process.env.OWNER_PASSWORD_HASH = hashOf("Brand-New-Owner-Pass-2027!"); // the Owner forgot the old password and set a new one in the private settings
+    const restarted = await fresh("rec2");
+    assert.equal(await login(restarted, "Brand-New-Owner-Pass-2027!"), 200, "the new password works after the restart");
+    assert.equal(await login(restarted, app.ownerPassword), 401, "the old password no longer works");
+    assert.equal(await login(await fresh("rec3"), "Brand-New-Owner-Pass-2027!"), 200, "and it keeps working on later restarts");
+  } finally {
+    process.env.OWNER_PASSWORD_HASH = original;
+  }
+});

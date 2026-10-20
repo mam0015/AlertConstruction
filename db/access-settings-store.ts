@@ -58,6 +58,20 @@ async function ensureAccessSettingsOnce() {
       .bind(ownerHash, now).run();
   }
 
+  // The Owner account is created from the private settings once. If those settings are CHANGED later on purpose (the Owner forgot the
+  // password, or the Owner's e-mail changes) the new values must win; otherwise there is no way back in. A password the Owner changed
+  // inside the app is kept as long as the private settings stay the same.
+  await db.prepare("CREATE TABLE IF NOT EXISTS owner_env_seed (id INTEGER PRIMARY KEY CHECK (id = 1), seed TEXT NOT NULL)").run();
+  const seed = `${ownerEmail}|${ownerHash}`;
+  const seeded = await db.prepare("SELECT seed FROM owner_env_seed WHERE id=1").first<{ seed: string }>();
+  if (!seeded) {
+    await db.prepare("INSERT OR IGNORE INTO owner_env_seed (id,seed) VALUES (1,?)").bind(seed).run();
+  } else if (seeded.seed !== seed && isSupportedPbkdf2Hash(ownerHash)) {
+    await db.prepare("UPDATE owner_accounts SET email=?,password_hash=?,display_name=COALESCE(NULLIF(?,''),display_name),updated_at=? WHERE id=1")
+      .bind(ownerEmail, ownerHash, process.env.OWNER_DISPLAY_NAME?.trim() ?? "", now).run();
+    await db.prepare("UPDATE owner_env_seed SET seed=? WHERE id=1").bind(seed).run();
+  }
+
   const existing = await db.prepare("SELECT id,team_code AS teamCode,team_code_hash AS teamCodeHash FROM team_access_settings WHERE id=1")
     .first<{ id: number; teamCode: string; teamCodeHash: string }>();
   if (!existing) {

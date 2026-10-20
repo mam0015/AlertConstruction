@@ -95,6 +95,25 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
 * **Read-only mailboxes** still get drafts, but Send is disabled — copy the text into your mail app, or reconnect the mailbox
   with `--allow-replies`.
 
+## Safety checks added after the security review (October 2026)
+
+* **Send is tied to what you saw.** The send request carries the address that was shown; if the email's reply address is no longer that
+  one, nothing is sent. Google errors that leave it unclear whether the mail went out (no answer, a 5xx) keep the "sending" claim for five
+  minutes and tell you to check the Sent folder instead of inviting a second send.
+* **Unusual recipients need a tick.** A `Reply-To` on another domain than the sender ("this email asks for replies to X, not the sender") and
+  automatic/mailing-list mail ("this may not be a person") are shown in a warning box and need a checkbox before Send.
+* **Least privilege while drafting.** With an email open, the AI sees that email plus records about the same thread or project and nothing
+  else — other clients' comments, staff reports and other mailboxes stay out, unless you tick "Let Jarvis also use other records".
+* **Drafts are checked.** Dates, times, prices, links and numbers in a draft that neither you nor the email mentioned are listed in a warning
+  box, and Send needs a tick after you checked them. Placeholders like `[date]` are flagged too.
+* **Hostile text is data.** Jarvis's own earlier answers are replayed as escaped data, never as trusted assistant turns; invisible, bidirectional
+  and tag characters and look-alike letters are removed before the AI or the attention rules see them.
+* **Honest about gaps.** If a mailbox or table could not be read, the headline says so instead of "nothing new"; partly read mailboxes and cut
+  texts are marked; the AI is told how many records it was shown out of how many were found.
+* **Limits that hold under load.** Questions (40 per 10 minutes, 400 a day) and sends (20 an hour, 60 a day) are each one atomic statement,
+  so parallel clicks cannot slip past; every Google call has a 15-second limit.
+* **Quiet logs.** Worker logs carry the kind of failure only — no addresses, subjects, customer text or upstream error bodies.
+
 ## Good to know
 
 * AI can make mistakes. **Always read a draft before sending** — that is why Send is always your decision.

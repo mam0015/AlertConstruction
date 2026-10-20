@@ -134,6 +134,13 @@ npm test && node scripts/deploy-cloudflare.mjs
 Jarvis فقط داخل بخش Owner، فقط برای Owner واردشده کار می‌کند، فقط سه منبع (ایمیل شرکت، گزارش کارکنان، نظر مشتری‌ها) را می‌خواند
 و فقط وقتی شما **Send** را بزنید ایمیل می‌فرستد.
 
+## اگر Owner رمز را فراموش کرد
+
+دستور `node scripts/security-setup.mjs` را اجرا کنید (گزینهٔ `owner`)، مقدار جدید `OWNER_PASSWORD_HASH` (و اگر ایمیل عوض می‌شود `OWNER_EMAIL`) را
+در GitHub secrets بگذارید و **Actions → Run workflow** بزنید. بعد از deploy رمز جدید کار می‌کند، رمز قدیمی از کار می‌افتد و همه از حساب خارج می‌شوند.
+(رمزی که داخل خود اپ در **Owner → Settings** عوض کنید تا وقتی secretها همان باشند حفظ می‌شود.)
+عضو تیمی که رمزش را فراموش کرده: **Owner → Access requests → Reset access** و بعد با Team Code دوباره عضو می‌شود.
+
 ## بکاپ و بازگردانی
 
 اطلاعات شما فقط در Cloudflare است؛ پس بکاپ بگیرید.

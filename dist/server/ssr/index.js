@@ -11646,43 +11646,55 @@ function createFromReadableStream(stream, options = {}) {
 //#region \0virtual:vite-rsc/client-references
 var client_references_default = {
 	"009ec46bb0c1": async () => {
-		const m = await import("./assets/AdminDashboard-BiosTXvj.js");
+		const m = await import("./assets/AdminDashboard-BKFtR8Aa.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
 	"03672e79ab9b": async () => {
-		const m = await import("./assets/PendingAccess-CceAD58a.js");
+		const m = await import("./assets/PendingAccess-Dc47NH0h.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
 	"07e5d253561f": async () => {
-		const m = await import("./assets/OwnerDashboard-B0E8XP1y.js");
+		const m = await import("./assets/OwnerDashboard-DZaF2BzV.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
 	"15c18cfaeeff": async () => {
-		const m = await import("./assets/layout-segment-context-BV06y-Ez.js");
+		const m = await import("./assets/layout-segment-context-Df9XRIGn.js");
 		return { get "LayoutSegmentProvider"() {
 			return m["LayoutSegmentProvider"];
 		} };
 	},
-	"3618e549b399": async () => {
-		const m = await import("./assets/AdminLogin-Bzx6SH3H.js");
+	"22779850f409": async () => {
+		const m = await import("./assets/StaffShell-od9Iq3we.js");
+		return { get "default"() {
+			return m["default"];
+		} };
+	},
+	"23907627461a": async () => {
+		const m = await import("./assets/WorkflowBoard-AsTlLJ6G.js");
+		return { get "default"() {
+			return m["default"];
+		} };
+	},
+	"34c509958cf1": async () => {
+		const m = await import("./assets/ManagerOverview-B37jXDUg.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
 	"422551a3b4ff": async () => {
-		const m = await import("./assets/page-B4BDEfPc.js");
+		const m = await import("./assets/page-Bbu-34F5.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
 	"593f344dc510": async () => {
-		const m = await import("./assets/error-boundary-CArYyjDv.js");
+		const m = await import("./assets/error-boundary-q_wRnlC2.js");
 		return {
 			get "ErrorBoundary"() {
 				return m["ErrorBoundary"];
@@ -11702,7 +11714,13 @@ var client_references_default = {
 		};
 	},
 	"6efdf509a785": async () => {
-		const m = await import("./assets/page-YBFEojVL.js");
+		const m = await import("./assets/page-D98LsC6z.js");
+		return { get "default"() {
+			return m["default"];
+		} };
+	},
+	"7546c08984d7": async () => {
+		const m = await import("./assets/TaskInbox-8ya6hAO3.js");
 		return { get "default"() {
 			return m["default"];
 		} };
@@ -11721,14 +11739,26 @@ var client_references_default = {
 			}
 		};
 	},
-	"c2747888630f": async () => {
-		const m = await import("./assets/link-DXveEjG3.js");
+	"a9766214951c": async () => {
+		const m = await import("./assets/SiteSupervisor-C9pb1UlX.js");
 		return { get "default"() {
 			return m["default"];
 		} };
 	},
-	"f4e178564a02": async () => {
-		const m = await import("./assets/OwnerLogin-CSc0uEl3.js");
+	"c2747888630f": async () => {
+		const m = await import("./assets/link-CqvCrLM8.js");
+		return { get "default"() {
+			return m["default"];
+		} };
+	},
+	"d74b842818c6": async () => {
+		const m = await import("./assets/WorkerDashboard-CD5QYwBF.js");
+		return { get "default"() {
+			return m["default"];
+		} };
+	},
+	"fbe286e8da9f": async () => {
+		const m = await import("./assets/TeamHub-BmhPbATL.js");
 		return { get "default"() {
 			return m["default"];
 		} };

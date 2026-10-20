@@ -134,6 +134,13 @@ Full instructions: [`jarvis/README.md`](../jarvis/README.md). In short:
 Jarvis only works inside the Owner area, only for the signed-in Owner, only reads the three sources (company email, employee
 updates, client comments) and sends an email only when you press **Send**.
 
+## If the Owner forgets the password
+
+Run `node scripts/security-setup.mjs` (choose `owner`), put the new `OWNER_PASSWORD_HASH` (and, if the address changes, `OWNER_EMAIL`) into the
+GitHub secrets, then **Actions → Run workflow**. After the deploy the new password works and the old one stops; everyone is signed out.
+(A password changed inside the app, in **Owner → Settings**, is kept for as long as these secrets stay the same.)
+A staff member who forgot their password: **Owner → Access requests → Reset access**, then they join again with the Team Code.
+
 ## Backups and recovery
 
 Your data lives only in Cloudflare, so back it up.
