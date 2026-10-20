@@ -19,8 +19,8 @@ This page says what each part is, so nothing gets deleted or edited by mistake.
 | **Docs** | `README.md` `START-HERE-PRODUCTION.md` `DEPLOYMENT-GUIDE.md` `release-docs/` `docs/` | `docs/archive/` holds the old upload guides, changelogs and checksum lists (moved, not deleted) | — |
 | **Team rules** | `CLAUDE.md` `MASTER_PROMPT.md` | How the multi-agent work is split | — |
 
-`CHANGES_AND_TESTS.txt` stays in the root because `tools/validate.mjs` reads it. `examples/d1/` is a starter sample from the
-Vinext template; the production packager already leaves it out.
+Old release checks, the previous changelog and obsolete guides were moved (not deleted) to `docs/archive/` in October 2026, each with an OBSOLETE banner.
+The `examples/` starter sample, unused starter icons and a few scripts nothing referenced were removed (git history keeps them).
 
 ## Duplicates removed, and what still waits for the owner's OK
 
@@ -31,10 +31,8 @@ Vinext template; the production packager already leaves it out.
   `*.js` / `*.js.map` files that sat in the root, plus `@alloc/quick-lru/`). `npm ci` installs the real ones.
 * 26 images in the old root `client/` folder that are identical to the copies in `images/` and `public/images/`.
 
-**Still here until the owner says yes (tier 2 — not copies of anything, but generated and no longer used):** the other 77 files of the
-old root `client/` and `server/` build output, 8 old hashed bundles in `assets/` (`main-*.js|css`) that no page refers to,
-`tsconfig.tsbuildinfo`, and the tracked `dist/` build output (every build recreates it). `node scripts/clean-repo-root.mjs` lists them;
-`node scripts/clean-repo-root.mjs --apply --include-generated` removes them.
+**Also removed, with the owner's OK (October 2026):** the other 77 files of the old root `client/` and `server/` build output, 8 old hashed bundles in `assets/`,
+`tsconfig.tsbuildinfo`, and the tracked `dist/` (every build recreates `dist/`; it is simply no longer committed).
 
 **Copies that look like duplicates but are not:** `images/`, `public/images/` and `github-pages-spa/public/images/` hold the same pictures
 because three different things publish them (the Pages site in the root, the Cloudflare app, and the Pages source). Likewise
@@ -57,3 +55,17 @@ The root `LICENSE` is Babel's licence text, not yours; it was left alone.
   the Supabase edge function and the older static-site scripts are not linted — they produced thousands of irrelevant warnings.
 * **Shell scripts lose their "executable" flag on upload.** The build scripts now call each other through `bash`, so this no longer breaks `npm run build`.
 * **`drizzle/` has two `0003_*` and two `0004_*` migrations.** Left untouched on purpose — database history is not tidied without a backup.
+
+## Kept on purpose although it does not work with the new app
+
+The owner chose to leave these alone for now (nothing in them was changed):
+
+* **The older Supabase-era static site** — `builder/`, `management/`, `customer-portal/`, `request-job/`, `request-a-job/`, `request-form/`, `customer/`,
+  `customer-login/`, `login/`, `team-login/`, `shared/`, `supabase/`, `vendor/` … They load, but they need a Supabase project and server functions that are
+  not in this repository, and nothing in the live app links to them.
+* **The GitHub Pages copy and its demo pages** — `team/`, `reset-password/`, `worker/`, `site-supervisor/`, `project-status/`, `worker-update/` and the
+  published `index.html`/`assets/`. They show demonstration dashboards without sign-in; they cannot reach the real app's data. Do not publish
+  real information through them. (Turning GitHub Pages off in the repository settings is the simplest way to stop showing them.)
+* `release/wordpress/` (the WordPress bridge): two of its buttons point at pages the app does not have.
+* `drizzle/` has two `0003_*` and two `0004_*` files and the deploy never applies it (tables are created by the app); left untouched on purpose.
+* `LICENSE` is Babel's licence text, not the company's.
