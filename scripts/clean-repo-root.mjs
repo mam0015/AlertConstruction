@@ -1,9 +1,14 @@
-// Tidies the repository root. Safe by design:
-//   node scripts/clean-repo-root.mjs            → DRY RUN: only prints what would be removed, and why
-//   node scripts/clean-repo-root.mjs --apply    → runs `git rm` on exactly that list (git history keeps everything)
-//   node scripts/clean-repo-root.mjs --print    → prints that list (NUL-separated, nothing else) for scripts/make-package.mjs
+// Tidies the repository root. Safe by design, in two tiers:
+//   node scripts/clean-repo-root.mjs                          → DRY RUN: only prints what would be removed, and why
+//   node scripts/clean-repo-root.mjs --apply                  → removes only PROVABLE DUPLICATES (byte-for-byte copies of a file that
+//                                                               stays), with `git rm` — git history keeps everything
+//   node scripts/clean-repo-root.mjs --apply --include-generated
+//                                                             → also removes old generated build leftovers that are not copies of
+//                                                               anything (needs the owner's OK) and stops tracking dist/
+//   node scripts/clean-repo-root.mjs --print                  → prints every candidate (NUL-separated, nothing else) for scripts/make-package.mjs
 //
-// It only ever removes four kinds of file, and every one is provably not your code:
+// It only ever removes four kinds of file, and every one is provably not your code (A is always tier 1; B, C, D are tier 1 when a
+// byte-identical copy stays, otherwise tier 2):
 //   A. copies of npm packages that were uploaded into the repo (byte-for-byte identical to a file inside
 //      node_modules/@babel or node_modules/@alloc — so run `npm ci` first)
 //   B. generated build output: client/, server/ (old duplicates) and dist/ (kept on disk, just no longer tracked)
@@ -20,6 +25,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const apply = process.argv.includes("--apply");
+const includeGenerated = process.argv.includes("--include-generated");
 
 const PROTECTED_PREFIXES = ["app/", "db/", "jarvis/", "tests/", "scripts/", "worker/", "build/", "public/", "drizzle/", "release/", "release-docs/", "github-pages-spa/", "supabase/", "docs/", ".openai/", ".github/"];
 const PROTECTED_FILES = new Set(["LICENSE", "sw.js", "package.json", "package-lock.json", "CLAUDE.md", "MASTER_PROMPT.md", "README.md"]);
@@ -76,17 +82,33 @@ const staleBundles = bundles.filter((path) => !referenced.has(path));
 // ---- D. build info ----------------------------------------------------------------------------------------------------
 const buildInfo = tracked.filter((path) => path.endsWith(".tsbuildinfo"));
 
+// ---- tiers: a candidate is a provable duplicate when a byte-identical file stays (an npm package file or another tracked file) --
+const candidates = [...new Set([...copies, ...generated, ...staleBundles, ...buildInfo])];
+const candidateSet = new Set(candidates);
+const stays = new Set();
+for (const path of tracked) {
+  if (candidateSet.has(path) || path.startsWith("dist/")) continue;
+  const full = join(root, path);
+  if (existsSync(full) && lstatSync(full).isFile()) stays.add(sha(readFileSync(full)));
+}
+const copySet = new Set(copies);
+const duplicates = candidates.filter((path) => copySet.has(path) || stays.has(sha(readFileSync(join(root, path)))));
+const duplicateSet = new Set(duplicates);
+const leftovers = candidates.filter((path) => !duplicateSet.has(path));
+const pick = (list, files) => list.filter((path) => files.includes(path));
+
 const groups = [
-  ["A. copies of npm packages (identical to node_modules/@babel, @alloc)", copies, "remove"],
-  ["B. generated output: client/ and server/ duplicates", generated, "remove"],
-  ["B. generated output: dist/ (stays on disk, just stops being tracked)", distTracked, "untrack"],
-  ["C. old hashed Pages bundles nothing refers to", staleBundles, "remove"],
-  ["D. generated build info", buildInfo, "remove"],
+  ["TIER 1 (removed by --apply) — copies of npm packages (identical to node_modules/@babel, @alloc)", pick(duplicates, copies), "remove"],
+  ["TIER 1 (removed by --apply) — generated copies identical to a file that stays", duplicates.filter((path) => !copySet.has(path)), "remove"],
+  ["TIER 2 (needs --include-generated) — old build output not identical to anything: client/ server/", pick(leftovers, generated), "remove"],
+  ["TIER 2 (needs --include-generated) — old hashed Pages bundles nothing refers to", pick(leftovers, staleBundles), "remove"],
+  ["TIER 2 (needs --include-generated) — generated build info", pick(leftovers, buildInfo), "remove"],
+  ["TIER 2 (needs --include-generated) — dist/ (stays on disk, just stops being tracked)", distTracked, "untrack"],
 ];
 
-const removable = [...copies, ...generated, ...staleBundles, ...buildInfo];
+const everything = [...candidates, ...distTracked];
 if (process.argv.includes("--print")) {
-  process.stdout.write([...removable, ...distTracked].join("\0"));
+  process.stdout.write(everything.join("\0"));
   process.exit(0);
 }
 
@@ -101,11 +123,12 @@ if (tracked.includes("LICENSE") && known.has(sha(readFileSync(join(root, "LICENS
   console.log("\nNote: the root LICENSE file is Babel's licence text (Sebastian McKenzie), not yours. It was left in place; decide whether to replace it with your own.");
 }
 
+const removable = includeGenerated ? candidates : duplicates;
 if (!apply) {
-  console.log(`\nWould remove ${removable.length} tracked files and untrack ${distTracked.length} under dist/. Everything stays in git history.`);
+  console.log(`\nTier 1 would remove ${duplicates.length} provable duplicates. Tier 2 would remove ${leftovers.length} more and untrack ${distTracked.length} under dist/. Everything stays in git history.`);
   process.exit(0);
 }
 
 if (removable.length) git(["rm", "-q", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"], removable.join("\0"));
-if (distTracked.length) git(["rm", "-r", "-q", "--cached", "dist"]);
-console.log(`\nDone: removed ${removable.length} files and untracked ${distTracked.length} under dist/. Review with  git status , then run  npm test  and commit.`);
+if (includeGenerated && distTracked.length) git(["rm", "-r", "-q", "--cached", "dist"]);
+console.log(`\nDone: removed ${removable.length} files${includeGenerated ? ` and untracked ${distTracked.length} under dist/` : ""}. Review with  git status , then run  npm test  and commit.`);

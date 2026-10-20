@@ -22,18 +22,25 @@ This page says what each part is, so nothing gets deleted or edited by mistake.
 `CHANGES_AND_TESTS.txt` stays in the root because `tools/validate.mjs` reads it. `examples/d1/` is a starter sample from the
 Vinext template; the production packager already leaves it out.
 
-## Things that are not your code (safe to remove — needs your go-ahead)
+## Duplicates removed, and what still waits for the owner's OK
 
-* **~760 files that are copies of npm packages** (`@babel/*`: `traverse/`, `generator/`, `parser/`, `config/`, `validators/`,
-  `helper-*`, hundreds of `*.js` / `*.js.map` files in the root, plus `@alloc/quick-lru/`). They are byte-for-byte identical to
-  the files `npm ci` installs, so nothing in them is yours and nothing refers to them.
-* **Generated build output**: `client/` and `server/` (old duplicates) and `dist/` (recreated by every build; the tests rewrite it).
-* **8 old hashed bundles** in `assets/` (`main-*.js|css`) that no page refers to.
-* `tsconfig.tsbuildinfo` (generated).
+**Done (785 files, October 2026):** every file that was a byte-for-byte copy of something that stays was removed with `git rm`
+(they all remain in git history):
 
-`node scripts/clean-repo-root.mjs` lists exactly these (dry run). `node scripts/clean-repo-root.mjs --apply` removes them with
-`git rm`; every file stays in git history. It refuses to touch `app/`, `db/`, `jarvis/`, `tests/`, `scripts/`, `docs/` and other
-first-party folders, and it leaves the root `LICENSE` alone — that file is Babel's licence text, not yours.
+* 759 copies of npm packages (`@babel/*`: `traverse/`, `generator/`, `parser/`, `config/`, `validators/`, `helper-*`, hundreds of
+  `*.js` / `*.js.map` files that sat in the root, plus `@alloc/quick-lru/`). `npm ci` installs the real ones.
+* 26 images in the old root `client/` folder that are identical to the copies in `images/` and `public/images/`.
+
+**Still here until the owner says yes (tier 2 — not copies of anything, but generated and no longer used):** the other 77 files of the
+old root `client/` and `server/` build output, 8 old hashed bundles in `assets/` (`main-*.js|css`) that no page refers to,
+`tsconfig.tsbuildinfo`, and the tracked `dist/` build output (every build recreates it). `node scripts/clean-repo-root.mjs` lists them;
+`node scripts/clean-repo-root.mjs --apply --include-generated` removes them.
+
+**Copies that look like duplicates but are not:** `images/`, `public/images/` and `github-pages-spa/public/images/` hold the same pictures
+because three different things publish them (the Pages site in the root, the Cloudflare app, and the Pages source). Likewise
+`force-update.html`, `manifest.webmanifest`, and `.github/workflows/deploy.yml` / `docs/deploy-workflow.yml`. Removing any of them would break one of the three.
+
+The root `LICENSE` is Babel's licence text, not yours; it was left alone.
 
 ## Known traps
 
