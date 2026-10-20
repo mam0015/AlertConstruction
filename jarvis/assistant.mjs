@@ -5,7 +5,8 @@
 // (sendOwnerReply below sends a reply; actions.mjs carries out an action).
 
 import { abandonSend, beginSend, finishSend, noteAsk } from "./audit.mjs";
-import { aiEnabled, askAi, createAiClient, chooseRecords, DEFAULT_MODEL, friendlyAiError } from "./ai.mjs";
+import { askAi, chooseRecords, friendlyAiError } from "./ai.mjs";
+import { notConnectedText, parseBrain, resolveBrain } from "./brains.mjs";
 import { suggestForItem } from "./advisor.mjs";
 import { clip, looseSearch } from "./briefing.mjs";
 import { checkDraft } from "./draft-guard.mjs";
@@ -33,9 +34,11 @@ export function parseAskInput(body) {
     if (!mailbox || !MESSAGE_ID.test(messageId)) throw new JarvisAccessError("That email could not be found.", 400);
     focus = { mailbox, messageId };
   }
+  const brain = parseBrain(body.brain);
+  if (brain === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
   const useOtherRecords = body.useOtherRecords === true;
   const currentDraft = typeof body.currentDraft === "string" ? clipText(body.currentDraft, MAX_REPLY_CHARS) : "";
-  return { message, history, focus, useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
+  return { message, history, focus, brain, useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
 }
 
 export function templateReply({ fromName, text, ownerName, company }) {
@@ -54,11 +57,12 @@ const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date
 export function newsText(items, { perArea = 4 } = {}) {
   const areas = new Map();
   for (const item of items) {
+    if (item.kind === "message_from_owner") continue; // the Owner's own words are not news to the Owner
     const list = areas.get(item.source) ?? [];
     if (list.length < perArea) list.push(item);
     areas.set(item.source, list);
   }
-  return [...areas].map(([source, list]) => `${SOURCE_HEADING[source] ?? source}:\n${list.map((item) => `• ${whenText(item.at)} — ${item.title}${item.who && !item.title.includes(item.who) ? ` (${item.who.replace(/<[^>]*>/g, "").trim()})` : ""}${item.preview ? `: ${item.preview.slice(0, 140)}` : ""}`).join("\n")}`).join("\n\n");
+  return [...areas].map(([source, list]) => `${SOURCE_HEADING[source] ?? source}:\n${list.map((item) => `• ${whenText(item.at)} — ${item.title}${item.who && !item.title.includes(item.who) ? ` (${item.who.replace(/<[^>]*>/g, "").trim()})` : ""}${item.preview ? `: ${clip(item.preview, 140)}` : ""}`).join("\n")}`).join("\n\n");
 }
 
 export function plansText(plans, max = 12) {
@@ -157,14 +161,16 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   const usable = input.useOtherRecords ? items : items.filter(isRelated);
   const withheld = items.length - usable.length;
   const today = melbourneDate(now);
+  // The Owner picks the brain (Jarvis 1 = Claude, Jarvis 2 = OpenJarvis); everything else below is identical for both.
+  const brain = resolveBrain(config, input.brain, { testClient: ai?.client ?? null, fetchImpl });
   // Plans are other people's calendar text; while drafting an email they stay out of the AI's view unless the Owner ticked "use other records".
   const plans = original && !input.useOtherRecords ? [] : briefing.plans;
-  if (aiEnabled(config) && !openProblem) {
+  if (brain.enabled && !openProblem) {
     const records = chooseRecords(usable);
     try {
       const answer = await askAi({
-        client: ai?.client ?? createAiClient(config),
-        model: config.model || DEFAULT_MODEL,
+        client: brain.client,
+        model: brain.model,
         ownerName: owner.name, company,
         message: input.message, history: input.history, records, hours: input.hours,
         focus: original ? { mailbox: account.label, fromName: preview?.toName || original.from?.name || "", subject: original.subject, text: original.text, cut: original.textCut } : null,
@@ -174,7 +180,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
         currentDraft: preview ? input.currentDraft : "",
         plans, people, today, ownerEmail: owner.email,
         itemIds: new Set([...records.map((item) => item.id), ...(focusId ? [focusId] : [])]),
-        useFallbacks: config.aiFallbacks !== "off",
+        useFallbacks: brain.fallbacks,
       });
       if (answer.refused) notice = "The AI declined this request.";
       else outcome = { mode: "ai", ...answer.result, usage: answer.usage, model: answer.model };
@@ -186,7 +192,10 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   }
   const incomplete = (briefing.briefing.incomplete ?? []).length
     ? `Note: I could not fully read ${(briefing.briefing.incomplete).map((entry) => entry.label).join(" and ")}, so this answer may be incomplete.` : "";
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: aiEnabled(config) || openProblem || replyProblem ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem }) };
+  // A brain the Owner picked but that is not connected is never swapped for the other one: Jarvis says so and uses basic mode.
+  const chosenButOff = !brain.enabled && Boolean(input.brain);
+  if (chosenButOff && !notice) notice = notConnectedText(brain);
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   if (replyProblem && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n(I can't draft a reply to this one: ${replyProblem})`.trim();
@@ -230,6 +239,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     suggestions: outcome.suggestions,
     draft,
     actions,
+    brain: outcome.mode === "ai" ? { id: brain.id, name: brain.name, engine: brain.engine } : null,
     notice: outcome.mode === "rules" ? notice : "",
     usage: outcome.usage ?? null,
     model: outcome.model ?? "",
@@ -252,9 +262,10 @@ export async function sendOwnerReply({ db, config, fetchImpl, ai, owner, input, 
 
   // The writing is checked three times before anything leaves: spelling, grammar and punctuation, then a final read-through.
   // Only corrections are allowed (see proofread.mjs); if the check cannot be trusted the Owner's text goes out exactly as written.
-  const report = input.proofread === false ? null : await proofread(typed, {
-    client: aiEnabled(config) ? (ai?.client ?? createAiClient(config)) : null, model: config.model || DEFAULT_MODEL, maxChars: MAX_REPLY_CHARS,
-  });
+  const chosen = parseBrain(input.brain);
+  if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
+  const brain = resolveBrain(config, chosen, { testClient: ai?.client ?? null, fetchImpl });
+  const report = input.proofread === false ? null : await proofread(typed, { client: brain.enabled ? brain.client : null, model: brain.model, maxChars: MAX_REPLY_CHARS });
   const body = report ? report.text : typed;
 
   let claim = 0;

@@ -79,6 +79,7 @@ node scripts/security-setup.mjs
 | `RESEND_API_KEY`، `TEAM_NOTIFICATION_EMAIL_FROM` | ایمیل به Owner وقتی کسی درخواست دسترسی می‌دهد |
 | `JARVIS_GMAIL_CLIENT_ID`، `JARVIS_GMAIL_CLIENT_SECRET`، `JARVIS_GMAIL_ACCOUNTS` | اجازهٔ خواندن (و اگر بخواهید پاسخ دادن) ایمیل شرکت توسط Jarvis — قدم ۷ |
 | `JARVIS_ANTHROPIC_API_KEY` | «حالت هوشمند» Jarvis (جواب به زبان ساده و نوشتن پاسخ ایمیل) — قدم ۷ |
+| `JARVIS_OPENJARVIS_URL`، `JARVIS_OPENJARVIS_API_KEY`، `JARVIS_OPENJARVIS_MODEL` (و `…_ACCESS_ID`، `…_ACCESS_SECRET`) | «Jarvis 2»: سرور OpenJarvis خودتان به‌عنوان مغز Jarvis — `JARVIS2-OPENJARVIS-FA.md` |
 | `JARVIS_AI_MODEL`، `JARVIS_AI`، `JARVIS_AI_FALLBACKS`، `JARVIS_COMPANY_NAME` | تنظیم دقیق‌تر؛ اگر لازم نیست نگذارید |
 
 ## قدم ۵ — مطمئن شوید فایل deploy در ریپو است
@@ -129,10 +130,12 @@ npm test && node scripts/deploy-cloudflare.mjs
    با نام‌های `JARVIS_GMAIL_CLIENT_ID`، `JARVIS_GMAIL_CLIENT_SECRET` و `JARVIS_GMAIL_ACCOUNTS` در GitHub secrets بگذارید.
 2. **حالت هوشمند:** در <https://console.anthropic.com> یک کلید بسازید (همان‌جا سقف هزینهٔ ماهانه بگذارید) و با نام
    `JARVIS_ANTHROPIC_API_KEY` در GitHub secrets بگذارید. بدون آن Jarvis در «حالت ساده» کار می‌کند و چیزی از سیستم شما خارج نمی‌شود.
-3. دوباره deploy کنید (**Actions → Run workflow**) تا secretهای جدید به Worker برسند. در **Owner → Jarvis** بررسی کنید.
+3. **اختیاری — Jarvis 2:** به‌جای هوش مصنوعی ابریِ Anthropic (یا کنارش) می‌توانید برنامهٔ متن‌باز [OpenJarvis](https://github.com/open-jarvis/OpenJarvis) را روی کامپیوتر یا سرور خودتان
+   اجرا کنید و در **Owner → Jarvis** انتخابش کنید. راهنما: [`JARVIS2-OPENJARVIS-FA.md`](JARVIS2-OPENJARVIS-FA.md). secretها: `JARVIS_OPENJARVIS_URL`، `JARVIS_OPENJARVIS_API_KEY`، `JARVIS_OPENJARVIS_MODEL`.
+4. دوباره deploy کنید (**Actions → Run workflow**) تا secretهای جدید به Worker برسند. در **Owner → Jarvis** بررسی کنید.
 
-Jarvis فقط داخل بخش Owner، فقط برای Owner واردشده کار می‌کند، فقط سه منبع (ایمیل شرکت، گزارش کارکنان، نظر مشتری‌ها) را می‌خواند
-و فقط وقتی شما **Send** را بزنید ایمیل می‌فرستد.
+Jarvis فقط داخل بخش Owner و فقط برای Owner واردشده کار می‌کند. کل برنامه را می‌تواند بخواند (به‌جز رمزها و کلیدها)، فقط وقتی **شما بپرسید** خبر می‌دهد،
+و هیچ کاری — ارسال ایمیل، پیام به یک نفر، گذاشتن چیزی در تقویم — را تا دکمه‌اش را نزنید انجام نمی‌دهد. هر دو مغز (Jarvis 1 و Jarvis 2) همهٔ این کارها را می‌توانند.
 
 ## اگر Owner رمز را فراموش کرد
 

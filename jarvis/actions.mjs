@@ -101,7 +101,7 @@ export function validateProposals(list, context) {
 // `executors` carry the action out through the app's own stores:
 //   sendMessage({ personEmail, text }), addCalendar({ personEmail, title, notes, dates, startTime, projectCode }),
 //   createTask({ personEmail, title, instructions, priority, projectCode })
-export async function performAction({ db, owner, input, people, today, executors, proofreadWith = {}, now = Date.now() }) {
+export async function performAction({ db, owner, input, people, today, executors, proofreadWith = /** @type {{ client?: any, model?: string }} */ ({}), now = Date.now() }) {
   if (!input || typeof input !== "object" || input.confirm !== true) throw new JarvisAccessError("Confirm before Jarvis does this.", 400);
   if (typeof input.id !== "string" || !ACTION_ID.test(input.id)) throw new JarvisAccessError("That action is not valid. Ask Jarvis again.", 400);
   const checked = validateProposal(input.action ?? input, { people, today, ownerEmail: owner.email, makeId: () => input.id });

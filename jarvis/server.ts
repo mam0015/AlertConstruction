@@ -27,6 +27,14 @@ export function jarvisConfig() {
     model: process.env.JARVIS_AI_MODEL?.trim(),
     aiFallbacks: process.env.JARVIS_AI_FALLBACKS?.trim().toLowerCase(),
     company: process.env.JARVIS_COMPANY_NAME?.trim(),
+    // Jarvis 2: OpenJarvis running on the Owner's own computer or server.
+    openJarvis: {
+      url: process.env.JARVIS_OPENJARVIS_URL?.trim(),
+      apiKey: process.env.JARVIS_OPENJARVIS_API_KEY?.trim(),
+      model: process.env.JARVIS_OPENJARVIS_MODEL?.trim(),
+      accessId: process.env.JARVIS_OPENJARVIS_ACCESS_ID?.trim(),
+      accessSecret: process.env.JARVIS_OPENJARVIS_ACCESS_SECRET?.trim(),
+    },
   };
 }
 
