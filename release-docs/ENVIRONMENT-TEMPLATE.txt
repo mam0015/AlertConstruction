@@ -46,3 +46,14 @@ JARVIS_AI_MODEL=<MODEL_ID>
 JARVIS_AI=<on_or_off>
 JARVIS_AI_FALLBACKS=<on_or_off>
 JARVIS_COMPANY_NAME=<COMPANY_NAME>
+#
+# Jarvis 2 (optional): OpenJarvis, an open-source AI you run on your own computer or server instead of (or next to) Anthropic's cloud.
+# The Owner chooses Jarvis 1 or Jarvis 2 in the Jarvis page; both can do exactly the same things. Setup: docs/JARVIS2-OPENJARVIS.md
+JARVIS_OPENJARVIS_URL=<https_ADDRESS_OF_YOUR_OPENJARVIS_SERVER>
+# Must equal OPENJARVIS_API_KEY on that server (it checks "Authorization: Bearer <key>"). Leave out only for a server on localhost.
+JARVIS_OPENJARVIS_API_KEY=<OPENJARVIS_API_KEY>
+# The model name on that server, for example qwen3.5:9b. If left out, Jarvis uses the first model the server lists.
+JARVIS_OPENJARVIS_MODEL=<MODEL_NAME>
+# Only when the server is exposed through a Cloudflare Tunnel protected by Cloudflare Access (a service token):
+JARVIS_OPENJARVIS_ACCESS_ID=<CLOUDFLARE_ACCESS_CLIENT_ID>
+JARVIS_OPENJARVIS_ACCESS_SECRET=<CLOUDFLARE_ACCESS_CLIENT_SECRET>

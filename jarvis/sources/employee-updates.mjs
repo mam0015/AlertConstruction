@@ -2,13 +2,14 @@
 // Private team chat and direct messages are deliberately NOT included.
 
 import { hasRealIssue, makeItem } from "../briefing.mjs";
-import { isMissingTable } from "../readonly-db.mjs";
+import { runQueries, sinceAndLimit } from "./run.mjs";
 
 const SOURCE = "employee_updates";
 
 const queries = [
   {
     name: "end_of_day",
+    params: sinceAndLimit,
     sql: `SELECT id, person, role, project_code AS projectCode, summary, submitted_at AS at, status
       FROM eod_reports WHERE submitted_at >= ? ORDER BY submitted_at DESC LIMIT ?`,
     item: (row) => makeItem({
@@ -18,6 +19,7 @@ const queries = [
   },
   {
     name: "worker_report",
+    params: sinceAndLimit,
     sql: `SELECT r.id AS id, r.worker_email AS workerEmail, r.completed_work AS completedWork, r.next_step AS nextStep,
         r.issues_delays AS issuesDelays, r.submitted_at AS at, c.project_code AS projectCode
       FROM worker_reports r LEFT JOIN workflow_cases c ON c.id = r.case_id
@@ -31,6 +33,7 @@ const queries = [
   },
   {
     name: "supervisor_update",
+    params: sinceAndLimit,
     sql: `SELECT u.id AS id, u.supervisor_email AS supervisorEmail, u.internal_update AS internalUpdate, u.created_at AS at,
         c.project_code AS projectCode
       FROM project_updates u LEFT JOIN workflow_cases c ON c.id = u.case_id
@@ -42,6 +45,7 @@ const queries = [
   },
   {
     name: "site_visit",
+    params: sinceAndLimit,
     sql: `SELECT s.id AS id, s.supervisor_email AS supervisorEmail, s.summary AS summary, s.findings AS findings,
         s.recommendations AS recommendations, s.submitted_at AS at, c.project_code AS projectCode
       FROM site_visit_reports s LEFT JOIN workflow_cases c ON c.id = s.case_id
@@ -54,6 +58,7 @@ const queries = [
   },
   {
     name: "site_issue",
+    params: sinceAndLimit,
     sql: `SELECT id, project_code AS projectCode, site_location AS siteLocation, issue_type AS issueType, severity, summary, details,
         impact, reporter_name AS reporterName, status, reported_at AS at
       FROM site_issue_reports WHERE reported_at >= ? ORDER BY reported_at DESC LIMIT ?`,
@@ -66,19 +71,4 @@ const queries = [
   },
 ];
 
-export async function readEmployeeUpdates(reader, { sinceISO, limit }) {
-  const settled = await Promise.allSettled(queries.map(async (query) => (await reader.all(query.sql, sinceISO, limit)).map(query.item)));
-  const items = [];
-  let failed = 0;
-  let missing = 0;
-  settled.forEach((result, index) => {
-    if (result.status === "fulfilled") items.push(...result.value);
-    else if (isMissingTable(result.reason)) missing += 1;
-    else {
-      failed += 1;
-      console.error(`Jarvis could not read ${queries[index].name}:`, result.reason instanceof Error ? result.reason.message : result.reason);
-    }
-  });
-  const status = failed === settled.length ? "error" : failed > 0 ? "partial" : missing === settled.length ? "empty" : "ok";
-  return { status, items };
-}
+export const readEmployeeUpdates = (reader, window) => runQueries(reader, queries, window);

@@ -29,9 +29,9 @@ process.env.ADMIN_TEAM_CODE_HASH = hash(teamCode, "team-code-salt");
 process.env.ADMIN_SESSION_SECRET = "admin-session-secret-for-jarvis-verification";
 
 // ---------------------------------------------------------------------------------------------------------------------
-test("policy: exactly three sources, unknown ones refused, options validated", () => {
-  assert.deepEqual([...JARVIS_SCOPES], ["company_email", "employee_updates", "client_comments"]);
-  for (const forbidden of ["finance", "owner_accounts", "staff_access_requests", "team_chat", "passwords"]) {
+test("policy: the whole working app is readable, secrets are not a source, unknown sources are refused, options validated", () => {
+  assert.deepEqual([...JARVIS_SCOPES], ["company_email", "employee_updates", "client_comments", "team_messages", "work", "tasks", "schedule", "finance", "people"]);
+  for (const forbidden of ["owner_accounts", "staff_access_requests", "team_chat", "passwords", "sessions", "team_codes"]) {
     assert.throws(() => assertScope(forbidden), /no access/);
     assert.throws(() => parseOptions(new URLSearchParams({ scopes: forbidden })), (error) => error.status === 400);
   }
@@ -50,11 +50,19 @@ test("read-only guard refuses writes, SELECT *, multiple statements and tables o
     "SELECT * FROM eod_reports",
     "SELECT e.* FROM eod_reports e",
     "SELECT id FROM eod_reports; DELETE FROM eod_reports",
-    "SELECT id FROM finance_entries",
     "SELECT password_hash FROM owner_accounts",
-    "SELECT email FROM staff_access_requests",
-    "SELECT id FROM team_chat",
-    "SELECT id FROM eod_reports WHERE id IN (SELECT id FROM projects)",
+    "SELECT email FROM owner_accounts",
+    "SELECT email, password_hash FROM staff_access_requests",
+    "SELECT password_hash AS p FROM staff_access_requests",
+    "SELECT email FROM staff_access_requests WHERE password_hash LIKE 'a%'",
+    "SELECT code FROM team_access_settings",
+    "SELECT id FROM session_revocations",
+    "SELECT id FROM rate_limits",
+    "SELECT id FROM owner_env_seed",
+    "SELECT id FROM customer_contact_index",
+    "SELECT id FROM jarvis_log",
+    "SELECT id FROM app_migrations",
+    "SELECT id FROM eod_reports WHERE id IN (SELECT id FROM owner_accounts)",
     "SELECT id FROM eod_reports JOIN login_attempts ON 1=1",
     "SELECT id FROM eod_reports -- comment",
     "PRAGMA table_info(eod_reports)",
@@ -76,6 +84,16 @@ test("read-only guard refuses writes, SELECT *, multiple statements and tables o
   assert.ok(assertReadOnlySql("SELECT id, person FROM eod_reports WHERE submitted_at >= ? ORDER BY submitted_at DESC LIMIT ?"));
   assert.ok(assertReadOnlySql("SELECT m.id AS id FROM customer_messages m LEFT JOIN workflow_cases c ON c.id = m.case_id WHERE m.sender = 'Customer' LIMIT ?"));
   assert.ok(assertReadOnlySql("SELECT id FROM team_messages WHERE sender LIKE 'Customer · %'"));
+  // the rest of the working app is readable, with named columns
+  for (const sql of [
+    "SELECT id, amount FROM finance_entries WHERE created_at >= ?",
+    "SELECT id, sender_email FROM team_chat WHERE recipient_email = '*'",
+    "SELECT email, role, status FROM staff_access_requests",
+    "SELECT id, entry_date FROM calendar_entries",
+    "SELECT id, title FROM team_tasks",
+  ]) assert.ok(assertReadOnlySql(sql), sql);
+  // a secret word inside a quoted value is just text and does not block a normal search
+  assert.ok(assertReadOnlySql("SELECT id FROM projects WHERE notes LIKE '%password%'"));
 });
 
 test("reader only ever executes guarded SELECTs", async () => {
@@ -110,7 +128,7 @@ test("employee updates and client comments are read-only, scoped and exclude pri
   const d1 = new TestD1();
   createTables(d1);
   seed(d1);
-  const result = await runJarvis({ db: d1, params: new URLSearchParams() });
+  const result = await runJarvis({ db: d1, params: new URLSearchParams(), ownerEmail: "owner.jarvis@alert.test" });
   assert.equal(result.mode, "read-only");
   assert.equal(result.audience, "owner");
   assert.equal(result.sources.company_email.status, "not_connected");
@@ -128,7 +146,7 @@ test("employee updates and client comments are read-only, scoped and exclude pri
   assert.ok(!titles.some((title) => /Ancient|Old Timer/.test(title)), "reports outside the time window are excluded");
 
   const everything = JSON.stringify(result);
-  assert.ok(!everything.includes("PRIVATE STAFF CHAT"), "private staff chat must never be read");
+  assert.ok(!everything.includes("PRIVATE STAFF CHAT"), "private chat between two staff members must never be read");
   assert.ok(!everything.includes("ADMIN-ONLY"), "admin replies are not client comments");
   assert.ok(!everything.includes("sam.private@example.com") && !everything.includes("0400 000 000"), "customer contact details are not selected");
 
@@ -329,7 +347,7 @@ function cookieFrom(response, name) {
 
 const json = (cookie, body, method = "POST") => ({ method, headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
 
-test("Jarvis API: only the Owner session can use it, it is GET-only and returns the three sources", async () => {
+test("Jarvis API: only the Owner session can use it, it is GET-only and returns every source", async () => {
   assert.equal((await request("/api/owner/jarvis")).status, 401, "anonymous visitors are refused");
   assert.equal((await request("/api/owner/jarvis", { headers: { cookie: "atp_owner_session=forged.value" } })).status, 401);
 
@@ -362,7 +380,7 @@ test("Jarvis API: only the Owner session can use it, it is GET-only and returns 
     assert.equal(refused.status, 405, `${method} must be refused`);
     assert.equal(refused.headers.get("allow"), "GET");
   }
-  for (const query of ["scopes=finance", "scopes=owner_accounts", "hours=0", "limit=100000"]) {
+  for (const query of ["scopes=owner_accounts", "scopes=sessions", "hours=0", "limit=100000"]) {
     assert.equal((await request(`/api/owner/jarvis?${query}`, { headers: { cookie: ownerCookie } })).status, 400, query);
   }
 });

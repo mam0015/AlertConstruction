@@ -79,6 +79,7 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | `RESEND_API_KEY`, `TEAM_NOTIFICATION_EMAIL_FROM` | Email the Owner when someone asks for access |
 | `JARVIS_GMAIL_CLIENT_ID`, `JARVIS_GMAIL_CLIENT_SECRET`, `JARVIS_GMAIL_ACCOUNTS` | Let Jarvis read (and, if you allow it, reply from) company email — see Step 7 |
 | `JARVIS_ANTHROPIC_API_KEY` | Jarvis "Smart mode" (answers in plain language, writes replies) — see Step 7 |
+| `JARVIS_OPENJARVIS_URL`, `JARVIS_OPENJARVIS_API_KEY`, `JARVIS_OPENJARVIS_MODEL` (and `…_ACCESS_ID`, `…_ACCESS_SECRET`) | "Jarvis 2": your own OpenJarvis server as Jarvis's brain — see `JARVIS2-OPENJARVIS.md` |
 | `JARVIS_AI_MODEL`, `JARVIS_AI`, `JARVIS_AI_FALLBACKS`, `JARVIS_COMPANY_NAME` | Fine tuning; leave out unless you need them |
 
 ## Step 5 — Make sure the deploy file is in the repository
@@ -129,10 +130,12 @@ Full instructions: [`jarvis/README.md`](../jarvis/README.md). In short:
    `JARVIS_GMAIL_CLIENT_ID`, `JARVIS_GMAIL_CLIENT_SECRET` and `JARVIS_GMAIL_ACCOUNTS`.
 2. **Smart mode:** create a key at <https://console.anthropic.com> (set a monthly spend limit there) and save it as the GitHub
    secret `JARVIS_ANTHROPIC_API_KEY`. Without it Jarvis still works in Simple mode and nothing leaves your system.
-3. Run the deploy again (**Actions → Run workflow**) so the new secrets reach the Worker. Open **Owner → Jarvis** to check.
+3. **Optional — Jarvis 2:** instead of (or next to) Anthropic's cloud AI you can run the open-source [OpenJarvis](https://github.com/open-jarvis/OpenJarvis) on your own
+   computer or server and choose it in **Owner → Jarvis**. Setup: [`JARVIS2-OPENJARVIS.md`](JARVIS2-OPENJARVIS.md). Secrets: `JARVIS_OPENJARVIS_URL`, `JARVIS_OPENJARVIS_API_KEY`, `JARVIS_OPENJARVIS_MODEL`.
+4. Run the deploy again (**Actions → Run workflow**) so the new secrets reach the Worker. Open **Owner → Jarvis** to check.
 
-Jarvis only works inside the Owner area, only for the signed-in Owner, only reads the three sources (company email, employee
-updates, client comments) and sends an email only when you press **Send**.
+Jarvis only works inside the Owner area and only for the signed-in Owner. It can read the whole app (never passwords or keys), tells you the news only when you ask,
+and does nothing — sends an email, messages someone, adds a calendar entry — until you press its button. Either brain (Jarvis 1 or Jarvis 2) can do all of it.
 
 ## If the Owner forgets the password
 

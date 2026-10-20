@@ -1,4 +1,6 @@
 import { runtimeBindings } from "../../../../../db/runtime";
+import { listPeople } from "../../../../../db/team-store";
+import { teamPeople } from "../../../../../jarvis/executors";
 import { askJarvis, parseAskInput } from "../../../../../jarvis/assistant.mjs";
 import { fail, headers, hooks, jarvisConfig, networkFetch, notAllowed, readJson, requireOwner } from "../../../../../jarvis/server";
 
@@ -12,11 +14,11 @@ export async function POST(request: Request) {
     const env = await runtimeBindings();
     const aiClient = hooks().aiClient;
     const result = await askJarvis({
-      db: env.DB, config: jarvisConfig(), fetchImpl: networkFetch(), owner: gate.owner, input,
+      db: env.DB, config: jarvisConfig(), fetchImpl: networkFetch(), owner: gate.owner, input, people: await teamPeople(listPeople),
       ai: aiClient ? { client: aiClient } : undefined,
     });
     // Audit line (no content): who asked, how it was answered, whether a draft came back, what the AI call used.
-    console.info(JSON.stringify({ jarvis: "ask", mode: result.mode, draft: Boolean(result.draft), model: result.model, usage: result.usage }));
+    console.info(JSON.stringify({ jarvis: "ask", mode: result.mode, draft: Boolean(result.draft), actions: result.actions.length, model: result.model, usage: result.usage }));
     return Response.json(result, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not answer right now.");

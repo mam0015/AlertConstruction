@@ -1,0 +1,41 @@
+export type BrainId = "jarvis1" | "jarvis2";
+export type Brain = { id: BrainId; name: string; engine: string; where: string; available: boolean; model: string };
+export type BrainCheck = { ok: boolean; message: string; model?: string; agent?: string; warnings: string[] };
+export type Scope = "company_email" | "employee_updates" | "client_comments" | "team_messages" | "work" | "tasks" | "schedule" | "finance" | "people";
+export type SourceReport = { status: string; count: number; mailboxes?: { label: string; status: string; count: number; canReply?: boolean }[] };
+export type Advice = { action: string; text: string };
+export type EmailRef = { mailbox: string; messageId: string; threadId: string; canReply: boolean };
+export type Item = { id: string; source: Scope; kind: string; at: string; title: string; who: string; project: string; mailbox: string; preview: string; flags: string[]; urgent: boolean; email: EmailRef | null; suggestions: Advice[] };
+export type Attention = Pick<Item, "id" | "source" | "kind" | "at" | "title" | "who" | "project" | "flags">;
+export type Topic = { key: string; title: string; count: number; lastAt: string; urgent: boolean; flags: string[]; suggestions: Advice[] };
+export type SentLog = { at: string; mailbox: string; recipient: string; subject: string; chars: number; sentId: string };
+export type ActionLog = { at: string; type: string; recipient: string; title: string; chars: number };
+export type TeamMember = { email: string; name: string; role: string };
+export type Result = {
+  generatedAt: string;
+  sources: Partial<Record<Scope, SourceReport>>;
+  briefing: { headline: string; counts: { total: number; urgent: number }; attention: Attention[]; employees: { name: string; count: number }[]; clients: { name: string; count: number }[]; team: { name: string; count: number }[]; topics: Topic[]; plans: { count: number; from: string; to: string } };
+  items: Item[];
+  plans: Item[];
+  capabilities: { ai: boolean; model: string; replyMailboxes: string[]; brains: Brain[] };
+  sent: SentLog[];
+  actionsDone: ActionLog[];
+  team: TeamMember[];
+};
+export type AiSuggestion = { title: string; why: string; action: string; itemId: string };
+export type DraftWarning = { kind: string; text: string };
+export type ProofreadPass = { n: number; name: string; method: string; fixes: { was: string; now: string }[]; note: string };
+export type ProofreadSummary = { method: string; clean: boolean; totalFixes: number; note: string; passes: ProofreadPass[] };
+export type Draft = {
+  mailbox: string; messageId: string; to: string; toName: string; subject: string; body: string; note: string; canSend: boolean;
+  from?: string; replyTo?: string; crossDomain?: boolean; automatedReason?: string; auth?: string; warnings?: DraftWarning[]; otherRecordsWithheld?: number;
+  proofread?: ProofreadSummary | null;
+};
+export type ProposedAction = {
+  id: string; type: "send_message" | "add_calendar" | "create_task"; personEmail: string; personName: string; personRole: string;
+  title: string; text: string; dates: string[]; startTime: string; projectCode: string; priority: string; summary: string;
+};
+export type ActionState = { phase: "ready" | "doing" | "done" | "dismissed" | "failed"; message?: string; proofread?: ProofreadSummary | null };
+export type Turn = { role: "owner" | "jarvis"; content: string; brainName?: string; suggestions?: AiSuggestion[]; notice?: string; mode?: string; actions?: ProposedAction[] };
+export type Focus = { mailbox: string; messageId: string; title: string; who: string };
+export type Request = { hours: number; source: Scope | "all"; q: string; nonce: number };

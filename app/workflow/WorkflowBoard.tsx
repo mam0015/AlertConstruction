@@ -217,7 +217,7 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
 
         {(role === "admin" || role === "owner") && <section className={styles.actionPanel}>
           <header><div><span>PROJECT FOLDER · ADMIN &amp; OWNER ONLY</span><h3>Add documents &amp; close requests</h3></div></header>
-          <div className={styles.uploadBox}><input type="file" accept="image/*,application/pdf" onChange={(event) => void upload("document", event.target.files?.[0])} /><strong>Add a photo or PDF to this project&apos;s folder</strong><span>Invoices, quotes, extra photos — stored internally, never shown to the customer</span></div>
+          <div className={styles.uploadBox}><input type="file" accept="image/*,application/pdf" aria-label="Choose a photo or PDF to attach" onChange={(event) => void upload("document", event.target.files?.[0])} /><strong>Add a photo or PDF to this project&apos;s folder</strong><span>Invoices, quotes, extra photos — stored internally, never shown to the customer</span></div>
           {!["complete", "closed"].includes(selected.stage) ? <form onSubmit={(event) => { event.preventDefault(); if (window.confirm("Close this request? It will leave the active pipeline and the customer will see it as closed. No records are deleted.")) void action("close_case", { note: closeNote }, "Request closed."); }}>
             <label><span>Reason for closing</span><textarea value={closeNote} onChange={(event) => setCloseNote(event.target.value)} placeholder="e.g. duplicate submission, customer withdrew, test entry…" required /></label>
             <button className={styles.dangerButton} disabled={working}>Close this request</button>

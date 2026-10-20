@@ -2377,3 +2377,9 @@ html[data-theme="dark"] .request-form .terms-consent a,html[data-theme="dark"] .
   .atp-hub-link{bottom:104px!important;right:12px!important;width:48px;min-height:48px!important;padding:0!important;justify-content:center;border-radius:50%}
   .atp-hub-link .atp-hub-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 }
+
+/* Checkboxes and radio buttons use the brand gold instead of the browser's default blue/white. */
+input[type="checkbox"],input[type="radio"]{accent-color:#f5b900}
+
+/* Contrast: the gold section labels on the light sections of the homepage were hard to read. */
+.compact-heading > .section-kicker { color: #8a6200; }

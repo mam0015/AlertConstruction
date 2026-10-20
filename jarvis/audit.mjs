@@ -1,12 +1,13 @@
-// Jarvis's own small log table. It records two things and nothing else:
+// Jarvis's own small log table. It records three things and nothing else:
 //   * every reply Jarvis sent on the Owner's say-so (who it went to, the subject, a hash and length of the text — the
 //     text itself already sits in the mailbox's Sent folder), so the Owner can always see what went out;
+//   * every in-app action the Owner confirmed (message, calendar entry, task): what it was, for whom, a hash of the text;
 //   * a timestamp per question asked, used only to stop a runaway loop from running up AI costs.
 // Writing here never touches company data: it is a separate table that only Jarvis uses.
 
 import { JarvisAccessError } from "./policy.mjs";
 
-export const LIMITS = Object.freeze({ sendsPerHour: 20, sendsPerDay: 60, asksPer10Minutes: 40, asksPerDay: 400 });
+export const LIMITS = Object.freeze({ sendsPerHour: 20, sendsPerDay: 60, actionsPerHour: 60, actionsPerDay: 300, asksPer10Minutes: 40, asksPerDay: 400 });
 const STALE_SENDING_MS = 5 * 60_000;
 
 export async function ensureLog(d1) {
@@ -28,6 +29,9 @@ export async function ensureLog(d1) {
     // The same reply (same mailbox, same email, same text) can only be in flight or sent once — double clicks can't double-send.
     d1.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS jarvis_log_send_once ON jarvis_log (mailbox, original_message_id, body_sha256)
       WHERE kind = 'send' AND status IN ('sending','sent')`),
+    // An action the Owner confirmed (identified by the id Jarvis gave it) can only be done once, however many times the button is clicked.
+    d1.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS jarvis_log_action_once ON jarvis_log (original_message_id)
+      WHERE kind = 'action' AND status IN ('doing','done')`),
     d1.prepare("CREATE INDEX IF NOT EXISTS jarvis_log_kind_at ON jarvis_log (kind, at)"),
   ]);
 }
@@ -96,6 +100,48 @@ export async function recentSends(d1, limit = 10) {
   try {
     const result = await d1.prepare(`SELECT at, mailbox, recipient, subject, body_chars AS chars, sent_message_id AS sentId
       FROM jarvis_log WHERE kind = 'send' AND status = 'sent' ORDER BY id DESC LIMIT ?`).bind(limit).all();
+    return result?.results ?? [];
+  } catch (error) {
+    if (/no such table/i.test(error instanceof Error ? error.message : String(error))) return [];
+    throw error;
+  }
+}
+
+// ---------- In-app actions (message / calendar entry / task) ----------
+
+// Claims the right to do this action once. `type` is stored in the mailbox column, the person in recipient, the title in subject.
+export async function beginAction(d1, { ownerEmail, actionId, type, recipient, title, bodySha256, bodyChars }, now = Date.now()) {
+  await ensureLog(d1);
+  await d1.prepare("UPDATE jarvis_log SET status = 'failed' WHERE kind = 'action' AND status = 'doing' AND at < ?").bind(new Date(now - STALE_SENDING_MS).toISOString()).run();
+  try {
+    const counted = "SELECT COUNT(*) FROM jarvis_log WHERE kind = 'action' AND at >= ? AND status IN ('doing','done')";
+    const result = await d1.prepare(`INSERT INTO jarvis_log
+      (at, kind, owner_email, mailbox, original_message_id, recipient, subject, body_sha256, body_chars, status)
+      SELECT ?, 'action', ?, ?, ?, ?, ?, ?, ?, 'doing' WHERE (${counted}) < ? AND (${counted}) < ?`)
+      .bind(new Date(now).toISOString(), ownerEmail, type, actionId, recipient, title, bodySha256, bodyChars,
+        new Date(now - 3_600_000).toISOString(), LIMITS.actionsPerHour, new Date(now - 86_400_000).toISOString(), LIMITS.actionsPerDay).run();
+    if (Number(result?.meta?.changes ?? 0) !== 1) throw new JarvisAccessError("Jarvis has done a lot of actions lately. Please wait a little before asking for more.", 429);
+    return Number(result?.meta?.last_row_id ?? 0);
+  } catch (error) {
+    if (/unique/i.test(error instanceof Error ? error.message : String(error))) {
+      throw new JarvisAccessError("That action has already been done (or is being done right now). Ask Jarvis again if you want it repeated.", 409);
+    }
+    throw error;
+  }
+}
+
+export async function finishAction(d1, id) {
+  await d1.prepare("UPDATE jarvis_log SET status = 'done' WHERE id = ?").bind(id).run();
+}
+
+export async function abandonAction(d1, id) {
+  await d1.prepare("UPDATE jarvis_log SET status = 'failed' WHERE id = ?").bind(id).run();
+}
+
+export async function recentActions(d1, limit = 10) {
+  try {
+    const result = await d1.prepare(`SELECT at, mailbox AS type, recipient, subject AS title, body_chars AS chars
+      FROM jarvis_log WHERE kind = 'action' AND status = 'done' ORDER BY id DESC LIMIT ?`).bind(limit).all();
     return result?.results ?? [];
   } catch (error) {
     if (/no such table/i.test(error instanceof Error ? error.message : String(error))) return [];

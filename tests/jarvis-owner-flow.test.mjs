@@ -38,7 +38,8 @@ test("briefing: items carry advice, topics group them, and the Owner can see wha
   const body = await response.json();
   assert.equal(body.mode, "read-only", "the briefing itself only reads");
   assert.equal(body.sources.company_email.status, "ok");
-  assert.deepEqual(body.capabilities, { ai: true, model: "claude-opus-5-5", replyMailboxes: ["info@alert.test"] });
+  assert.deepEqual({ ...body.capabilities, brains: undefined }, { ai: true, model: "claude-opus-5-5", replyMailboxes: ["info@alert.test"], brains: undefined });
+  assert.deepEqual(body.capabilities.brains.map((brain) => [brain.id, brain.available]), [["jarvis1", true], ["jarvis2", false]]);
   assert.deepEqual(body.sent, []);
   const roof = body.items.find((item) => item.title === "Roof leak");
   assert.deepEqual(roof.email, { mailbox: "info@alert.test", messageId: "msg00001", threadId: "thr00001", canReply: true });
@@ -110,7 +111,9 @@ test("ask → draft → send: the Owner's words become a reply that goes only to
 
   const sent = await app.request("/api/owner/jarvis/send", app.json(owner, approved));
   assert.equal(sent.status, 200);
-  assert.deepEqual(await sent.json(), { ok: true, mailbox: "info@alert.test", to: "jo@example.com", subject: "Re: Roof leak", sentId: "sent00001" });
+  const sentBody = await sent.json();
+  assert.deepEqual({ ...sentBody, proofread: undefined }, { ok: true, mailbox: "info@alert.test", to: "jo@example.com", subject: "Re: Roof leak", sentId: "sent00001", sentText: sentBody.sentText, proofread: undefined });
+  assert.equal(sentBody.proofread.passes.length, 3);
   const posts = google.calls.filter((call) => call.href === SEND_URL);
   assert.equal(posts.length, 1);
   const mime = decodeB64u(JSON.parse(posts[0].body).raw);
