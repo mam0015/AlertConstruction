@@ -1,6 +1,6 @@
 import { runtimeBindings } from "../../../../db/runtime";
 import { aiEnabled, DEFAULT_MODEL } from "../../../../jarvis/ai.mjs";
-import { recentSends } from "../../../../jarvis/audit.mjs";
+import { recentActions, recentSends } from "../../../../jarvis/audit.mjs";
 import { runJarvis } from "../../../../jarvis/jarvis.mjs";
 import { parseAccounts } from "../../../../jarvis/sources/company-email.mjs";
 import { fail, headers, jarvisConfig, networkFetch, notAllowed, requireOwner } from "../../../../jarvis/server";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   try {
     const env = await runtimeBindings();
     const config = jarvisConfig();
-    const result = await runJarvis({ db: env.DB, params: new URL(request.url).searchParams, config, fetchImpl: networkFetch() });
+    const result = await runJarvis({ db: env.DB, params: new URL(request.url).searchParams, config, fetchImpl: networkFetch(), ownerEmail: gate.owner.email });
     const capabilities = {
       ai: aiEnabled(config),
       model: aiEnabled(config) ? config.model || DEFAULT_MODEL : "",
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     console.info(JSON.stringify({ jarvis: "read", scopes: result.scopes, items: result.items.length }));
     // The longer record text exists for the AI only; the screen gets the short preview.
     const items = result.items.map((item) => { const visible: Record<string, unknown> = { ...item }; delete visible.detail; return visible; });
-    return Response.json({ ...result, items, capabilities, sent: await recentSends(env.DB, 10) }, { headers });
+    return Response.json({ ...result, items, capabilities, sent: await recentSends(env.DB, 10), actionsDone: await recentActions(env.DB, 10) }, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not read the company records right now.");
   }

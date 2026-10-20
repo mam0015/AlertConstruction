@@ -1,14 +1,24 @@
 // Jarvis access policy — the single place that says what Jarvis may see and do.
 //
-// Jarvis is the Owner's private assistant. It can READ exactly three things and nothing else:
-//   1. company_email      – the company mailboxes the Owner has connected (Gmail)
-//   2. employee_updates   – the reports/updates employees submit (end-of-day, worker, supervisor, site visit, site issue)
-//   3. client_comments    – messages customers send about their request or project
+// Jarvis is the Owner's private assistant and manager. It can READ the whole working app, through these sources:
+//   company_email     – the company mailboxes the Owner has connected (Gmail)
+//   employee_updates  – the reports employees submit (end-of-day, worker, supervisor, site visit, site issue)
+//   client_comments   – messages customers send about their request or project
+//   team_messages     – what the team writes to the Owner and in the team channel (workers, admin, manager, estimator ...)
+//   work              – requests, projects, stage changes, inspections and change proposals
+//   tasks             – tasks and follow-ups given to people
+//   schedule          – the calendar and the schedule: what is planned, including what is coming up
+//   finance           – income and expense entries and each project's contract value and balance
+//   people            – who is on the team, their role and when they were last on site
 //
-// It takes instructions only from the Owner. It advises, and it can draft an email reply from what the Owner tells it
-// to say — but it sends a reply only when the Owner presses Send on that draft, and only back to the person who wrote
-// the original email (reply.mjs). It never deletes anything and never touches finance, passwords, sessions, staff
-// access, team chat or customer contact details. Anything not listed here is refused.
+// It NEVER reads secrets: passwords and password hashes, sign-in sessions, Team Codes, PINs, API keys, the Owner account
+// itself and customers' contact hashes are not on the allow-list (readonly-db.mjs refuses any query that names them).
+//
+// It takes instructions only from the Owner. It tells the Owner what happened only when the Owner asks. It advises, and
+// it can draft an email reply from what the Owner tells it to say — but it sends a reply only when the Owner presses
+// Send on that draft, and only back to the person who wrote the original email (reply.mjs). It can also prepare an
+// in-app message, a calendar entry or a task for the Owner to confirm (actions.mjs). It never deletes anything.
+// Anything not listed here is refused.
 
 export class JarvisAccessError extends Error {
   constructor(message, status = 403) {
@@ -20,7 +30,7 @@ export class JarvisAccessError extends Error {
 
 export const JARVIS_AUDIENCE = "owner";
 export const JARVIS_MODE = "read-only";
-export const JARVIS_SCOPES = Object.freeze(["company_email", "employee_updates", "client_comments"]);
+export const JARVIS_SCOPES = Object.freeze(["company_email", "employee_updates", "client_comments", "team_messages", "work", "tasks", "schedule", "finance", "people"]);
 
 export const LIMITS = Object.freeze({
   defaultHours: 72,
@@ -28,6 +38,7 @@ export const LIMITS = Object.freeze({
   defaultLimit: 60,
   maxLimit: 200,
   maxQueryChars: 120,
+  planDays: 21, // how far ahead "upcoming plans" looks
   previewChars: 280,
 });
 

@@ -122,5 +122,6 @@ export function buildBriefing(items, { hours }) {
     attention: sortNewestFirst(urgent).slice(0, 8).map(({ id, source, kind, at, title, who, project, flags }) => ({ id, source, kind, at, title, who, project, flags })),
     employees: topCounts(items.filter((item) => item.source === "employee_updates"), (item) => item.who),
     clients: topCounts(items.filter((item) => item.source === "client_comments"), (item) => item.who),
+    team: topCounts(items.filter((item) => item.source === "team_messages"), (item) => item.who),
   };
 }

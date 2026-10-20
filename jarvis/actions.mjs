@@ -1,0 +1,135 @@
+// What Jarvis can DO inside the app for the Owner: send an in-app message to a person, put something in the calendar,
+// give someone a task. It never does any of these on its own.
+//
+//   1. The AI (or the Owner's own form) PROPOSES an action. validateProposal() checks it against the real team list and the
+//      calendar rules and returns a clean, complete description. Nothing has happened yet.
+//   2. The Owner reads it on screen and presses the button. Only then performAction() runs, with the Owner's own identity,
+//      through the same stores the rest of the app uses (so every normal rule still applies), exactly once, and it is logged.
+//
+// The people, the date rules and the way each action is carried out are passed in, so this file stays free of database code.
+
+import { abandonAction, beginAction, finishAction } from "./audit.mjs";
+import { proofread } from "./proofread.mjs";
+import { JarvisAccessError } from "./policy.mjs";
+import { clipText, oneLine, sha256Hex } from "./text.mjs";
+
+export const ACTION_TYPES = Object.freeze(["send_message", "add_calendar", "create_task"]);
+export const PRIORITIES = Object.freeze(["Normal", "High", "Urgent"]);
+export const MAX_ACTIONS = 5;
+const ACTION_ID = /^[A-Za-z0-9-]{8,64}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MESSAGE_CHARS = 2000;
+
+export const TYPE_LABEL = Object.freeze({ send_message: "Message", add_calendar: "Calendar", create_task: "Task" });
+
+function isRealDate(value) {
+  if (!DATE.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return !Number.isNaN(time) && new Date(time).toISOString().startsWith(value);
+}
+
+function addDays(date, days) {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+// `people` is the approved team list ({ email, name, role }); `today` is the Melbourne date (YYYY-MM-DD); `ownerEmail` is the Owner.
+// Returns { action } when the proposal is usable, or { problem } saying in plain words what is wrong.
+export function validateProposal(raw, { people = [], today, ownerEmail = "", makeId = () => crypto.randomUUID() }) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { problem: "That is not a valid action." };
+  const type = raw.type;
+  if (!ACTION_TYPES.includes(type)) return { problem: "Jarvis does not know that kind of action." };
+
+  const email = oneLine(raw.person ?? raw.personEmail ?? "", 200).toLowerCase();
+  const person = people.find((entry) => entry.email.toLowerCase() === email);
+  if (!person) return { problem: "That person is not an approved member of the team." };
+  if (type === "send_message" && person.email.toLowerCase() === String(ownerEmail).toLowerCase()) return { problem: "A message cannot be sent to yourself." };
+
+  const title = clipText(raw.title, 160);
+  const text = clipText(raw.text, type === "send_message" ? MESSAGE_CHARS : 1000);
+  const id = typeof raw.id === "string" && ACTION_ID.test(raw.id) ? raw.id : makeId();
+  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(person.name, 120), personRole: oneLine(person.role, 40) };
+
+  if (type === "send_message") {
+    if (text.length < 2) return { problem: "The message is empty." };
+    return { action: { ...base, title: "", text, dates: [], startTime: "", projectCode: "", priority: "Normal" } };
+  }
+
+  const projectCode = oneLine(raw.projectCode ?? "", 60);
+  if (type === "create_task") {
+    if (!title) return { problem: "The task needs a title." };
+    if (!text) return { problem: "The task needs instructions." };
+    const priority = PRIORITIES.includes(raw.priority) ? raw.priority : "Normal";
+    return { action: { ...base, title, text, dates: [], startTime: "", projectCode, priority } };
+  }
+
+  // add_calendar
+  if (!title) return { problem: "The calendar entry needs a title." };
+  const dates = [...new Set((Array.isArray(raw.dates) ? raw.dates : []).map((value) => String(value).trim()))];
+  if (dates.length === 0) return { problem: "The calendar entry needs at least one date." };
+  if (dates.length > 31) return { problem: "A calendar entry can cover at most 31 days at a time." };
+  if (dates.some((value) => !isRealDate(value))) return { problem: "One of the dates is not a real date." };
+  if (dates.some((value) => value < today)) return { problem: "A calendar entry cannot be in the past." };
+  if (dates.some((value) => value > addDays(today, 730))) return { problem: "That date is too far ahead." };
+  const startTime = typeof raw.startTime === "string" && TIME.test(raw.startTime.trim()) ? raw.startTime.trim() : "";
+  return { action: { ...base, title, text, dates: dates.sort(), startTime, projectCode, priority: "Normal" } };
+}
+
+// A one-line plain description of what pressing the button will do, built by Jarvis (never by the AI).
+export function describeAction(action) {
+  const who = action.personName || action.personEmail;
+  if (action.type === "send_message") return `Send an in-app message to ${who}.`;
+  if (action.type === "create_task") return `Give ${who} a ${action.priority.toLowerCase()}-priority task: ${action.title}.`;
+  const when = action.dates.length === 1 ? action.dates[0] : `${action.dates.length} days (${action.dates[0]} to ${action.dates.at(-1)})`;
+  return `Add “${action.title}” to the calendar of ${who} on ${when}${action.startTime ? ` at ${action.startTime}` : ""}.`;
+}
+
+// Takes what the AI proposed and keeps what is valid. `dropped` says what could not be prepared, so the Owner is never left guessing.
+export function validateProposals(list, context) {
+  const actions = [];
+  const dropped = [];
+  for (const raw of (Array.isArray(list) ? list : []).slice(0, MAX_ACTIONS)) {
+    const result = validateProposal(raw, context);
+    if (result.action) actions.push({ ...result.action, summary: describeAction(result.action) });
+    else dropped.push(result.problem);
+  }
+  return { actions, dropped };
+}
+
+// ---------- Carrying it out (Owner pressed the button) ----------
+
+// `executors` carry the action out through the app's own stores:
+//   sendMessage({ personEmail, text }), addCalendar({ personEmail, title, notes, dates, startTime, projectCode }),
+//   createTask({ personEmail, title, instructions, priority, projectCode })
+export async function performAction({ db, owner, input, people, today, executors, proofreadWith = {}, now = Date.now() }) {
+  if (!input || typeof input !== "object" || input.confirm !== true) throw new JarvisAccessError("Confirm before Jarvis does this.", 400);
+  if (typeof input.id !== "string" || !ACTION_ID.test(input.id)) throw new JarvisAccessError("That action is not valid. Ask Jarvis again.", 400);
+  const checked = validateProposal(input.action ?? input, { people, today, ownerEmail: owner.email, makeId: () => input.id });
+  if (!checked.action) throw new JarvisAccessError(checked.problem, 400);
+  const action = { ...checked.action, id: input.id };
+
+  // Messages are people-facing writing, so they get the same three proofreading passes as an email.
+  let report = null;
+  if (action.type === "send_message") {
+    report = await proofread(action.text, { ...proofreadWith, maxChars: MESSAGE_CHARS });
+    action.text = report.text;
+  }
+
+  const claim = await beginAction(db, {
+    ownerEmail: owner.email, actionId: action.id, type: action.type, recipient: action.personEmail, title: action.title || (action.type === "send_message" ? "Message" : ""),
+    bodySha256: await sha256Hex(`${action.title}\n${action.text}\n${action.dates.join(",")}\n${action.startTime}`), bodyChars: action.text.length,
+  }, now);
+  try {
+    if (action.type === "send_message") await executors.sendMessage({ personEmail: action.personEmail, text: action.text });
+    else if (action.type === "create_task") await executors.createTask({ personEmail: action.personEmail, title: action.title, instructions: action.text, priority: action.priority, projectCode: action.projectCode });
+    else await executors.addCalendar({ personEmail: action.personEmail, title: action.title, notes: action.text, dates: action.dates, startTime: action.startTime, projectCode: action.projectCode });
+  } catch (error) {
+    await abandonAction(db, claim).catch(() => undefined);
+    // The stores explain themselves in plain words ("Choose an active project…"); anything else is a generic failure.
+    if (error instanceof Error && error.name !== "TypeError" && error.message && error.message.length < 200 && !/d1_|sqlite|sql|constraint|binding|undefined|null/i.test(error.message)) throw new JarvisAccessError(error.message, 400);
+    console.error("Jarvis action failed:", error instanceof Error ? error.name : "unknown");
+    throw new JarvisAccessError("Jarvis could not do that just now. Nothing was changed. Please try again.", 503);
+  }
+  await finishAction(db, claim).catch((error) => console.error("Jarvis could not record an action:", error instanceof Error ? error.name : "unknown"));
+  return { ok: true, id: action.id, type: action.type, summary: describeAction(action), proofread: report };
+}

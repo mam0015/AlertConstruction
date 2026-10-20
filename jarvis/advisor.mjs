@@ -16,14 +16,18 @@ const BY_FLAG = Object.freeze({
   legal: { action: "review", text: "Do not argue in writing. Keep a copy of everything and get advice before replying." },
   damage: { action: "check_with_team", text: "Send someone to inspect within 24 hours and take dated photos. Check whether insurance needs to be told." },
   open_site_issue: { action: "check_with_team", text: "Ask the Site Supervisor for a plan and a date to close this issue, and whether the work should pause until then." },
+  defect: { action: "check_with_team", text: "Ask the supervisor which defects must be fixed before handover, who fixes them, and by when." },
+  balance_owing: { action: "review", text: "Check what has been invoiced and what is overdue, then decide whether a payment reminder is due." },
+  needs_decision: { action: "review", text: "Open Access requests in your dashboard and approve or reject it, choosing the person's position." },
   issue_reported: { action: "check_with_team", text: "Ask the person who reported it what is needed to clear the issue (materials, access, another trade)." },
 });
 
 const REPLY_WITH_JARVIS = { action: "reply_email", text: "Tell Jarvis what to say and it will draft the reply for you to check and send." };
 const REPLY_YOURSELF = { action: "reply_email", text: "Reply from your mailbox (this mailbox is connected to Jarvis read-only)." };
+const ANSWER_IN_APP = { action: "other", text: "Tell Jarvis what to answer and it will prepare an in-app message for you to confirm." };
 const ACKNOWLEDGE_CLIENT = { action: "reply_email", text: "Reply within one business day, even if it is only a holding message." };
 
-const ORDER = ["safety", "complaint", "legal", "cancel", "money", "damage", "urgent", "delay", "open_site_issue", "issue_reported"];
+const ORDER = ["safety", "complaint", "legal", "cancel", "money", "damage", "urgent", "delay", "open_site_issue", "defect", "needs_decision", "balance_owing", "issue_reported"];
 
 function unique(list) {
   const seen = new Set();
@@ -36,6 +40,7 @@ export function suggestForItem(item) {
   const closing = [];
   if (item.kind === "email_received") closing.push(item.email?.canReply ? REPLY_WITH_JARVIS : REPLY_YOURSELF);
   if (item.source === "client_comments") closing.push(ACKNOWLEDGE_CLIENT);
+  if (item.kind === "message_to_owner") closing.push(ANSWER_IN_APP);
   return unique([...unique(fromFlags).slice(0, 3 - closing.length), ...closing]);
 }
 

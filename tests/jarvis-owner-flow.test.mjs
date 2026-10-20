@@ -110,7 +110,9 @@ test("ask → draft → send: the Owner's words become a reply that goes only to
 
   const sent = await app.request("/api/owner/jarvis/send", app.json(owner, approved));
   assert.equal(sent.status, 200);
-  assert.deepEqual(await sent.json(), { ok: true, mailbox: "info@alert.test", to: "jo@example.com", subject: "Re: Roof leak", sentId: "sent00001" });
+  const sentBody = await sent.json();
+  assert.deepEqual({ ...sentBody, proofread: undefined }, { ok: true, mailbox: "info@alert.test", to: "jo@example.com", subject: "Re: Roof leak", sentId: "sent00001", sentText: sentBody.sentText, proofread: undefined });
+  assert.equal(sentBody.proofread.passes.length, 3);
   const posts = google.calls.filter((call) => call.href === SEND_URL);
   assert.equal(posts.length, 1);
   const mime = decodeB64u(JSON.parse(posts[0].body).raw);
