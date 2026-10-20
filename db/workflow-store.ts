@@ -46,6 +46,25 @@ function requiredContactHashSecret() {
   return value;
 }
 
+// Customers see published photos through links that carry a signature, so a photo id cannot simply be counted up by a stranger.
+async function fileLinkSignature(id: number) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(`${requiredContactHashSecret()}|file-link`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`file:${id}`)));
+  return Array.from(bytes.slice(0, 12), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function customerFileLink(id: number) {
+  return `/api/workflow/files?id=${id}&k=${await fileLinkSignature(id)}`;
+}
+
+export async function validCustomerFileLink(id: number, signature: string) {
+  const expected = await fileLinkSignature(id);
+  if (signature.length !== expected.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) difference |= expected.charCodeAt(index) ^ signature.charCodeAt(index);
+  return difference === 0;
+}
+
 async function customerContactHash(kind: CustomerContactKind, value: string) {
   const normalised = normaliseCustomerContact(kind, value);
   const key = await crypto.subtle.importKey(
@@ -510,7 +529,7 @@ export async function getPublicWorkflow(code: string) {
     db.prepare("SELECT id,title,detail,status,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals WHERE case_id=? ORDER BY created_at DESC").bind(caseId),
     db.prepare("SELECT id,sender,sender_label AS senderLabel,body,kind,created_at AS createdAt FROM customer_messages WHERE case_id=? ORDER BY created_at,id").bind(caseId),
   ]);
-  const files = (result[2].results as Raw[]).map((file): Raw & { url: string } => ({ ...file, url: `/api/workflow/files?id=${file.id}` }));
+  const files = await Promise.all((result[2].results as Raw[]).map(async (file): Promise<Raw & { url: string }> => ({ ...file, url: await customerFileLink(Number(file.id)) })));
   return {
     ...item,
     estimate: result[0].results[0] ?? null,
@@ -579,5 +598,18 @@ export async function getWorkflowFile(id: number, publicOnly: boolean) {
   await ensureWorkflowDatabase();
   const db = await database();
   const where = publicOnly ? "id=? AND visibility='published'" : "id=?";
-  return db.prepare(`SELECT object_key AS objectKey,mime_type AS mimeType,file_name AS fileName FROM workflow_files WHERE ${where} LIMIT 1`).bind(id).first<{ objectKey: string; mimeType: string; fileName: string }>();
+  return db.prepare(`SELECT case_id AS caseId,object_key AS objectKey,mime_type AS mimeType,file_name AS fileName FROM workflow_files WHERE ${where} LIMIT 1`).bind(id).first<{ caseId: number; objectKey: string; mimeType: string; fileName: string }>();
+}
+
+// The same visibility rules as getWorkflowSnapshot: Owner/Admin see every case, an Estimator the cases at estimating stages,
+// a Site Supervisor only the cases assigned to them.
+export async function canAccessWorkflowCase(role: WorkflowRole, actorEmail: string, caseId: number) {
+  if (role === "owner" || role === "admin") return true;
+  await ensureWorkflowDatabase();
+  const db = await database();
+  const row = await db.prepare("SELECT stage,assigned_supervisor_email AS supervisor FROM workflow_cases WHERE id=? LIMIT 1").bind(caseId).first<{ stage: string; supervisor: string }>();
+  if (!row) return false;
+  if (role === "supervisor") return String(row.supervisor).toLowerCase() === actorEmail.toLowerCase();
+  if (role === "estimator") return (estimatorStages as readonly string[]).includes(row.stage);
+  return false;
 }

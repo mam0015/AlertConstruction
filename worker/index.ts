@@ -21,7 +21,8 @@ interface ExecutionContext {
 
 function securityHeaders(response: Response, url: URL) {
   const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; worker-src 'self' blob:");
+  // A route may set a stricter policy of its own (downloaded files use "sandbox"); only fill the default when it did not.
+  if (!headers.has("Content-Security-Policy")) headers.set("Content-Security-Policy", "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; worker-src 'self' blob:");
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
@@ -34,6 +35,31 @@ function securityHeaders(response: Response, url: URL) {
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+// Browsers parse every /api answer as JSON. A plain-text error (the framework's "Payload Too Large", an unhandled exception)
+// used to show up as "Unexpected token 'P'..." in the interface, so errors from /api/* always leave as {"error": "..."}.
+async function jsonErrors(response: Response, url: URL) {
+  if (!url.pathname.startsWith("/api/") || response.status < 400 || /json/i.test(response.headers.get("content-type") ?? "")) return response;
+  const text = (await response.text()).slice(0, 200).trim();
+  const error = response.status === 413 ? "That file is too large to upload."
+    : response.status >= 500 ? "Something went wrong on the server. Please try again."
+    : text || response.statusText || "The request could not be completed.";
+  const headers = new Headers(response.headers);
+  headers.set("Content-Type", "application/json");
+  headers.delete("Content-Length");
+  return new Response(JSON.stringify({ error }), { status: response.status, headers });
+}
+
+async function appResponse(request: Request, env: Env, ctx: ExecutionContext, url: URL) {
+  try {
+    return await jsonErrors(await handler.fetch(request, env, ctx), url);
+  } catch (error) {
+    console.error("Unhandled error:", error instanceof Error ? error.message : error);
+    return url.pathname.startsWith("/api/")
+      ? Response.json({ error: "Something went wrong on the server. Please try again." }, { status: 500 })
+      : new Response("Something went wrong on the server. Please try again.", { status: 500, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -58,7 +84,7 @@ const worker = {
       return securityHeaders(imageResponse, url);
     }
 
-    return securityHeaders(await handler.fetch(request, env, ctx), url);
+    return securityHeaders(await appResponse(request, env, ctx, url), url);
   },
 };
 

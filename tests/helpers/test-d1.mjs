@@ -30,6 +30,13 @@ export class TestD1 {
 
 export class TestR2 {
   constructor() { this.objects = new Map(); }
-  async put(key, value, options) { this.objects.set(key, { value: Buffer.from(value), options }); }
+  async put(key, value, options) {
+    const bytes = value && typeof value.getReader === "function" ? Buffer.from(await new Response(value).arrayBuffer()) : Buffer.from(value);
+    this.objects.set(key, { value: bytes, options });
+  }
+  async get(key) {
+    const entry = this.objects.get(key);
+    return entry ? { body: new Response(entry.value).body, size: entry.value.length, httpMetadata: entry.options?.httpMetadata ?? {} } : null;
+  }
   async delete(key) { this.objects.delete(key); }
 }

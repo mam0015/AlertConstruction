@@ -3,6 +3,7 @@ import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-aut
 import { isWorkerRole } from "../../../staff-access";
 import { addWorkerProjectFile, getWorkerFile, getWorkerManagementSnapshot } from "../../../../db/worker-store";
 import { runtimeBindings } from "../../../../db/runtime";
+import { activeContentProblem, downloadHeaders } from "../../../file-safety";
 
 async function identity(request: Request) {
   const owner = await ownerSessionFromRequest(request);
@@ -30,6 +31,8 @@ export async function POST(request: Request) {
     const workerEmails = JSON.parse(String(form.get("workerEmails") ?? "[]")) as string[];
     if (!(file instanceof File)) throw new Error("Choose a project file.");
     if (file.size <= 0 || file.size > 25 * 1024 * 1024) throw new Error("Project files must be 25 MB or smaller.");
+    const problem = activeContentProblem(file);
+    if (problem) throw new Error(problem);
     await addWorkerProjectFile(caseId, file, workerEmails, actor.role as "Owner" | "Admin", actor.email);
     return Response.json({ data: await getWorkerManagementSnapshot() }, { status: 201 });
   } catch (error) {
@@ -47,9 +50,5 @@ export async function GET(request: Request) {
   if (!record || !env.BUCKET) return Response.json({ error: "File not found or not shared with this account." }, { status: 404 });
   const object = await env.BUCKET.get(record.objectKey);
   if (!object) return Response.json({ error: "File not found." }, { status: 404 });
-  return new Response(object.body, { headers: {
-    "Content-Type": record.mimeType,
-    "Content-Disposition": `inline; filename="${record.fileName.replaceAll('"', '')}"`,
-    "Cache-Control": "private, no-store",
-  } });
+  return new Response(object.body, { headers: downloadHeaders(record.mimeType, record.fileName, { inlinePdf: true }) });
 }

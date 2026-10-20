@@ -20,6 +20,7 @@ export async function startWorker(tag) {
   process.env.OWNER_SESSION_SECRET = `owner-session-secret-for-${tag}-verification`;
   process.env.ADMIN_TEAM_CODE_HASH = hash(credentials.teamCode, "team-code-salt");
   process.env.ADMIN_SESSION_SECRET = `admin-session-secret-for-${tag}-verification`;
+  process.env.CUSTOMER_CONTACT_HASH_SECRET = `customer-contact-secret-for-${tag}-verification`;
 
   const workerUrl = new URL("../../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set(tag, `${process.pid}-${Date.now()}`);
@@ -54,19 +55,23 @@ export async function startWorker(tag) {
     return cookieFrom(login, "atp_owner_session");
   }
 
-  // A signed-in Admin (a different role) — used to prove Jarvis is Owner-only.
+  // A signed-in staff member of any role: joins with the Team Code, is approved by the Owner, then signs in.
   async function adminCookie(email) {
+    return staffCookie(email, "Admin");
+  }
+
+  async function staffCookie(email, role) {
     const first = await request("/api/team/login", json(null, { email, password: credentials.staffPassword, teamCode: credentials.teamCode }));
     assert.equal(first.status, 202);
     const pending = cookieFrom(first, "atp_staff_pending");
     const owner = await ownerCookie();
     const staff = (await (await request("/api/owner/data", { headers: { cookie: owner } })).json()).data.staffRequests.find((item) => item.email === email);
     assert.ok(staff);
-    assert.equal((await request("/api/owner/data", json(owner, { resource: "staff", id: staff.id, payload: { status: "Approved", role: "Admin", tradeTitle: "Admin" } }, "PATCH"))).status, 200);
+    assert.equal((await request("/api/owner/data", json(owner, { resource: "staff", id: staff.id, payload: { status: "Approved", role, tradeTitle: role } }, "PATCH"))).status, 200);
     const approved = await request("/api/staff/status", { headers: { cookie: pending } });
     assert.equal(approved.status, 200);
     return cookieFrom(approved, "atp_team_session");
   }
 
-  return { ...credentials, request, cookieFrom, json, ownerCookie, adminCookie, d1, env };
+  return { ...credentials, request, cookieFrom, json, ownerCookie, adminCookie, staffCookie, d1, env };
 }

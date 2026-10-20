@@ -1,6 +1,7 @@
 import { teamIdentityFromRequest } from "../../../../team-identity";
 import { getChatFile } from "../../../../../db/team-store";
 import { runtimeBindings } from "../../../../../db/runtime";
+import { downloadHeaders } from "../../../../file-safety";
 
 export async function GET(request: Request) {
   const me = await teamIdentityFromRequest(request);
@@ -11,10 +12,5 @@ export async function GET(request: Request) {
   const env = await runtimeBindings();
   const object = await env.BUCKET?.get(row.key);
   if (!object) return Response.json({ error: "File not found." }, { status: 404 });
-  return new Response(object.body, { headers: {
-    "Content-Type": row.mime || "application/octet-stream",
-    "Content-Disposition": `inline; filename="${row.name.replace(/[^a-zA-Z0-9._ -]+/g, "_")}"`,
-    "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "private, no-store",
-  } });
+  return new Response(object.body, { headers: downloadHeaders(row.mime || "application/octet-stream", row.name, { inlinePdf: true }) });
 }
