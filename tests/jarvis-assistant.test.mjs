@@ -41,6 +41,21 @@ test("advisor: fixed, owner-facing advice per item — never an echo of what a s
   assert.match(suggestForItem(emailItem(false))[0].text, /read-only/);
 });
 
+test("advisor: an urgent email keeps its reply step even when many flags fire", () => {
+  const loud = makeItem({
+    id: "email:info@alert.test:msg00009", source: "company_email", kind: "email_received", at: ago(1), title: "Legal threat about a refund and a leak",
+    body: "This is urgent. I will take legal action and want a refund. Water damage everywhere, it is unsafe.",
+    email: { mailbox: "info@alert.test", messageId: "msg00009", threadId: "thr00009", canReply: true },
+  });
+  assert.ok(loud.flags.length >= 4, `expected several flags, got ${loud.flags}`);
+  const advice = suggestForItem(loud);
+  assert.equal(advice.length, 3);
+  assert.match(advice.at(-1).text, /Tell Jarvis what to say/, "the reply step is last but never pushed out");
+  assert.ok(suggestForItem({ ...loud, email: { ...loud.email, canReply: false } }).at(-1).text.includes("read-only"));
+  const comment = makeItem({ id: "c9", source: "client_comments", kind: "customer_message", at: ago(1), who: "Sam", title: "Angry", body: "This is urgent, I want a refund, I am cancelling, legal action next." });
+  assert.match(suggestForItem(comment).at(-1).text, /within one business day/);
+});
+
 test("advisor: topics group by project and by email thread, urgent first", () => {
   const items = [
     makeItem({ id: "a", source: "employee_updates", kind: "site_issue", at: ago(2), title: "Site issue", who: "Sue", project: "ATP-2026-00124", body: "Unsafe trench", extraFlags: ["open_site_issue"] }),
@@ -95,6 +110,9 @@ test("reply: addresses are parsed strictly and the recipient comes only from the
   assert.equal(parseAddress("jo@example.com")?.address, "jo@example.com");
   assert.equal(parseAddress("Jo <jo@example.com>, Pat <pat@example.com>")?.address, "jo@example.com");
   assert.equal(parseAddress("jo@example.com\r\nBcc: evil@x.com")?.address, "jo@example.com");
+  assert.equal(parseAddress("Pat O'Neil <pat.o'neil@example.com>")?.address, "pat.o'neil@example.com", "an apostrophe is legal in the local part");
+  assert.equal(parseAddress("o'neil@example.com")?.address, "o'neil@example.com");
+  assert.equal(parseAddress("Pat <pat@example.com'>"), null, "but not after the @");
   assert.equal(parseAddress("not an address"), null);
   assert.equal(parseAddress("a@b"), null);
 
@@ -177,6 +195,25 @@ test("reply: refusals happen before anything is sent", async () => {
   await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: googleMock().fetchImpl, messageId: "msg00001", body: "  " }), (error) => error.status === 400);
 });
 
+test("reply: Google's answers to a send are told apart — limit, permission, outage, and no answer at all", async () => {
+  const account = { label: "info@alert.test", refreshToken: "r", canReply: true };
+  const withSend = (respond) => {
+    const google = googleMock();
+    return async (url, init) => (String(url) === SEND_URL ? respond() : google.fetchImpl(url, init));
+  };
+  const reply = (fetchImpl) => sendReply({ config: baseConfig(), account, fetchImpl, messageId: "msg00001", body: "Hi there" });
+  const failure = (status, error) => () => new Response(JSON.stringify({ error }), { status, headers: { "content-type": "application/json" } });
+
+  await assert.rejects(() => reply(withSend(failure(429, { message: "slow down" }))), (error) => error.status === 429 && /sending limit/.test(error.message));
+  await assert.rejects(() => reply(withSend(failure(403, { errors: [{ reason: "rateLimitExceeded" }] }))), (error) => error.status === 429, "a 403 that is really a rate limit is not blamed on permissions");
+  await assert.rejects(() => reply(withSend(failure(403, { errors: [{ reason: "dailyLimitExceeded" }] }))), (error) => error.status === 429);
+  await assert.rejects(() => reply(withSend(failure(403, { status: "PERMISSION_DENIED" }))), (error) => error.status === 403 && /allow-replies/.test(error.message));
+  await assert.rejects(() => reply(withSend(failure(401, { message: "expired" }))), (error) => error.status === 403 && /allow-replies/.test(error.message));
+  await assert.rejects(() => reply(withSend(() => new Response("<html>", { status: 502 }))), (error) => /gmail send 502/.test(error.message) && !error.uncertain);
+
+  await assert.rejects(() => reply(withSend(() => { throw new TypeError("fetch failed"); })), (error) => error.status === 502 && error.uncertain === true && /Sent folder/.test(error.message));
+});
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Audit and limits
 test("audit: a reply can be claimed once, retried after a failure, and the log never stores the text", async () => {
@@ -197,6 +234,22 @@ test("audit: a reply can be claimed once, retried after a failure, and the log n
   const columns = d1.sqlite.prepare("PRAGMA table_info(jarvis_log)").all().map((column) => column.name);
   assert.ok(!columns.includes("body"), "the reply text itself is not stored (it is in the mailbox's Sent folder)");
   assert.deepEqual(await recentSends(new TestD1()), [], "no table yet means nothing sent yet");
+});
+
+test("audit: a duplicate says whether the first copy is still going out or already went, and a stuck claim frees itself", async () => {
+  const d1 = new TestD1();
+  const start = Date.parse("2026-10-20T09:00:00Z");
+  const claim = { ownerEmail: "owner@alert.test", mailbox: "info@alert.test", messageId: "msg00001", recipient: "jo@example.com", subject: "Re: Roof leak", bodySha256: "hash-one", bodyChars: 40 };
+  const id = await beginSend(d1, claim, start);
+  await assert.rejects(() => beginSend(d1, claim, start + 30_000), (error) => error.status === 409 && /being sent right now/.test(error.message) && /Sent folder/.test(error.message));
+  await assert.rejects(() => beginSend(d1, claim, start + 4 * 60_000), (error) => error.status === 409 && /being sent right now/.test(error.message), "still blocked inside the five minutes");
+
+  const later = await beginSend(d1, claim, start + 6 * 60_000);
+  assert.ok(later > id, "after five minutes a claim that never finished stops blocking");
+  assert.equal(d1.sqlite.prepare("SELECT status FROM jarvis_log WHERE id = ?").get(id).status, "failed");
+  await finishSend(d1, later, "sent00001");
+  await assert.rejects(() => beginSend(d1, claim, start + 7 * 60_000), (error) => error.status === 409 && /already been sent/.test(error.message) && !/being sent/.test(error.message));
+  await assert.rejects(() => beginSend(d1, claim, start + 60 * 60_000), (error) => error.status === 409, "a sent reply never becomes sendable again");
 });
 
 test("audit: hourly send and question limits stop runaway use", async () => {
@@ -241,6 +294,20 @@ test("ai: only the Owner's text is an instruction; records and emails are escape
   assert.ok(!/0400 111 222|9123 4567|jo@example/.test(withPhone), "phone numbers and addresses inside the texts are redacted too");
   assert.ok(withPhone.includes("ATP-2026-00124"));
   assert.ok(content.includes("&quot;"), "attributes can't be broken out of");
+});
+
+test("ai: staff are named by their login so the Owner's questions about people work, customers stay address-free", () => {
+  const records = [
+    makeItem({ id: "w1", source: "employee_updates", kind: "worker_report", at: ago(1), title: "Worker report — john.smith@alert.test", who: "john.smith@alert.test", project: "ATP-2026-00124", body: "Done: tiling. Next: grout." }),
+    makeItem({ id: "w2", source: "employee_updates", kind: "site_issue", at: ago(2), title: "Site issue (High) — Safety", who: "Sue Supervisor", body: "Open trench." }),
+    makeItem({ id: "c1", source: "client_comments", kind: "customer_message", at: ago(3), title: "Comment from Sam", who: "sam.private@example.com", body: "Call me." }),
+  ];
+  const content = buildUserContent({ message: "What did John do?", records, hours: 24, focus: null });
+  assert.match(content, /from="john smith"/);
+  assert.match(content, /Title: Worker report — john smith/);
+  assert.match(content, /from="Sue Supervisor"/);
+  assert.ok(!content.includes("alert.test") && !content.includes("sam.private") && !content.includes("@"), "no address of anyone reaches the AI");
+  assert.match(content, /from="\[email\]"/, "a customer's address is still hidden");
 });
 
 test("ai: records are chosen urgent-first and capped; history keeps only user-first turns", () => {
@@ -487,4 +554,48 @@ test("assistant: a failed send can be retried, and a permission problem says how
 
   const refused = googleMock({ sendStatus: 403 });
   await assert.rejects(() => sendOwnerReply({ db: new TestD1(), config: baseConfig(), fetchImpl: refused.fetchImpl, owner, input: approved }), (error) => error.status === 403 && /allow-replies/.test(error.message));
+});
+
+test("assistant: once Google has accepted the reply, a bookkeeping hiccup cannot turn it into a reported failure", async () => {
+  const inner = new TestD1();
+  const flaky = {
+    prepare: (sql) => {
+      if (/SET status = 'sent'/.test(sql)) throw new Error("D1_ERROR: database is busy");
+      return inner.prepare(sql);
+    },
+    batch: (statements) => inner.batch(statements),
+  };
+  const google = googleMock();
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args.join(" "));
+  let result;
+  try {
+    result = await sendOwnerReply({ db: flaky, config: baseConfig(), fetchImpl: google.fetchImpl, owner, input: { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true } });
+  } finally {
+    console.error = original;
+  }
+  assert.equal(result.ok, true, "the Owner is told the truth: it was sent");
+  assert.equal(result.sentId, "sent00001");
+  assert.equal(google.calls.filter((call) => call.href === SEND_URL).length, 1);
+  assert.ok(logged.some((line) => /could not record a sent reply.*busy/.test(line)));
+  assert.equal(inner.sqlite.prepare("SELECT status FROM jarvis_log WHERE kind = 'send'").get().status, "sending", "the claim stays so an accidental second click is still blocked");
+});
+
+test("assistant: if Google never answers, the claim is kept so the reply is not sent twice by accident", async () => {
+  const d1 = new TestD1();
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true };
+  const base = googleMock();
+  const silent = async (url, init) => { if (String(url) === SEND_URL) throw new TypeError("fetch failed"); return base.fetchImpl(url, init); };
+  const start = Date.now();
+  await assert.rejects(() => sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: silent, owner, input: approved, now: start }), (error) => error.status === 502 && /Sent folder/.test(error.message));
+  assert.equal(d1.sqlite.prepare("SELECT status FROM jarvis_log WHERE kind = 'send'").get().status, "sending");
+
+  const eager = googleMock();
+  await assert.rejects(() => sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: eager.fetchImpl, owner, input: approved, now: start + 20_000 }), (error) => error.status === 409 && /being sent right now/.test(error.message));
+  assert.equal(eager.calls.filter((call) => call.href === SEND_URL).length, 0, "an immediate retry never reaches Google");
+
+  const afterCheck = googleMock();
+  const result = await sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: afterCheck.fetchImpl, owner, input: approved, now: start + 6 * 60_000 });
+  assert.equal(result.ok, true, "once the Owner has checked the Sent folder, a few minutes later, they can send it again");
 });

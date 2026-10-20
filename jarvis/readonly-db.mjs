@@ -19,6 +19,9 @@ export const READABLE_TABLES = Object.freeze([
 ]);
 
 const WRITE_WORDS = /\b(insert|update|delete|drop|alter|create|replace|truncate|pragma|attach|detach|vacuum|reindex|grant|revoke)\b/i;
+const RISKY_FUNCTIONS = /\b(load_extension|readfile|writefile|zeroblob|randomblob)\s*\(/i;
+// "FROM a, b" is a join the table check below would not see, so it is refused (always write an explicit JOIN).
+const COMMA_JOIN = /\bfrom\s+[a-z_][a-z0-9_]*(?:\s+(?:as\s+)?[a-z_][a-z0-9_]*)?\s*,/i;
 
 function withoutLiterals(sql) {
   return sql.replace(/'(?:[^']|'')*'/g, "''");
@@ -30,6 +33,10 @@ export function assertReadOnlySql(sql) {
   if (text.includes(";")) throw new JarvisAccessError("Jarvis runs one statement at a time.", 500);
   if (text.includes("--") || text.includes("/*")) throw new JarvisAccessError("Comments are not allowed in Jarvis queries.", 500);
   if (WRITE_WORDS.test(text)) throw new JarvisAccessError("Jarvis can only read data.", 500);
+  if (RISKY_FUNCTIONS.test(text)) throw new JarvisAccessError("That function is not allowed in Jarvis queries.", 500);
+  // Quoted or bracketed names could hide a table from the check below.
+  if (/["`\[\]]/.test(text)) throw new JarvisAccessError("Quoted names are not allowed in Jarvis queries.", 500);
+  if (COMMA_JOIN.test(text)) throw new JarvisAccessError("Use an explicit JOIN in Jarvis queries.", 500);
   if (/\bselect\s+(distinct\s+)?\*/i.test(text) || /\.\*/.test(text)) throw new JarvisAccessError("Jarvis queries must name their columns.", 500);
   const tables = [...text.matchAll(/\b(?:from|join)\s+([a-z_][a-z0-9_]*)/gi)].map((match) => match[1].toLowerCase());
   if (tables.length === 0) throw new JarvisAccessError("Jarvis query has no table.", 500);

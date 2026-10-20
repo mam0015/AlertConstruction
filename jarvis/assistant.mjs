@@ -155,17 +155,21 @@ export async function sendOwnerReply({ db, config, fetchImpl, owner, input, now 
   if (body.length < 2) throw new JarvisAccessError("The reply is empty.", 400);
 
   let claim = 0;
+  let sent;
   try {
-    const sent = await sendReply({
+    sent = await sendReply({
       config, account, fetchImpl, messageId, body,
       beforeSend: async ({ to, subject }) => {
         claim = await beginSend(db, { ownerEmail: owner.email, mailbox, messageId, recipient: to, subject, bodySha256: await sha256Hex(body), bodyChars: body.length }, now);
       },
     });
-    await finishSend(db, claim, sent.sentId);
-    return { ok: true, mailbox, to: sent.to, subject: sent.subject, sentId: sent.sentId };
   } catch (error) {
-    if (claim) await abandonSend(db, claim).catch(() => undefined);
+    // A clean failure frees the claim so the Owner can retry; if Google never answered, the reply may have gone out, so the
+    // claim stays (it stops blocking after a few minutes) and the Owner is told to check the Sent folder.
+    if (claim && !error?.uncertain) await abandonSend(db, claim).catch(() => undefined);
     throw error;
   }
+  // The email is out. Whatever happens to the bookkeeping from here on must not turn this into a reported failure.
+  await finishSend(db, claim, sent.sentId).catch((error) => console.error("Jarvis could not record a sent reply:", error instanceof Error ? error.message : error));
+  return { ok: true, mailbox, to: sent.to, subject: sent.subject, sentId: sent.sentId };
 }

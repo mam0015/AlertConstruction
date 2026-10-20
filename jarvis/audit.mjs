@@ -7,6 +7,7 @@
 import { JarvisAccessError } from "./policy.mjs";
 
 export const LIMITS = Object.freeze({ sendsPerHour: 20, sendsPerDay: 60, asksPer10Minutes: 40 });
+const STALE_SENDING_MS = 5 * 60_000;
 
 export async function ensureLog(d1) {
   await d1.batch([
@@ -55,6 +56,8 @@ export async function beginSend(d1, { ownerEmail, mailbox, messageId, recipient,
   if (await count(d1, "send", new Date(now - 86_400_000).toISOString()) >= LIMITS.sendsPerDay) {
     throw new JarvisAccessError(`Jarvis has already sent ${LIMITS.sendsPerDay} replies in the last 24 hours.`, 429);
   }
+  // A claim that never finished (the Worker was interrupted mid-send) stops blocking after a few minutes.
+  await d1.prepare("UPDATE jarvis_log SET status = 'failed' WHERE kind = 'send' AND status = 'sending' AND at < ?").bind(new Date(now - STALE_SENDING_MS).toISOString()).run();
   try {
     const result = await d1.prepare(`INSERT INTO jarvis_log
       (at, kind, owner_email, mailbox, original_message_id, recipient, subject, body_sha256, body_chars, status)
@@ -63,7 +66,11 @@ export async function beginSend(d1, { ownerEmail, mailbox, messageId, recipient,
     return Number(result?.meta?.last_row_id ?? 0);
   } catch (error) {
     if (/unique/i.test(error instanceof Error ? error.message : String(error))) {
-      throw new JarvisAccessError("This exact reply has already been sent (or is being sent).", 409);
+      const existing = await d1.prepare(`SELECT status FROM jarvis_log WHERE kind = 'send' AND mailbox = ? AND original_message_id = ? AND body_sha256 = ?
+        AND status IN ('sending','sent') LIMIT 1`).bind(mailbox, messageId, bodySha256).first();
+      throw new JarvisAccessError(existing?.status === "sending"
+        ? "This reply is being sent right now. Please wait a moment, and check the Sent folder before sending it again."
+        : "This exact reply has already been sent.", 409);
     }
     throw error;
   }

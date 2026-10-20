@@ -43,6 +43,9 @@ export async function accessTokenFor(fetchImpl, config, account) {
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, refresh_token: account.refreshToken, grant_type: "refresh_token" }),
   });
+  if (response.status === 400 || response.status === 401) {
+    throw new JarvisAccessError("Google no longer accepts the saved login for this mailbox. Reconnect it (see jarvis/README.md).", 502);
+  }
   if (!response.ok) throw new Error(`token ${response.status}`);
   const body = await response.json();
   if (!body?.access_token) throw new Error("no access token");

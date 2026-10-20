@@ -12,7 +12,7 @@ import { clipText, oneLine } from "./text.mjs";
 
 export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
-const ADDRESS = /^[^\s<>@,;"']+@[^\s<>@,;"']+\.[^\s<>@,;"']{2,}$/;
+const ADDRESS = /^[^\s<>@,;"]+@[^\s<>@,;"']+\.[^\s<>@,;"']{2,}$/; // an apostrophe is valid in the local part (o'neil@…)
 const NO_REPLY = /^(?:no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster)@/i;
 export const MAX_ORIGINAL_CHARS = 4000;
 export const MAX_REPLY_CHARS = 5000;
@@ -78,7 +78,7 @@ export function parseAddress(value) {
     name = angle[1].replace(/^["'\s]+|["'\s]+$/g, "");
     address = angle[2];
   } else {
-    address = text.match(/([^<>\s,;"']+@[^<>\s,;"']+)/)?.[1] ?? "";
+    address = text.match(/([^<>\s,;"]+@[^<>\s,;"']+)/)?.[1] ?? "";
   }
   return ADDRESS.test(address) ? { name: name.slice(0, 120), address: address.toLowerCase() } : null;
 }
@@ -185,15 +185,30 @@ export async function sendReply({ config, account, fetchImpl, messageId, body, b
     mailbox: account.label, to, subject, body: text,
     messageIdHeader: original.messageIdHeader, references: original.references,
   }));
-  const response = await fetchImpl(GMAIL_SEND_URL, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ raw, ...(original.threadId ? { threadId: original.threadId } : {}) }),
-  });
-  if (response.status === 403) {
-    throw new JarvisAccessError("Google refused to send from this mailbox. Reconnect it with --allow-replies.", 403);
+  let response;
+  try {
+    response = await fetchImpl(GMAIL_SEND_URL, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ raw, ...(original.threadId ? { threadId: original.threadId } : {}) }),
+    });
+  } catch {
+    // No answer from Google: the reply may or may not have gone out, so the caller must not treat it as a clean failure.
+    const unsure = new JarvisAccessError("I could not confirm that the reply was sent. Check the mailbox's Sent folder before trying again.", 502);
+    unsure.uncertain = true;
+    throw unsure;
   }
-  if (!response.ok) throw new Error(`gmail send ${response.status}`);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    const reason = String(detail?.error?.errors?.[0]?.reason ?? detail?.error?.status ?? "");
+    if (response.status === 429 || /ratelimit|dailylimit|quota/i.test(reason)) {
+      throw new JarvisAccessError("Google's sending limit has been reached for this mailbox. Please try again later.", 429);
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new JarvisAccessError("Google refused to send from this mailbox. Reconnect it with --allow-replies.", 403);
+    }
+    throw new Error(`gmail send ${response.status}`);
+  }
   const sent = await response.json().catch(() => ({}));
   return { to, subject, sentId: String(sent.id ?? ""), threadId: String(sent.threadId ?? original.threadId), body: text };
 }

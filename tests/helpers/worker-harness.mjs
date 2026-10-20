@@ -34,7 +34,8 @@ export async function startWorker(tag) {
     const headers = new Headers(init.headers);
     const method = (init.method ?? "GET").toUpperCase();
     if (!["GET", "HEAD"].includes(method) && !headers.has("origin") && init.origin !== false) headers.set("origin", "http://localhost");
-    const { origin: _ignored, ...rest } = init;
+    const rest = { ...init };
+    delete rest.origin; // only a switch for this helper, not a real fetch option
     return worker.fetch(new Request(`http://localhost${path}`, { ...rest, headers }), env, ctx);
   }
 

@@ -31,10 +31,12 @@ function unique(list) {
 }
 
 export function suggestForItem(item) {
-  const found = ORDER.filter((flag) => item.flags.includes(flag)).map((flag) => BY_FLAG[flag]);
-  if (item.kind === "email_received") found.push(item.email?.canReply ? REPLY_WITH_JARVIS : REPLY_YOURSELF);
-  if (item.source === "client_comments") found.push(ACKNOWLEDGE_CLIENT);
-  return unique(found).slice(0, 3);
+  const fromFlags = ORDER.filter((flag) => item.flags.includes(flag)).map((flag) => BY_FLAG[flag]);
+  // The reply step is the most actionable one, so it always keeps its place even when several flags fire.
+  const closing = [];
+  if (item.kind === "email_received") closing.push(item.email?.canReply ? REPLY_WITH_JARVIS : REPLY_YOURSELF);
+  if (item.source === "client_comments") closing.push(ACKNOWLEDGE_CLIENT);
+  return unique([...unique(fromFlags).slice(0, 3 - closing.length), ...closing]);
 }
 
 export function withSuggestions(item) {

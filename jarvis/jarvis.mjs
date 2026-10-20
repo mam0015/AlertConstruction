@@ -6,10 +6,15 @@ import { buildBriefing, searchItems, sortNewestFirst } from "./briefing.mjs";
 import { assertScope, JARVIS_AUDIENCE, JARVIS_MODE, LIMITS, parseOptions } from "./policy.mjs";
 import { createReader } from "./readonly-db.mjs";
 import { readClientComments } from "./sources/client-comments.mjs";
-import { readCompanyEmail } from "./sources/company-email.mjs";
+import { parseAccounts, readCompanyEmail } from "./sources/company-email.mjs";
 import { readEmployeeUpdates } from "./sources/employee-updates.mjs";
 
-const EMAIL_PER_MAILBOX_CAP = 20; // keeps one briefing inside Cloudflare's per-request subrequest limit
+// Each mailbox costs 2 requests (login + list) plus one per message, and a Cloudflare Worker on the free plan may make 50 per
+// request. Fewer messages per mailbox when there are several keeps one briefing (and one question) comfortably inside that.
+export function emailCap(config) {
+  const mailboxes = Math.max(1, parseAccounts(config?.accounts).length);
+  return Math.max(5, Math.min(20, Math.floor((40 - 2 * mailboxes) / mailboxes)));
+}
 
 async function readScope(scope, context) {
   assertScope(scope);
@@ -17,7 +22,7 @@ async function readScope(scope, context) {
     const result = await readCompanyEmail({
       config: context.config,
       sinceMs: context.sinceMs,
-      limit: Math.min(context.options.limit, EMAIL_PER_MAILBOX_CAP),
+      limit: Math.min(context.options.limit, emailCap(context.config)),
       fetchImpl: context.fetchImpl,
     });
     return { status: result.status, items: result.items, accounts: result.accounts };

@@ -17,7 +17,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { clip } from "./briefing.mjs";
 import { MAX_REPLY_CHARS } from "./reply.mjs";
-import { attrEscape, clipText, displayName, redact, xmlEscape } from "./text.mjs";
+import { attrEscape, clipText, displayName, oneLine, redact, xmlEscape } from "./text.mjs";
 
 export const DEFAULT_MODEL = "claude-opus-5-5";
 export const ACTIONS = Object.freeze(["reply_email", "call", "check_with_team", "review", "schedule", "wait", "other"]);
@@ -99,13 +99,18 @@ How you write
 Return JSON that matches the schema.`;
 }
 
-function plainWho(item) {
-  return displayName(item.who);
+// Employees are known to the Owner by their login. Without it every staff member would read "[email]" and the AI could not
+// tell who did what, so a staff address becomes its readable first part ("john.smith@…" -> "john smith"). Customers' addresses never do.
+function staffHandle(who) {
+  const match = String(who ?? "").trim().match(/^([^\s@<>]+)@[^\s@<>]+$/);
+  return match ? oneLine(match[1].replace(/[._+-]+/g, " "), 40) : "";
 }
 
 function recordXml(item) {
-  return `<record id="${attrEscape(item.id)}" source="${attrEscape(item.source)}" kind="${attrEscape(item.kind)}" time="${attrEscape(item.at)}" project="${attrEscape(item.project)}" from="${attrEscape(plainWho(item))}" flags="${attrEscape(item.flags.join(","))}">
-Title: ${xmlEscape(redact(item.title))}
+  const handle = item.source === "employee_updates" ? staffHandle(item.who) : "";
+  const title = handle ? item.title.split(item.who).join(handle) : item.title;
+  return `<record id="${attrEscape(item.id)}" source="${attrEscape(item.source)}" kind="${attrEscape(item.kind)}" time="${attrEscape(item.at)}" project="${attrEscape(item.project)}" from="${attrEscape(handle || displayName(item.who))}" flags="${attrEscape(item.flags.join(","))}">
+Title: ${xmlEscape(redact(title))}
 Text: ${xmlEscape(redact(item.preview))}
 </record>`;
 }

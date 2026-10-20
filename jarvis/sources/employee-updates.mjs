@@ -71,11 +71,14 @@ export async function readEmployeeUpdates(reader, { sinceISO, limit }) {
   const items = [];
   let failed = 0;
   let missing = 0;
-  for (const result of settled) {
+  settled.forEach((result, index) => {
     if (result.status === "fulfilled") items.push(...result.value);
     else if (isMissingTable(result.reason)) missing += 1;
-    else failed += 1;
-  }
+    else {
+      failed += 1;
+      console.error(`Jarvis could not read ${queries[index].name}:`, result.reason instanceof Error ? result.reason.message : result.reason);
+    }
+  });
   const status = failed === settled.length ? "error" : failed > 0 ? "partial" : missing === settled.length ? "empty" : "ok";
   return { status, items };
 }

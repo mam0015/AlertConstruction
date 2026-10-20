@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 import { createTables, seed, ago } from "./helpers/jarvis-fixtures.mjs";
 import { TestD1, TestR2 } from "./helpers/test-d1.mjs";
 import { buildBriefing, flagText, hasRealIssue, makeItem, searchItems } from "../jarvis/briefing.mjs";
-import { runJarvis } from "../jarvis/jarvis.mjs";
+import { emailCap, runJarvis } from "../jarvis/jarvis.mjs";
 import { assertScope, JARVIS_SCOPES, parseOptions } from "../jarvis/policy.mjs";
 import { assertReadOnlySql, createReader } from "../jarvis/readonly-db.mjs";
-import { parseAccounts, readCompanyEmail } from "../jarvis/sources/company-email.mjs";
+import { readClientComments } from "../jarvis/sources/client-comments.mjs";
+import { accessTokenFor, parseAccounts, readCompanyEmail } from "../jarvis/sources/company-email.mjs";
+import { readEmployeeUpdates } from "../jarvis/sources/employee-updates.mjs";
 
 function hash(value, saltText) {
   const salt = Buffer.from(saltText.padEnd(16, "0").slice(0, 16));
@@ -57,6 +59,18 @@ test("read-only guard refuses writes, SELECT *, multiple statements and tables o
     "SELECT id FROM eod_reports -- comment",
     "PRAGMA table_info(eod_reports)",
     "WITH x AS (SELECT 1) SELECT 1",
+    // a table hidden behind a comma join, quoting, brackets or backticks must not slip past the allow-list
+    "SELECT e.id FROM eod_reports e, jarvis_log j",
+    "SELECT id FROM eod_reports, owner_accounts",
+    'SELECT id FROM "owner_accounts"',
+    "SELECT id FROM `owner_accounts`",
+    "SELECT id FROM [owner_accounts]",
+    'SELECT e.id FROM eod_reports e JOIN "owner_accounts" o ON 1=1',
+    // functions that read files, load code or allocate huge blobs
+    "SELECT load_extension('x') AS x FROM eod_reports",
+    "SELECT readfile('/etc/passwd') AS x FROM eod_reports",
+    "SELECT zeroblob(2000000000) AS x FROM eod_reports",
+    "SELECT randomblob(2000000000) AS x FROM eod_reports",
   ];
   for (const sql of refused) assert.throws(() => assertReadOnlySql(sql), undefined, sql);
   assert.ok(assertReadOnlySql("SELECT id, person FROM eod_reports WHERE submitted_at >= ? ORDER BY submitted_at DESC LIMIT ?"));
@@ -201,6 +215,51 @@ test("company email: one broken mailbox does not hide the others; unconfigured i
   assert.equal((await readCompanyEmail({ config: {}, sinceMs: 0, limit: 5, fetchImpl })).status, "not_connected");
   assert.deepEqual(parseAccounts("not json"), []);
   assert.deepEqual(parseAccounts(JSON.stringify([{ label: "", refreshToken: "x" }, { label: "ok@x", refreshToken: "t" }])), [{ label: "ok@x", refreshToken: "t", canReply: false }]);
+});
+
+test("company email: a few mailboxes share Cloudflare's 50-request budget, and a revoked login says how to fix it", async () => {
+  const mailboxes = (count) => ({ accounts: JSON.stringify(Array.from({ length: count }, (_, index) => ({ label: `box${index}@alert.test`, refreshToken: `t${index}` }))) });
+  assert.deepEqual([0, 1, 2, 3, 5].map((count) => emailCap(mailboxes(count))), [20, 20, 18, 11, 6]);
+  assert.equal(emailCap({}), 20);
+  for (const count of [1, 2, 3, 5]) {
+    const requests = 2 * count + count * emailCap(mailboxes(count)) + 8;
+    assert.ok(requests <= 50, `${count} mailbox(es) can use ${requests} requests, which must stay within 50`);
+  }
+
+  // the cap is really sent to Google
+  const { calls, fetchImpl } = googleMock();
+  await runJarvis({
+    db: new TestD1(), fetchImpl, params: new URLSearchParams({ scopes: "company_email", limit: "100" }),
+    config: { clientId: "id", clientSecret: "secret", accounts: mailboxes(3).accounts },
+  });
+  const lists = calls.filter((call) => /\/users\/me\/messages\?/.test(call.href));
+  assert.equal(lists.length, 3);
+  assert.ok(lists.every((call) => new URL(call.href).searchParams.get("maxResults") === "11"));
+
+  // a token Google no longer accepts gives an Owner-readable message instead of a bare status code
+  const revoked = async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+  await assert.rejects(() => accessTokenFor(revoked, { clientId: "id", clientSecret: "secret" }, { label: "a", refreshToken: "x" }), (error) => error.status === 502 && /Reconnect it/.test(error.message));
+  const unavailable = async () => new Response("", { status: 503 });
+  await assert.rejects(() => accessTokenFor(unavailable, { clientId: "id", clientSecret: "secret" }, { label: "a", refreshToken: "x" }), /token 503/);
+});
+
+test("sources: a real database fault is logged and reported as an error, a missing table is just empty", async () => {
+  const faulty = { async all() { throw new Error("D1_ERROR: disk I/O error"); } };
+  const missing = { async all() { throw new Error("D1_ERROR: no such table: eod_reports"); } };
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args.join(" "));
+  try {
+    for (const read of [readEmployeeUpdates, readClientComments]) {
+      assert.equal((await read(faulty, { sinceISO: ago(1), limit: 5 })).status, "error");
+      assert.equal((await read(missing, { sinceISO: ago(1), limit: 5 })).status, "empty");
+    }
+  } finally {
+    console.error = original;
+  }
+  assert.ok(logged.some((line) => /could not read end_of_day.*disk I\/O error/.test(line)), "the Owner's developer can see why a source failed");
+  assert.ok(logged.some((line) => /could not read project_message.*disk I\/O error/.test(line)));
+  assert.ok(!logged.some((line) => /no such table/.test(line)), "an app that has not created a table yet is not an error");
 });
 
 test("mailbox authorisation helper asks Google for read-only access only and rejects a forged callback", async () => {
