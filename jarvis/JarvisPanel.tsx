@@ -20,7 +20,11 @@ type Result = {
   sent: SentLog[];
 };
 type AiSuggestion = { title: string; why: string; action: string; itemId: string };
-type Draft = { mailbox: string; messageId: string; to: string; toName: string; subject: string; body: string; note: string; canSend: boolean };
+type DraftWarning = { kind: string; text: string };
+type Draft = {
+  mailbox: string; messageId: string; to: string; toName: string; subject: string; body: string; note: string; canSend: boolean;
+  from?: string; replyTo?: string; crossDomain?: boolean; automatedReason?: string; auth?: string; warnings?: DraftWarning[]; otherRecordsWithheld?: number;
+};
 type Turn = { role: "owner" | "jarvis"; content: string; suggestions?: AiSuggestion[]; notice?: string; mode?: string };
 type Focus = { mailbox: string; messageId: string; title: string; who: string };
 type Request = { hours: number; source: Scope | "all"; q: string; nonce: number };
@@ -71,6 +75,12 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [sentNotice, setSentNotice] = useState("");
+  // What the Owner has to tick before Send: only shown when the draft needs it.
+  const [confirmReplyTo, setConfirmReplyTo] = useState(false);
+  const [confirmAutomated, setConfirmAutomated] = useState(false);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [useOther, setUseOther] = useState(false);
+  const sendingRef = useRef(false);
   const chatRef = useRef<HTMLElement>(null);
 
   // Every change the Owner makes (filter, search, refresh) starts a new read; the effect below only fetches.
@@ -121,11 +131,17 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setText("");
     try {
       const answer = await postJson<{ mode: string; reply: string; suggestions: AiSuggestion[]; draft: Draft | null; notice: string }>("/api/owner/jarvis/ask", {
-        message: instruction, history, hours: request.hours, ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId } } : {}),
+        message: instruction, history, hours: request.hours,
+        // The draft being edited goes along, so "make it shorter" or "also mention Friday" changes THAT text instead of starting again.
+        ...(draft && draftBody.trim() ? { currentDraft: draftBody } : {}),
+        ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId }, useOtherRecords: useOther } : {}),
       });
       setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode }]);
-      if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); }
+      if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); }
     } catch (problem) {
+      // Nothing is lost when the call fails (session ended, too many questions…): the instruction goes back into the box.
+      setTurns((current) => current.slice(0, -1));
+      setText((current) => current || instruction);
       setChatError(problem instanceof Error ? problem.message : "Jarvis could not answer.");
     } finally {
       setAsking(false);
@@ -133,11 +149,16 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   }
 
   async function sendDraft() {
-    if (!draft || sending) return;
+    // A ref (not state) so a double click or a held-down Enter key cannot start a second send before the first re-renders.
+    if (!draft || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     setChatError("");
     try {
-      const result = await postJson<{ to: string; subject: string }>("/api/owner/jarvis/send", { mailbox: draft.mailbox, messageId: draft.messageId, body: draftBody, confirm: true });
+      const result = await postJson<{ to: string; subject: string }>("/api/owner/jarvis/send", {
+        mailbox: draft.mailbox, messageId: draft.messageId, body: draftBody, to: draft.to, confirm: true,
+        confirmReplyTo: confirmReplyTo || undefined, confirmAutomated: confirmAutomated || undefined,
+      });
       setSentNotice(`Sent to ${result.to}: “${result.subject}”.`);
       setDraft(null);
       setConfirming(false);
@@ -147,10 +168,15 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       setChatError(problem instanceof Error ? problem.message : "Jarvis could not send that reply. Nothing was sent.");
       setConfirming(false);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   }
 
+  const needsReplyTo = Boolean(draft?.crossDomain);
+  const needsAutomated = Boolean(draft?.automatedReason);
+  const needsChecked = (draft?.warnings?.length ?? 0) > 0;
+  const readyToSend = (!needsReplyTo || confirmReplyTo) && (!needsAutomated || confirmAutomated) && (!needsChecked || confirmChecked);
   const emailOff = data?.sources.company_email?.status === "not_connected";
   const aiOn = data?.capabilities.ai ?? false;
 
@@ -177,7 +203,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis will draft it for you to check." : "Ask a question, or open an email below with “Reply with Jarvis”."}</p>}
         {turns.map((turn, index) => <div key={index} className={turn.role === "owner" ? styles.turnOwner : styles.turnJarvis}>
           <b>{turn.role === "owner" ? "You" : "Jarvis"}</b>
-          <p>{turn.content}</p>
+          <p dir="auto">{turn.content}</p>
           {turn.notice && <small className={styles.turnNotice}>{turn.notice}</small>}
           {turn.suggestions && turn.suggestions.length > 0 && <ul className={styles.advice} aria-label="Suggested next steps">{turn.suggestions.map((entry, position) => <li key={position}><i>{ACTION_TEXT[entry.action] ?? "Do"}</i><span><b>{entry.title}</b>{entry.why ? ` — ${entry.why}` : ""}</span></li>)}</ul>}
         </div>)}
@@ -186,25 +212,41 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
 
       {draft && <div className={styles.draft}>
         <h3>Draft reply — check it, change anything, then send</h3>
-        <dl><dt>To</dt><dd>{draft.toName ? `${draft.toName} <${draft.to}>` : draft.to}</dd><dt>From</dt><dd>{draft.mailbox}</dd><dt>Subject</dt><dd>{draft.subject}</dd></dl>
+        <dl><dt>To</dt><dd dir="auto">{draft.toName ? `${draft.toName} <${draft.to}>` : draft.to}</dd><dt>From</dt><dd>{draft.mailbox}</dd><dt>Subject</dt><dd dir="auto">{draft.subject}</dd></dl>
         {draft.note && <p className={styles.noteSoft}>Jarvis says: {draft.note}</p>}
-        <textarea value={draftBody} onChange={(event) => { setDraftBody(event.target.value); setConfirming(false); }} rows={9} maxLength={5000} aria-label="Reply text" />
+        {typeof draft.otherRecordsWithheld === "number" && draft.otherRecordsWithheld > 0 && <p className={styles.noteSoft}>Jarvis kept {draft.otherRecordsWithheld} unrelated record{draft.otherRecordsWithheld === 1 ? "" : "s"} (other clients, staff reports, other emails) out of this draft.</p>}
+        {needsReplyTo && <div className={styles.warnBox} role="group" aria-label="Reply address differs from the sender">
+          <p><b>Not the sender’s address.</b> This email came from <b>{draft.from}</b>{draft.auth === "fail" ? " (its sender check FAILED, so the From address may be forged)" : ""}, but asks for replies to <b>{draft.replyTo}</b>. This draft goes to <b>{draft.to}</b>.</p>
+          <label><input type="checkbox" checked={confirmReplyTo} onChange={(event) => setConfirmReplyTo(event.target.checked)} /> I know — send it to {draft.replyTo}</label>
+        </div>}
+        {needsAutomated && <div className={styles.warnBox} role="group" aria-label="Automatic mail">
+          <p><b>This may not be a person.</b> Jarvis normally does not reply because {draft.automatedReason}.</p>
+          <label><input type="checkbox" checked={confirmAutomated} onChange={(event) => setConfirmAutomated(event.target.checked)} /> Reply anyway</label>
+        </div>}
+        {needsChecked && <div className={styles.warnBox} role="group" aria-label="Details to check">
+          <p><b>Check these before sending:</b></p>
+          <ul>{draft.warnings!.map((warning, position) => <li key={position}>{warning.text}</li>)}</ul>
+          <label><input type="checkbox" checked={confirmChecked} onChange={(event) => setConfirmChecked(event.target.checked)} /> I checked these details</label>
+        </div>}
+        <textarea dir="auto" value={draftBody} disabled={sending} onChange={(event) => { setDraftBody(event.target.value); setConfirming(false); }} rows={9} maxLength={5000} aria-label="Reply text" />
+        {draftBody.length >= 4900 && <p className={styles.noteSoft}>{5000 - draftBody.length} characters left — longer text is cut off.</p>}
         <div className={styles.draftActions}>
           {!draft.canSend && <span className={styles.noteSoft}>This mailbox is connected read-only, so Jarvis can’t send. Copy the text into your mail app, or reconnect it with <code>--allow-replies</code>.</span>}
-          {draft.canSend && !confirming && <button className={styles.ask} type="button" disabled={sending || draftBody.trim().length < 2} onClick={() => setConfirming(true)}><Send size={14} strokeWidth={2} />Send reply</button>}
-          {draft.canSend && confirming && <>
-            <span className={styles.confirmText}>Send this to <b>{draft.to}</b> now?</span>
+          {draft.canSend && !confirming && <button className={styles.ask} type="button" disabled={sending || draftBody.trim().length < 2 || !readyToSend} onClick={() => setConfirming(true)}><Send size={14} strokeWidth={2} />Send reply</button>}
+          {draft.canSend && confirming && <div className={styles.confirmRow} role="alertdialog" aria-label="Confirm sending" aria-describedby="jarvis-confirm-text">
+            <span id="jarvis-confirm-text" className={styles.confirmText}>Send this to <b>{draft.to}</b> now?</span>
             <button className={styles.ask} type="button" disabled={sending} onClick={() => void sendDraft()}>{sending ? "Sending…" : "Yes, send it"}</button>
-            <button className={styles.ghostText} type="button" onClick={() => setConfirming(false)}>Not yet</button>
-          </>}
+            <button className={styles.ghostText} type="button" onClick={() => setConfirming(false)} autoFocus>Not yet</button>
+          </div>}
           <button className={styles.ghostText} type="button" onClick={() => { setDraft(null); setConfirming(false); }}>Discard</button>
         </div>
       </div>}
       {sentNotice && <p className={styles.success} role="status">{sentNotice}</p>}
       {chatError && <p className={styles.error} role="alert">{chatError}</p>}
 
+      {focus && <label className={styles.checkRow}><input type="checkbox" checked={useOther} onChange={(event) => setUseOther(event.target.checked)} /> Let Jarvis also use other records (clients’ comments, staff reports, other emails) for this reply. Off by default, so nothing unrelated can end up in the email.</label>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
-        <textarea value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
+        <textarea dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
           placeholder={focus ? "What should the reply say? e.g. “We’ll come Thursday 9am, sorry for the delay”" : "Tell Jarvis what you need…"}
           aria-label="Your instruction to Jarvis"
           onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void ask(text); } }} />

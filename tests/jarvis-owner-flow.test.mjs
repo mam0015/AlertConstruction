@@ -76,7 +76,7 @@ test("ask: an Admin (a different signed-in role) cannot use Jarvis at all", asyn
   assert.equal((await app.request("/api/admin/data", { headers: { cookie: admin } })).status, 200, "the Admin session itself is valid");
   assert.equal((await app.request("/api/owner/jarvis", { headers: { cookie: admin } })).status, 401);
   assert.equal((await app.request("/api/owner/jarvis/ask", app.json(admin, { message: "hi" }))).status, 401);
-  assert.equal((await app.request("/api/owner/jarvis/send", app.json(admin, { ...focus, body: "hi there", confirm: true }))).status, 401);
+  assert.equal((await app.request("/api/owner/jarvis/send", app.json(admin, { ...focus, body: "hi there", confirm: true, to: "jo@example.com" }))).status, 401);
   assert.ok(!google.calls.some((call) => call.href === SEND_URL), "nothing was sent");
 });
 
@@ -101,7 +101,10 @@ test("ask → draft → send: the Owner's words become a reply that goes only to
 
   // The Owner reads the draft, edits it, and presses Send. The recipient cannot be chosen by the request.
   const edited = `${answer.draft.body}\n\nP.S. Please keep the area clear.`;
-  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: edited, confirm: true, to: "attacker@evil.example", subject: "Hijack" };
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: edited, confirm: true, to: answer.draft.to, subject: "Hijack" };
+  const forged = await app.request("/api/owner/jarvis/send", app.json(owner, { ...approved, to: "attacker@evil.example" }));
+  assert.equal(forged.status, 409, "a send that names a different recipient than the one shown is refused");
+  assert.equal(google.calls.filter((call) => call.href === SEND_URL).length, 0, "and nothing was sent");
   assert.equal((await app.request("/api/owner/jarvis/send", { ...app.json(owner, approved), origin: false })).status, 403, "send needs the same-origin guard");
   assert.equal((await app.request("/api/owner/jarvis/send", app.json(owner, { ...approved, confirm: false }))).status, 400, "send needs explicit confirmation");
 
@@ -128,12 +131,12 @@ test("send: a read-only mailbox, an unknown mailbox and unusable emails are refu
   const owner = await app.ownerCookie();
   const before = google.calls.length;
   configure({ canReply: false });
-  const readOnly = await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "info@alert.test", messageId: "msg00002", body: "Hello Pat, yes we can.", confirm: true }));
+  const readOnly = await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "info@alert.test", messageId: "msg00002", body: "Hello Pat, yes we can.", confirm: true, to: "jo@example.com" }));
   assert.equal(readOnly.status, 403);
   assert.match((await readOnly.json()).error, /read-only/);
   configure({ canReply: true });
-  assert.equal((await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "other@alert.test", messageId: "msg00002", body: "Hello Pat", confirm: true }))).status, 404);
-  assert.equal((await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "info@alert.test", messageId: "bad id", body: "Hello Pat", confirm: true }))).status, 400);
+  assert.equal((await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "other@alert.test", messageId: "msg00002", body: "Hello Pat", confirm: true, to: "jo@example.com" }))).status, 404);
+  assert.equal((await app.request("/api/owner/jarvis/send", app.json(owner, { mailbox: "info@alert.test", messageId: "bad id", body: "Hello Pat", confirm: true, to: "jo@example.com" }))).status, 400);
   assert.equal((await app.request("/api/owner/jarvis/send", { method: "POST", headers: { cookie: owner, "content-type": "application/json" }, body: "nope" })).status, 400);
   assert.equal((await app.request("/api/owner/jarvis/send", { method: "GET", headers: { cookie: owner } })).status, 405);
   assert.equal(google.calls.length, before, "none of those requests reached Google");

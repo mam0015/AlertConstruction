@@ -20,8 +20,10 @@ export async function GET(request: Request) {
       replyMailboxes: parseAccounts(config.accounts).filter((account) => account.canReply).map((account) => account.label),
     };
     // Audit line (no content): who asked, what Jarvis was allowed to read, how much it returned.
-    console.info(JSON.stringify({ jarvis: "read", owner: gate.owner.email, scopes: result.scopes, items: result.items.length }));
-    return Response.json({ ...result, capabilities, sent: await recentSends(env.DB, 10) }, { headers });
+    console.info(JSON.stringify({ jarvis: "read", scopes: result.scopes, items: result.items.length }));
+    // The longer record text exists for the AI only; the screen gets the short preview.
+    const items = result.items.map((item) => { const visible: Record<string, unknown> = { ...item }; delete visible.detail; return visible; });
+    return Response.json({ ...result, items, capabilities, sent: await recentSends(env.DB, 10) }, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not read the company records right now.");
   }

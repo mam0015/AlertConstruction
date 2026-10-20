@@ -2,6 +2,7 @@
 // Pure functions only — no network, no database — so they are easy to test.
 
 import { LIMITS } from "./policy.mjs";
+import { cleanText, forAi } from "./text.mjs";
 
 const SIGNALS = Object.freeze([
   ["complaint", /\b(complain\w*|unhappy|not happy|disappointed|dissatisfied|unacceptable|poor quality|not impressed)\b/i],
@@ -17,12 +18,12 @@ const SIGNALS = Object.freeze([
 const NOTHING_TO_REPORT = /^(none|nil|n\/?a|no|nothing|-+|\.)\.?$/i;
 
 export function clip(value, max = LIMITS.previewChars) {
-  const text = String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+/g, " ").trim();
+  const text = cleanText(String(value ?? "").slice(0, max * 8 + 2000)).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
 export function flagText(...parts) {
-  const text = parts.filter(Boolean).join(" \n ");
+  const text = forAi(parts.filter(Boolean).join(" \n "));
   return SIGNALS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
 }
 
@@ -49,6 +50,8 @@ export function makeItem({ id, source, kind, at, title, who = "", project = "", 
     project: clip(project, 60),
     mailbox: clip(mailbox, 120),
     preview: clip(body),
+    // A longer copy for the AI only (the cards show the short preview): the point of a long report is often past the first 280 characters.
+    detail: clip(body, 1200),
     flags,
     urgent: flags.length > 0,
     // Only email items carry this: what Jarvis needs to offer a reply (never an address — the recipient is looked up when replying).
@@ -63,6 +66,25 @@ export function searchItems(items, query) {
     const haystack = `${item.title} ${item.preview} ${item.who} ${item.project} ${item.mailbox} ${item.kind} ${item.flags.join(" ")}`.toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
+}
+
+const STOP_WORDS = new Set("the and for you any are was were what whats which who when where why how did does done have has had had about with from that this these those there their them they into over under please tell show give list find need want can could would should out our your mine all some more most just than then also not but new today yesterday week month latest".split(" "));
+
+// For plain-language questions in Simple mode ("Any complaints this week?"): a record matches when it contains ANY meaningful word of the
+// question, and the ones matching the most words come first. (searchItems, used by the search box, needs every word.)
+export function looseSearch(items, question) {
+  const words = [...new Set(String(question ?? "").toLowerCase().match(/[\p{L}\p{N}-]{3,}/gu) ?? [])]
+    .filter((word) => !STOP_WORDS.has(word))
+    .map((word) => (word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word));
+  if (words.length === 0) return [];
+  return items
+    .map((item) => {
+      const haystack = `${item.title} ${item.preview} ${item.who} ${item.project} ${item.mailbox} ${item.kind} ${item.flags.join(" ")}`.toLowerCase();
+      return { item, score: words.filter((word) => haystack.includes(word)).length };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || (Date.parse(b.item.at) || 0) - (Date.parse(a.item.at) || 0))
+    .map((entry) => entry.item);
 }
 
 export function sortNewestFirst(items) {

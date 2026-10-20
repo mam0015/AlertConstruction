@@ -12,7 +12,8 @@ export function hooks(): Hooks {
 }
 
 export function networkFetch(): typeof fetch {
-  return hooks().fetchImpl ?? ((input, init) => fetch(input, init));
+  // Every call to Google gets a time limit, so one stalled mailbox cannot hang the whole briefing.
+  return hooks().fetchImpl ?? ((input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(15_000) }));
 }
 
 // Everything Jarvis is configured with comes from private Worker secrets — never from GitHub.
@@ -55,6 +56,6 @@ export function fail(error: unknown, fallback: string) {
   if (error instanceof JarvisAccessError && typeof status === "number") {
     return Response.json({ error: error.message }, { status, headers });
   }
-  console.error("Jarvis failed:", error instanceof Error ? error.message : error);
+  console.error("Jarvis failed:", error instanceof Error ? error.name : "unknown error", (error as { status?: number })?.status ?? "");
   return Response.json({ error: fallback }, { status: 503, headers });
 }

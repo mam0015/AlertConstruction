@@ -95,13 +95,18 @@ async function readAccount(fetchImpl, config, account, sinceMs, limit) {
     q: `after:${Math.floor(sinceMs / 1000)} -in:spam -in:trash -in:drafts`,
   });
   const ids = (list.messages ?? []).map((message) => message.id).filter(Boolean).slice(0, limit);
+  const more = Boolean(list.nextPageToken) || (list.messages ?? []).length > limit;
   const items = [];
+  let failed = 0;
   for (let index = 0; index < ids.length; index += BATCH) {
     const batch = await Promise.allSettled(ids.slice(index, index + BATCH).map((id) =>
-      gmailGet(fetchImpl, accessToken, `messages/${id}`, { format: "metadata", metadataHeaders: ["From", "To", "Subject"] })));
-    for (const result of batch) if (result.status === "fulfilled") items.push(toItem(account, result.value));
+      gmailGet(fetchImpl, accessToken, `messages/${id}`, { format: "metadata", metadataHeaders: ["From", "To", "Subject", "Auto-Submitted", "Precedence", "List-Id", "List-Unsubscribe"] })));
+    for (const result of batch) {
+      if (result.status === "fulfilled") items.push(toItem(account, result.value));
+      else failed += 1;
+    }
   }
-  return items;
+  return { items, more, failed };
 }
 
 export async function readCompanyEmail({ config, sinceMs, limit, fetchImpl }) {
@@ -114,11 +119,14 @@ export async function readCompanyEmail({ config, sinceMs, limit, fetchImpl }) {
   const report = accounts.map((account, index) => {
     const result = settled[index];
     if (result.status === "fulfilled") {
-      items.push(...result.value);
-      return { label: account.label, status: "ok", count: result.value.length, canReply: account.canReply };
+      items.push(...result.value.items);
+      // Some messages of this mailbox could not be fetched: say so instead of presenting a short list as the whole story.
+      return { label: account.label, status: result.value.failed ? "partial" : "ok", count: result.value.items.length, canReply: account.canReply, ...(result.value.more ? { truncated: true } : {}), ...(result.value.failed ? { problem: `${result.value.failed} message${result.value.failed === 1 ? "" : "s"} could not be read` } : {}) };
     }
-    return { label: account.label, status: "error", count: 0, canReply: account.canReply };
+    const reconnect = result.reason?.name === "JarvisAccessError";
+    return { label: account.label, status: "error", count: 0, canReply: account.canReply, problem: reconnect ? "Google no longer accepts the saved login — reconnect this mailbox (see jarvis/README.md)" : "Google did not answer" };
   });
   const failed = report.filter((entry) => entry.status === "error").length;
-  return { status: failed === report.length ? "error" : failed > 0 ? "partial" : "ok", items, accounts: report };
+  const partial = report.some((entry) => entry.status === "partial");
+  return { status: failed === report.length ? "error" : failed > 0 || partial ? "partial" : "ok", items, accounts: report };
 }

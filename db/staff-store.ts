@@ -1,5 +1,5 @@
 import type { StaffRole } from "../app/admin-auth";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 export type StaffAccessStatus = "Pending" | "Approved" | "Rejected";
 
@@ -21,7 +21,7 @@ async function database() {
   return env.DB;
 }
 
-export async function ensureStaffAccessTable() {
+async function ensureStaffAccessTableOnce() {
   const db = await database();
   await db.prepare(`CREATE TABLE IF NOT EXISTS staff_access_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,3 +83,5 @@ export async function reviewStaffAccessRequest(id: number, status: StaffAccessSt
   await db.prepare("UPDATE staff_access_requests SET status=?,role=?,trade_title=?,reviewed_at=? WHERE id=?")
     .bind(status, role, tradeTitle.trim(), reviewedAt, id).run();
 }
+
+export const ensureStaffAccessTable = memoizePerDatabase(ensureStaffAccessTableOnce);

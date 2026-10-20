@@ -1,10 +1,10 @@
 import { listStaffAccessRequests, reviewStaffAccessRequest } from "./staff-store";
 import { staffRoles, type StaffRole } from "../app/admin-auth";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type Resource = "project" | "finance" | "schedule" | "report" | "message" | "permission" | "staff";
 async function database() { const env = await runtimeBindings(); if (!env.DB) throw new Error("The owner database is unavailable."); return env.DB; }
-export async function ensureOwnerDatabase() { const db = await database(); await db.batch([
+async function ensureOwnerDatabaseOnce() { const db = await database(); await db.batch([
   db.prepare(`CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, service TEXT NOT NULL, stage TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, contract_value INTEGER NOT NULL DEFAULT 0, balance INTEGER NOT NULL DEFAULT 0, customer_name TEXT NOT NULL DEFAULT '', suburb TEXT NOT NULL DEFAULT '', start_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`),
   db.prepare(`CREATE TABLE IF NOT EXISTS finance_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL, category TEXT NOT NULL, project_code TEXT NOT NULL DEFAULT 'Business / General', amount INTEGER NOT NULL, entry_date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`),
   db.prepare(`CREATE TABLE IF NOT EXISTS schedule_events (id INTEGER PRIMARY KEY AUTOINCREMENT, event_date TEXT NOT NULL, start_time TEXT NOT NULL, title TEXT NOT NULL, assignee TEXT NOT NULL, project_code TEXT NOT NULL DEFAULT 'Business / General', tone TEXT NOT NULL DEFAULT 'gold', notes TEXT NOT NULL DEFAULT '')`),
@@ -60,3 +60,5 @@ export async function deleteOwnerRecord(resource:Resource,id:number){await ensur
 export async function getLoginAttempt(key:string){await ensureOwnerDatabase();const db=await database();return db.prepare("SELECT failed_count AS failedCount,locked_until AS lockedUntil FROM login_attempts WHERE key=?").bind(key).first<{failedCount:number;lockedUntil:number}>();}
 export async function recordLoginFailure(key:string,failedCount:number,lockedUntil:number){await ensureOwnerDatabase();const db=await database();await db.prepare("INSERT INTO login_attempts (key,failed_count,locked_until,updated_at) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET failed_count=excluded.failed_count,locked_until=excluded.locked_until,updated_at=excluded.updated_at").bind(key,failedCount,lockedUntil,Date.now()).run();}
 export async function clearLoginFailures(key:string){await ensureOwnerDatabase();const db=await database();await db.prepare("DELETE FROM login_attempts WHERE key=?").bind(key).run();}
+
+export const ensureOwnerDatabase = memoizePerDatabase(ensureOwnerDatabaseOnce);

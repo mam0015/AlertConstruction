@@ -1,7 +1,7 @@
 import type { FollowUpItem, OperationsProject, OperationsRole, OperationsSnapshot, SiteIssue } from "../app/operations/types";
 import { ensureOwnerDatabase } from "./owner-store";
 import { ensureWorkflowDatabase } from "./workflow-store";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -43,7 +43,7 @@ function melbourneDate(offsetDays = 0) {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
-export async function ensureOperationsDatabase() {
+async function ensureOperationsDatabaseOnce() {
   await ensureOwnerDatabase();
   await ensureWorkflowDatabase();
   const db = await database();
@@ -215,3 +215,5 @@ export async function performOperationsAction(identity: { email: string; role: O
 
   throw new Error("Unknown operations action.");
 }
+
+export const ensureOperationsDatabase = memoizePerDatabase(ensureOperationsDatabaseOnce);

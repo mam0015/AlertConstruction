@@ -1,5 +1,5 @@
 import { hashPbkdf2, isSupportedPbkdf2Hash, pbkdf2Iterations, verifyPbkdf2 } from "../app/secret-utils";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 export type OwnerAccountRecord = {
   email: string;
@@ -25,7 +25,7 @@ function generateTeamCode() {
   return `ATP-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("")}`;
 }
 
-async function ensureAccessSettings() {
+async function ensureAccessSettingsOnce() {
   const db = await database();
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS owner_accounts (
@@ -133,3 +133,5 @@ export async function rotateTeamCode() {
     .bind(teamCode, await hashPbkdf2(teamCode), new Date().toISOString()).run();
   return getTeamAccessSettings();
 }
+
+const ensureAccessSettings = memoizePerDatabase(ensureAccessSettingsOnce);

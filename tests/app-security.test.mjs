@@ -250,3 +250,19 @@ test("photos: a report can only use real photos of the right kind, each used onc
   const real = await upload("site_visit");
   assert.equal((await report([real])).status, 200);
 });
+
+test("sign-out: a copy of the session cookie stops working, for the Owner and for staff", async () => {
+  const owner = await app.ownerCookie();
+  assert.equal((await request("/api/owner/data", { headers: { cookie: owner } })).status, 200);
+  const out = await request("/api/owner/logout", { method: "POST", headers: { cookie: owner } });
+  assert.equal(out.status, 200);
+  assert.equal((await request("/api/owner/data", { headers: { cookie: owner } })).status, 401, "the copied cookie no longer works");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const again = await app.ownerCookie();
+  assert.equal((await request("/api/owner/data", { headers: { cookie: again } })).status, 200, "signing in again works");
+
+  const staff = await app.staffCookie("leaver@alert.test", "Admin");
+  assert.equal((await request("/api/admin/data", { headers: { cookie: staff } })).status, 200);
+  assert.equal((await request("/api/admin/logout", { method: "POST", headers: { cookie: staff } })).status, 200);
+  assert.equal((await request("/api/admin/data", { headers: { cookie: staff } })).status, 401);
+});

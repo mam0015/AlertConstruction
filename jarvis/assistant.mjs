@@ -5,10 +5,11 @@
 import { abandonSend, beginSend, finishSend, noteAsk } from "./audit.mjs";
 import { aiEnabled, askAi, createAiClient, chooseRecords, DEFAULT_MODEL, friendlyAiError } from "./ai.mjs";
 import { suggestForItem } from "./advisor.mjs";
-import { clip, searchItems } from "./briefing.mjs";
+import { clip, looseSearch } from "./briefing.mjs";
+import { checkDraft } from "./draft-guard.mjs";
 import { runJarvis } from "./jarvis.mjs";
 import { boundedInteger, JarvisAccessError, LIMITS } from "./policy.mjs";
-import { MAX_REPLY_CHARS, previewReply, sendReply } from "./reply.mjs";
+import { MAX_REPLY_CHARS, readForAsk, sendReply } from "./reply.mjs";
 import { parseAccounts } from "./sources/company-email.mjs";
 import { clipText, firstName, sha256Hex } from "./text.mjs";
 
@@ -29,7 +30,9 @@ export function parseAskInput(body) {
     if (!mailbox || !MESSAGE_ID.test(messageId)) throw new JarvisAccessError("That email could not be found.", 400);
     focus = { mailbox, messageId };
   }
-  return { message, history, focus, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
+  const useOtherRecords = body.useOtherRecords === true;
+  const currentDraft = typeof body.currentDraft === "string" ? clipText(body.currentDraft, MAX_REPLY_CHARS) : "";
+  return { message, history, focus, useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
 }
 
 export function templateReply({ fromName, text, ownerName, company }) {
@@ -49,7 +52,7 @@ function suggestionsFor(items, max = 6) {
 }
 
 // What Jarvis can do without AI: format the Owner's own words into a reply, or point at the matching records.
-function rulesAnswer({ message, items, preview, owner, company, notice }) {
+function rulesAnswer({ message, items, preview, owner, company, notice, incomplete = "", failedOpen = false }) {
   if (preview) {
     return {
       reply: `${notice ? `${notice} ` : "Smart mode is off. "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
@@ -57,13 +60,17 @@ function rulesAnswer({ message, items, preview, owner, company, notice }) {
       draft: { body: templateReply({ fromName: preview.toName || preview.original.from?.name, text: message, ownerName: owner.name, company }), note: "Written from your exact words — nothing was added." },
     };
   }
-  const matches = searchItems(items, message);
+  if (failedOpen) {
+    return { reply: `${notice} I did NOT write your reply, because I could not read that email. Please try again in a moment.`.trim(), suggestions: [], draft: null };
+  }
+  const matches = looseSearch(items, message);
   const chosen = (matches.length ? matches : items.filter((item) => item.urgent)).slice(0, 6);
   const lines = chosen.map((item) => `• ${item.title}${item.who ? ` — ${item.who.replace(/<[^>]*>/g, "").trim()}` : ""}`);
+  const lead = `${notice ? `${notice} ` : "Smart mode is off, so I searched your records. "}`;
   return {
-    reply: chosen.length
-      ? `${notice ? `${notice} ` : "Smart mode is off, so I searched your records. "}${matches.length ? "These match" : "These need your attention"}:\n${lines.join("\n")}`
-      : `${notice ? `${notice} ` : "Smart mode is off. "}I found nothing matching in this period.`,
+    reply: `${chosen.length
+      ? `${lead}${matches.length ? "These match" : "These need your attention"}:\n${lines.join("\n")}`
+      : `${lead}I found nothing matching in this period.`}${incomplete ? `\n\n${incomplete}` : ""}`,
     suggestions: suggestionsFor(chosen),
     draft: null,
   };
@@ -75,17 +82,19 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, now =
 
   const accounts = parseAccounts(config.accounts);
   let preview = null;
+  let original = null;
+  let replyProblem = "";
   let account = null;
   let openProblem = "";
   if (input.focus) {
     account = accounts.find((entry) => entry.label === input.focus.mailbox) ?? null;
     if (!account) throw new JarvisAccessError("That mailbox is not connected to Jarvis.", 404);
     try {
-      preview = await previewReply({ config, account, fetchImpl, messageId: input.focus.messageId });
+      ({ preview, original, replyProblem } = await readForAsk({ config, account, fetchImpl, messageId: input.focus.messageId }));
     } catch (error) {
       if (error instanceof JarvisAccessError) openProblem = error.message;
       else {
-        console.error("Jarvis could not open the email:", error instanceof Error ? error.message : error);
+        console.error("Jarvis could not open the email:", error instanceof Error ? error.name : "unknown", error?.status ?? "");
         openProblem = "I could not open that email just now.";
       }
     }
@@ -96,31 +105,53 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, now =
   const items = briefing.items.filter((item) => item.id !== focusId);
 
   let outcome = null;
-  let notice = openProblem;
+  let notice = openProblem || replyProblem;
+  // Least privilege: while drafting a reply the AI sees this email plus records about the SAME thread or project - nothing else, unless the
+  // Owner ticks "use other records". Unrelated customers' comments, staff reports and the other mailboxes are the exfiltration/injection channel.
+  const isRelated = (item) => !original || item.email?.threadId === original.threadId
+    || Boolean(item.project && original.text.toLowerCase().includes(item.project.toLowerCase()));
+  const usable = input.useOtherRecords ? items : items.filter(isRelated);
+  const withheld = items.length - usable.length;
   if (aiEnabled(config) && !openProblem) {
-    const records = chooseRecords(items);
+    const records = chooseRecords(usable);
     try {
       const answer = await askAi({
         client: ai?.client ?? createAiClient(config),
         model: config.model || DEFAULT_MODEL,
         ownerName: owner.name, company,
         message: input.message, history: input.history, records, hours: input.hours,
-        focus: preview ? { mailbox: account.label, fromName: preview.toName || preview.original.from?.name || "", subject: preview.original.subject, text: preview.original.text } : null,
+        focus: original ? { mailbox: account.label, fromName: preview?.toName || original.from?.name || "", subject: original.subject, text: original.text, cut: original.textCut } : null,
+        canDraft: Boolean(preview),
+        sourceStatus: Object.fromEntries(Object.entries(briefing.sources).map(([name, report]) => [name, report.status])),
+        totalRecords: usable.length,
+        currentDraft: preview ? input.currentDraft : "",
         itemIds: new Set([...records.map((item) => item.id), ...(focusId ? [focusId] : [])]),
         useFallbacks: config.aiFallbacks !== "off",
       });
       if (answer.refused) notice = "The AI declined this request.";
       else outcome = { mode: "ai", ...answer.result, usage: answer.usage, model: answer.model };
     } catch (error) {
-      console.error("Jarvis AI request failed:", error instanceof Error ? error.message : error);
+      // Only the kind of failure is logged: the message of an upstream error can repeat what was sent (customer text).
+      console.error("Jarvis AI request failed:", error instanceof Error ? error.name : "unknown", error?.status ?? "");
       notice = friendlyAiError(error);
     }
   }
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, preview, owner, company, notice: aiEnabled(config) || openProblem ? notice : "" }) };
+  const incomplete = (briefing.briefing.incomplete ?? []).length
+    ? `Note: I could not fully read ${(briefing.briefing.incomplete).map((entry) => entry.label).join(" and ")}, so this answer may be incomplete.` : "";
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, preview, owner, company, notice: aiEnabled(config) || openProblem || replyProblem ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem }) };
+  else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
-  if (outcome.draftDropped) {
+  if (replyProblem && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n(I can't draft a reply to this one: ${replyProblem})`.trim();
+  if (outcome.draftDropped && !replyProblem) {
     outcome.reply = `${outcome.reply}\n\n(To draft a reply, open the email in Jarvis and press "Reply with Jarvis" first.)`.trim();
   }
+  const warnings = outcome.draft && preview
+    ? checkDraft(outcome.draft.body, {
+      ownerText: [input.message, ...input.history.filter((turn) => turn.role === "owner").map((turn) => turn.content)].join("\n"),
+      emailText: preview.original.text,
+      otherRecords: items.filter((item) => !isRelated(item)),
+    })
+    : [];
   const draft = outcome.draft && preview ? {
     mailbox: account.label,
     messageId: input.focus.messageId,
@@ -130,6 +161,9 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, now =
     body: outcome.draft.body,
     note: outcome.draft.note,
     canSend: account.canReply,
+    from: preview.from, replyTo: preview.replyTo, crossDomain: preview.crossDomain, automatedReason: preview.automated, auth: preview.auth,
+    warnings,
+    otherRecordsWithheld: input.useOtherRecords ? 0 : withheld,
   } : null;
   return {
     mode: outcome.mode,
@@ -151,6 +185,8 @@ export async function sendOwnerReply({ db, config, fetchImpl, owner, input, now 
   const account = parseAccounts(config.accounts).find((entry) => entry.label === mailbox);
   if (!account) throw new JarvisAccessError("That mailbox is not connected to Jarvis.", 404);
   if (!account.canReply) throw new JarvisAccessError("This mailbox is connected read-only. Reconnect it with --allow-replies to let Jarvis send replies.", 403);
+  if (typeof input.body !== "string") throw new JarvisAccessError("The reply must be text.", 400);
+  if (typeof input.to !== "string" || !input.to) throw new JarvisAccessError("Send the draft as it was shown, including who it is addressed to.", 400);
   const body = clipText(input.body, MAX_REPLY_CHARS);
   if (body.length < 2) throw new JarvisAccessError("The reply is empty.", 400);
 
@@ -159,7 +195,10 @@ export async function sendOwnerReply({ db, config, fetchImpl, owner, input, now 
   try {
     sent = await sendReply({
       config, account, fetchImpl, messageId, body,
+      allow: { replyTo: input.confirmReplyTo === true, automated: input.confirmAutomated === true },
       beforeSend: async ({ to, subject }) => {
+        // The click is bound to the address that was SHOWN: if the email's reply address is no longer that one, nothing is sent.
+        if (to !== input.to.trim().toLowerCase()) throw new JarvisAccessError(`The reply address changed since you looked at the draft (it is now ${to}). Open the email again and re-check before sending.`, 409);
         claim = await beginSend(db, { ownerEmail: owner.email, mailbox, messageId, recipient: to, subject, bodySha256: await sha256Hex(body), bodyChars: body.length }, now);
       },
     });
@@ -170,6 +209,6 @@ export async function sendOwnerReply({ db, config, fetchImpl, owner, input, now 
     throw error;
   }
   // The email is out. Whatever happens to the bookkeeping from here on must not turn this into a reported failure.
-  await finishSend(db, claim, sent.sentId).catch((error) => console.error("Jarvis could not record a sent reply:", error instanceof Error ? error.message : error));
+  await finishSend(db, claim, sent.sentId).catch((error) => console.error("Jarvis could not record a sent reply:", error instanceof Error ? error.name : "unknown"));
   return { ok: true, mailbox, to: sent.to, subject: sent.subject, sentId: sent.sentId };
 }

@@ -190,8 +190,10 @@ test("reply: refusals happen before anything is sent", async () => {
 
   const forbidden = googleMock({ sendStatus: 403 });
   await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: forbidden.fetchImpl, messageId: "msg00001", body: "Hi there" }), (error) => error.status === 403 && /allow-replies/.test(error.message));
-  const broken = googleMock({ sendStatus: 500 });
-  await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: broken.fetchImpl, messageId: "msg00001", body: "Hi there" }), /gmail send 500/);
+  const broken = googleMock({ sendStatus: 400 });
+  await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: broken.fetchImpl, messageId: "msg00001", body: "Hi there" }), /gmail send 400/);
+  const serverError = googleMock({ sendStatus: 500 });
+  await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: serverError.fetchImpl, messageId: "msg00001", body: "Hi there" }), (error) => error.status === 502 && error.uncertain === true && /Sent folder/.test(error.message), "a Google server error may still have delivered the mail");
   await assert.rejects(() => sendReply({ config: baseConfig(), account, fetchImpl: googleMock().fetchImpl, messageId: "msg00001", body: "  " }), (error) => error.status === 400);
 });
 
@@ -209,7 +211,8 @@ test("reply: Google's answers to a send are told apart — limit, permission, ou
   await assert.rejects(() => reply(withSend(failure(403, { errors: [{ reason: "dailyLimitExceeded" }] }))), (error) => error.status === 429);
   await assert.rejects(() => reply(withSend(failure(403, { status: "PERMISSION_DENIED" }))), (error) => error.status === 403 && /allow-replies/.test(error.message));
   await assert.rejects(() => reply(withSend(failure(401, { message: "expired" }))), (error) => error.status === 403 && /allow-replies/.test(error.message));
-  await assert.rejects(() => reply(withSend(() => new Response("<html>", { status: 502 }))), (error) => /gmail send 502/.test(error.message) && !error.uncertain);
+  await assert.rejects(() => reply(withSend(() => new Response("<html>", { status: 502 }))), (error) => error.uncertain === true && /Sent folder/.test(error.message), "5xx: not sure it was not sent");
+  await assert.rejects(() => reply(withSend(failure(400, { message: "bad" }))), (error) => /gmail send 400/.test(error.message) && !error.uncertain, "4xx: clean failure");
 
   await assert.rejects(() => reply(withSend(() => { throw new TypeError("fetch failed"); })), (error) => error.status === 502 && error.uncertain === true && /Sent folder/.test(error.message));
 });
@@ -317,8 +320,8 @@ test("ai: records are chosen urgent-first and capped; history keeps only user-fi
   assert.equal(chosen[0].id, "r40", "the urgent one jumps the queue");
 
   const messages = buildMessages({ history: [{ role: "jarvis", content: "stale" }, { role: "owner", content: "hello" }, { role: "jarvis", content: "hi" }], content: "now" });
-  assert.deepEqual(messages.map((message) => message.role), ["user", "assistant", "user"]);
-  assert.equal(messages.at(-1).content, "now");
+  assert.deepEqual(messages.map((message) => message.role), ["user", "user"], "Jarvis's own earlier text is never replayed as an assistant turn");
+  assert.match(messages.at(-1).content, /<earlier_jarvis_answer>stale<\/earlier_jarvis_answer>[\s\S]*<\/earlier_answers>\n\nnow$/);
 });
 
 test("ai: the model's answer is validated; it cannot invent record ids, actions or a draft without an open email", () => {
@@ -432,7 +435,7 @@ test("assistant: with AI the model writes the draft, but the recipient, subject 
   const config = baseConfig({ apiKey: "sk-ant-test" });
   const out = await askJarvis({
     db: freshDb(), config, fetchImpl: google.fetchImpl, ai: { client: ai.client }, owner,
-    input: parseAskInput({ message: "tell him we come Thursday 9am — Persian: ما پنجشنبه می‌آییم", focus: roofLink, history: [{ role: "owner", content: "earlier" }, { role: "jarvis", content: "ok" }] }),
+    input: parseAskInput({ message: "tell him we come Thursday 9am — Persian: ما پنجشنبه می‌آییم", focus: roofLink, useOtherRecords: true, history: [{ role: "owner", content: "earlier" }, { role: "jarvis", content: "ok" }] }),
   });
   assert.equal(out.mode, "ai");
   assert.equal(out.model, "claude-opus-5-5");
@@ -449,7 +452,7 @@ test("assistant: with AI the model writes the draft, but the recipient, subject 
   assert.ok(last.includes("Comment from Sam Customer"), "the other records are included as data");
   assert.ok(!last.includes("jo@example.com") && !last.includes("sam.private@example.com"), "no addresses in the AI request");
   assert.ok(!last.includes("PRIVATE STAFF CHAT") && !last.includes("ADMIN-ONLY"));
-  assert.deepEqual(sent.messages.slice(0, 2).map((message) => message.role), ["user", "assistant"], "history is replayed as plain turns");
+  assert.deepEqual(sent.messages.slice(0, 2).map((message) => message.role), ["user", "user"], "history is replayed as user-side data");
 
   const readOnly = await askJarvis({
     db: freshDb(), config: baseConfig({ apiKey: "sk-ant-test", accounts: accountsJson(false) }), fetchImpl: google.fetchImpl, ai: { client: ai.client }, owner,
@@ -513,7 +516,7 @@ test("assistant: sending needs confirmation, a connected reply-enabled mailbox, 
   const d1 = new TestD1();
   const google = googleMock();
   const base = { db: d1, config: baseConfig(), fetchImpl: google.fetchImpl, owner };
-  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday at 9am.", confirm: true };
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday at 9am.", confirm: true, to: "jo@example.com" };
 
   for (const [input, status] of [
     [{ ...approved, confirm: false }, 400], [{ ...approved, confirm: "yes" }, 400], [null, 400],
@@ -544,9 +547,9 @@ test("assistant: sending needs confirmation, a connected reply-enabled mailbox, 
 
 test("assistant: a failed send can be retried, and a permission problem says how to fix it", async () => {
   const d1 = new TestD1();
-  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true };
-  const down = googleMock({ sendStatus: 500 });
-  await assert.rejects(() => sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: down.fetchImpl, owner, input: approved }), /gmail send 500/);
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true, to: "jo@example.com" };
+  const down = googleMock({ sendStatus: 400 });
+  await assert.rejects(() => sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: down.fetchImpl, owner, input: approved }), /gmail send 400/);
   const retry = await sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: googleMock().fetchImpl, owner, input: approved });
   assert.equal(retry.ok, true, "the failed attempt did not block a retry");
   assert.equal(d1.sqlite.prepare("SELECT COUNT(*) AS n FROM jarvis_log WHERE status = 'sent'").get().n, 1);
@@ -571,20 +574,21 @@ test("assistant: once Google has accepted the reply, a bookkeeping hiccup cannot
   console.error = (...args) => logged.push(args.join(" "));
   let result;
   try {
-    result = await sendOwnerReply({ db: flaky, config: baseConfig(), fetchImpl: google.fetchImpl, owner, input: { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true } });
+    result = await sendOwnerReply({ db: flaky, config: baseConfig(), fetchImpl: google.fetchImpl, owner, input: { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true, to: "jo@example.com" } });
   } finally {
     console.error = original;
   }
   assert.equal(result.ok, true, "the Owner is told the truth: it was sent");
   assert.equal(result.sentId, "sent00001");
   assert.equal(google.calls.filter((call) => call.href === SEND_URL).length, 1);
-  assert.ok(logged.some((line) => /could not record a sent reply.*busy/.test(line)));
+  assert.ok(logged.some((line) => /could not record a sent reply/.test(line)));
+  assert.ok(!logged.some((line) => /busy|jo@example/.test(line)), "logs carry the kind of failure only, never customer text or addresses");
   assert.equal(inner.sqlite.prepare("SELECT status FROM jarvis_log WHERE kind = 'send'").get().status, "sending", "the claim stays so an accidental second click is still blocked");
 });
 
 test("assistant: if Google never answers, the claim is kept so the reply is not sent twice by accident", async () => {
   const d1 = new TestD1();
-  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true };
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true, to: "jo@example.com" };
   const base = googleMock();
   const silent = async (url, init) => { if (String(url) === SEND_URL) throw new TypeError("fetch failed"); return base.fetchImpl(url, init); };
   const start = Date.now();
@@ -598,4 +602,43 @@ test("assistant: if Google never answers, the claim is kept so the reply is not 
   const afterCheck = googleMock();
   const result = await sendOwnerReply({ db: d1, config: baseConfig(), fetchImpl: afterCheck.fetchImpl, owner, input: approved, now: start + 6 * 60_000 });
   assert.equal(result.ok, true, "once the Owner has checked the Sent folder, a few minutes later, they can send it again");
+});
+
+test("audit: the question and send limits hold even when many requests arrive at the same moment", async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const slow = (statement) => new Proxy(statement, {
+    get(target, property) {
+      if (property === "bind") return (...args) => slow(target.bind(...args));
+      if (["run", "first", "all"].includes(property)) return async (...args) => { await sleep(3); return target[property](...args); };
+      const value = target[property];
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  const inner = new TestD1();
+  const db = { prepare: (sql) => slow(inner.prepare(sql)), batch: (statements) => inner.batch(statements.map((statement) => statement.target ?? statement)) };
+  await noteAsk(inner, owner.email); // creates the table
+
+  const asks = await Promise.allSettled(Array.from({ length: 80 }, () => noteAsk(db, owner.email)));
+  const askedOk = asks.filter((result) => result.status === "fulfilled").length;
+  assert.equal(askedOk, LIMITS.asksPer10Minutes - 1, "exactly the allowance (one was used creating the table) - not 80");
+  assert.ok(asks.filter((result) => result.status === "rejected").every((result) => result.reason.status === 429));
+
+  const sends = await Promise.allSettled(Array.from({ length: 50 }, (_, index) =>
+    beginSend(db, { ownerEmail: owner.email, mailbox: "info@alert.test", messageId: `msg${String(index).padStart(5, "0")}`, recipient: "jo@example.com", subject: "Re: x", bodySha256: `hash-${index}`, bodyChars: 10 })));
+  assert.equal(sends.filter((result) => result.status === "fulfilled").length, LIMITS.sendsPerHour, "no more than the hourly allowance, however many click at once");
+  assert.ok(sends.filter((result) => result.status === "rejected").every((result) => result.reason.status === 429 && /last hour/.test(result.reason.message)));
+});
+
+test("assistant: the Send click is tied to the address that was shown, and the body must be text", async () => {
+  const google = googleMock();
+  const base = { db: new TestD1(), config: baseConfig(), fetchImpl: google.fetchImpl, owner };
+  const approved = { mailbox: "info@alert.test", messageId: "msg00001", body: "We will visit Thursday.", confirm: true };
+  await assert.rejects(() => sendOwnerReply({ ...base, input: { ...approved } }), (error) => error.status === 400 && /addressed to/.test(error.message));
+  await assert.rejects(() => sendOwnerReply({ ...base, input: { ...approved, to: "someone-else@example.com" } }), (error) => error.status === 409 && /changed since you looked/.test(error.message));
+  for (const body of [{ a: 1 }, 12345, ["x"], null]) {
+    await assert.rejects(() => sendOwnerReply({ ...base, input: { ...approved, to: "jo@example.com", body } }), (error) => error.status === 400, JSON.stringify(body));
+  }
+  assert.equal(google.calls.filter((call) => call.href === SEND_URL).length, 0, "none of those reached Google's send");
+  const sent = await sendOwnerReply({ ...base, input: { ...approved, to: " Jo@Example.com " } });
+  assert.equal(sent.to, "jo@example.com");
 });

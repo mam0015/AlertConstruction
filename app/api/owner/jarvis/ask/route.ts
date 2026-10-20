@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       ai: aiClient ? { client: aiClient } : undefined,
     });
     // Audit line (no content): who asked, how it was answered, whether a draft came back, what the AI call used.
-    console.info(JSON.stringify({ jarvis: "ask", owner: gate.owner.email, mode: result.mode, draft: Boolean(result.draft), model: result.model, usage: result.usage }));
+    console.info(JSON.stringify({ jarvis: "ask", mode: result.mode, draft: Boolean(result.draft), model: result.model, usage: result.usage }));
     return Response.json(result, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not answer right now.");

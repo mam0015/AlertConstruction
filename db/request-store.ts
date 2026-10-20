@@ -1,5 +1,5 @@
-import { ensureOwnerDatabase, getOwnerSnapshot } from "./owner-store";
-import { runtimeBindings } from "./runtime";
+import { ensureOwnerDatabase } from "./owner-store";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 export type PublicRequestInput = {
   service: string;
@@ -33,7 +33,7 @@ async function database() {
   return env.DB;
 }
 
-export async function ensureRequestFilesTable() {
+async function ensureRequestFilesTableOnce() {
   await ensureOwnerDatabase();
   const db = await database();
   await db.prepare(`CREATE TABLE IF NOT EXISTS request_files (
@@ -135,3 +135,5 @@ export async function createCustomerMessage(codeInput: string, subject: string, 
   await db.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)")
     .bind(`Customer · ${record.code}`, "Admin", `${subject.trim()}\n${message.trim()}`, new Date().toISOString()).run();
 }
+
+export const ensureRequestFilesTable = memoizePerDatabase(ensureRequestFilesTableOnce);

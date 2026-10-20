@@ -1,4 +1,5 @@
 import { getOwnerAccountByEmail } from "../db/access-settings-store";
+import { sessionsRevokedBefore } from "../db/session-store";
 import { safeEqual, verifyPbkdf2 } from "./secret-utils";
 
 const OWNER_COOKIE = "atp_owner_session";
@@ -66,6 +67,7 @@ export async function createOwnerSession(email: string, seconds = SESSION_SECOND
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
     v: await credentialFingerprint(account?.passwordHash ?? ""),
+    iat: Date.now(),
     expires: Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
@@ -77,11 +79,13 @@ export async function verifyOwnerSession(token?: string | null) {
   if (!payload || !signatureText || extra) return null;
   if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number; v?: string };
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number; v?: string; iat?: number };
     if (!parsed.email || !parsed.expires || parsed.expires < Date.now()) return null;
     // Changing the Owner password changes the fingerprint and signs out every older session.
     const account = await getOwnerAccountByEmail(parsed.email.trim().toLowerCase());
     if (!account || !parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await credentialFingerprint(account.passwordHash)))) return null;
+    // Signing out (or "sign out everywhere") ends every session issued before it.
+    if ((parsed.iat ?? 0) <= await sessionsRevokedBefore(`owner:${parsed.email.toLowerCase()}`)) return null;
     return { email: parsed.email.toLowerCase(), expires: parsed.expires };
   } catch {
     return null;

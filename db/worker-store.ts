@@ -1,6 +1,6 @@
 import { ensureWorkflowDatabase } from "./workflow-store";
 import type { WorkerManagementSnapshot, WorkerSnapshot } from "../app/workers/types";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -38,7 +38,7 @@ export function melbourneDate(value = new Date()) {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
-export async function ensureWorkerDatabase() {
+async function ensureWorkerDatabaseOnce() {
   await ensureWorkflowDatabase();
   const db = await database();
   await db.batch([
@@ -300,3 +300,5 @@ export async function getWorkerFile(fileId: number, workerEmail?: string, manage
   return db.prepare("SELECT file.object_key AS objectKey,file.mime_type AS mimeType,file.file_name AS fileName FROM workflow_files file JOIN worker_file_access access ON access.file_id=file.id JOIN worker_project_assignments assignment ON assignment.case_id=access.case_id AND assignment.worker_email=access.worker_email AND assignment.status='active' WHERE file.id=? AND file.category='worker_document' AND access.worker_email=? LIMIT 1")
     .bind(fileId, workerEmail.toLowerCase()).first<{ objectKey: string; mimeType: string; fileName: string }>();
 }
+
+export const ensureWorkerDatabase = memoizePerDatabase(ensureWorkerDatabaseOnce);

@@ -1,5 +1,5 @@
 import { estimatorStages, type WorkflowRole, type WorkflowSnapshot, type WorkflowStage } from "../app/workflow/types";
-import { runtimeBindings } from "./runtime";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 
@@ -78,7 +78,7 @@ async function customerContactHash(kind: CustomerContactKind, value: string) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function ensureWorkflowDatabase() {
+async function ensureWorkflowDatabaseOnce() {
   const db = await database();
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, service TEXT NOT NULL, stage TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, contract_value INTEGER NOT NULL DEFAULT 0, balance INTEGER NOT NULL DEFAULT 0, customer_name TEXT NOT NULL DEFAULT '', suburb TEXT NOT NULL DEFAULT '', start_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`),
@@ -646,3 +646,5 @@ export async function canAccessWorkflowCase(role: WorkflowRole, actorEmail: stri
   if (role === "estimator") return (estimatorStages as readonly string[]).includes(row.stage);
   return false;
 }
+
+export const ensureWorkflowDatabase = memoizePerDatabase(ensureWorkflowDatabaseOnce);

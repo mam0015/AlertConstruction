@@ -110,3 +110,12 @@
 .sentLog li b{font-size:12px;font-weight:600}
 .sentLog li span{color:var(--j-muted);font-size:11px}
 @media(max-width:640px){.advice li,.briefing .advice li,.feed .advice li{flex-direction:column;gap:4px}.chat{padding:16px}.turnOwner,.turnJarvis{max-width:100%}.chatForm{flex-direction:column;align-items:stretch}.draft dl{grid-template-columns:60px 1fr}}
+
+/* Long unbroken names, subjects and Persian/Arabic text must wrap inside the cards and read in their own direction. */
+.feed h4,.who,.preview,.topicHead b,.draft dd,.advice span{overflow-wrap:anywhere;unicode-bidi:plaintext}
+.warnBox{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid rgba(224,161,90,.55);background:rgba(224,161,90,.08);color:#e9c490;font-size:12px;line-height:1.6}
+.warnBox p{margin:0}
+.warnBox ul{margin:0;padding-left:18px}
+.warnBox label,.checkRow{display:flex;align-items:flex-start;gap:8px;color:#d9d3c7;font-size:12px;line-height:1.55;cursor:pointer}
+.checkRow{color:#8c867a;font-size:11px}
+.confirmRow{display:flex;flex-wrap:wrap;align-items:center;gap:12px}

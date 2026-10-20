@@ -1,3 +1,4 @@
+import { sessionsRevokedBefore } from "../db/session-store";
 import { getStaffAccessRequest } from "../db/staff-store";
 import { verifyCurrentTeamCode } from "../db/access-settings-store";
 import { hashPbkdf2, safeEqual, verifyPbkdf2 } from "./secret-utils";
@@ -63,6 +64,7 @@ export async function createAdminSession(email: string, role: StaffRole, seconds
     email: email.toLowerCase(),
     v: await credentialFingerprint(record?.passwordHash ?? ""),
     role,
+    iat: Date.now(),
     expires: Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
@@ -74,11 +76,12 @@ export async function verifyAdminSession(token?: string | null) {
   if (!payload || !signatureText || extra) return null;
   if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; role?: string; expires?: number; v?: string };
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; role?: string; expires?: number; v?: string; iat?: number };
     if (!parsed.email || !staffRoles.includes(parsed.role as StaffRole) || !parsed.expires || parsed.expires < Date.now()) return null;
     const current = await getStaffAccessRequest(parsed.email);
     if (!current || current.status !== "Approved" || current.role === "Unassigned") return null;
     if (!parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await credentialFingerprint(current.passwordHash)))) return null;
+    if ((parsed.iat ?? 0) <= await sessionsRevokedBefore(`staff:${current.email.toLowerCase()}`)) return null;
     return { email: current.email.toLowerCase(), role: current.role, expires: parsed.expires };
   } catch {
     return null;

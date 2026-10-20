@@ -6,7 +6,7 @@
 
 import { JarvisAccessError } from "./policy.mjs";
 
-export const LIMITS = Object.freeze({ sendsPerHour: 20, sendsPerDay: 60, asksPer10Minutes: 40 });
+export const LIMITS = Object.freeze({ sendsPerHour: 20, sendsPerDay: 60, asksPer10Minutes: 40, asksPerDay: 400 });
 const STALE_SENDING_MS = 5 * 60_000;
 
 export async function ensureLog(d1) {
@@ -37,32 +37,39 @@ async function count(d1, kind, sinceISO) {
   return Number(row?.total ?? 0);
 }
 
-// Records one question and refuses if there have been too many lately.
+// Records one question and refuses if there have been too many lately. The count and the insert are ONE statement, so a burst of
+// parallel requests cannot all see "39 so far" and pass.
 export async function noteAsk(d1, ownerEmail, now = Date.now()) {
   await ensureLog(d1);
-  if (await count(d1, "ask", new Date(now - 10 * 60_000).toISOString()) >= LIMITS.asksPer10Minutes) {
+  const counted = "SELECT COUNT(*) FROM jarvis_log WHERE kind = 'ask' AND at >= ? AND status IN ('ok','sending','sent')";
+  const result = await d1.prepare(`INSERT INTO jarvis_log (at, kind, owner_email, status)
+    SELECT ?, 'ask', ?, 'ok' WHERE (${counted}) < ? AND (${counted}) < ?`)
+    .bind(new Date(now).toISOString(), ownerEmail, new Date(now - 10 * 60_000).toISOString(), LIMITS.asksPer10Minutes, new Date(now - 86_400_000).toISOString(), LIMITS.asksPerDay).run();
+  if (Number(result?.meta?.changes ?? 0) !== 1) {
     throw new JarvisAccessError("That is a lot of questions in a short time. Please wait a few minutes.", 429);
   }
-  await d1.prepare("INSERT INTO jarvis_log (at, kind, owner_email) VALUES (?, 'ask', ?)").bind(new Date(now).toISOString(), ownerEmail).run();
   await d1.prepare("DELETE FROM jarvis_log WHERE kind = 'ask' AND at < ?").bind(new Date(now - 2 * 86_400_000).toISOString()).run();
 }
 
 // Claims the right to send this exact reply. Throws if it was already sent (or is being sent), or if limits are hit.
 export async function beginSend(d1, { ownerEmail, mailbox, messageId, recipient, subject, bodySha256, bodyChars }, now = Date.now()) {
   await ensureLog(d1);
-  if (await count(d1, "send", new Date(now - 3_600_000).toISOString()) >= LIMITS.sendsPerHour) {
-    throw new JarvisAccessError(`Jarvis has already sent ${LIMITS.sendsPerHour} replies in the last hour. Please wait before sending more.`, 429);
-  }
-  if (await count(d1, "send", new Date(now - 86_400_000).toISOString()) >= LIMITS.sendsPerDay) {
-    throw new JarvisAccessError(`Jarvis has already sent ${LIMITS.sendsPerDay} replies in the last 24 hours.`, 429);
-  }
   // A claim that never finished (the Worker was interrupted mid-send) stops blocking after a few minutes.
   await d1.prepare("UPDATE jarvis_log SET status = 'failed' WHERE kind = 'send' AND status = 'sending' AND at < ?").bind(new Date(now - STALE_SENDING_MS).toISOString()).run();
   try {
+    // The hourly and daily limits are checked in the same statement that records the claim (no gap for parallel clicks).
+    const counted = "SELECT COUNT(*) FROM jarvis_log WHERE kind = 'send' AND at >= ? AND status IN ('sending','sent')";
     const result = await d1.prepare(`INSERT INTO jarvis_log
       (at, kind, owner_email, mailbox, original_message_id, recipient, subject, body_sha256, body_chars, status)
-      VALUES (?, 'send', ?, ?, ?, ?, ?, ?, ?, 'sending')`)
-      .bind(new Date(now).toISOString(), ownerEmail, mailbox, messageId, recipient, subject, bodySha256, bodyChars).run();
+      SELECT ?, 'send', ?, ?, ?, ?, ?, ?, ?, 'sending' WHERE (${counted}) < ? AND (${counted}) < ?`)
+      .bind(new Date(now).toISOString(), ownerEmail, mailbox, messageId, recipient, subject, bodySha256, bodyChars,
+        new Date(now - 3_600_000).toISOString(), LIMITS.sendsPerHour, new Date(now - 86_400_000).toISOString(), LIMITS.sendsPerDay).run();
+    if (Number(result?.meta?.changes ?? 0) !== 1) {
+      if (await count(d1, "send", new Date(now - 3_600_000).toISOString()) >= LIMITS.sendsPerHour) {
+        throw new JarvisAccessError(`Jarvis has already sent ${LIMITS.sendsPerHour} replies in the last hour. Please wait before sending more.`, 429);
+      }
+      throw new JarvisAccessError(`Jarvis has already sent ${LIMITS.sendsPerDay} replies in the last 24 hours.`, 429);
+    }
     return Number(result?.meta?.last_row_id ?? 0);
   } catch (error) {
     if (/unique/i.test(error instanceof Error ? error.message : String(error))) {

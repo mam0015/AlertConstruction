@@ -16,6 +16,8 @@ export function emailCap(config) {
   return Math.max(5, Math.min(20, Math.floor((40 - 2 * mailboxes) / mailboxes)));
 }
 
+const SOURCE_LABEL = { company_email: "company email", employee_updates: "employee updates", client_comments: "client comments" };
+
 async function readScope(scope, context) {
   assertScope(scope);
   if (scope === "company_email") {
@@ -46,7 +48,7 @@ export async function runJarvis({ db, config = {}, fetchImpl = globalThis.fetch,
       collected.push(...result.items);
     } catch (error) {
       if (error?.name === "JarvisAccessError" && error.status < 500) throw error;
-      console.error(`Jarvis could not read ${scope}:`, error instanceof Error ? error.message : error);
+      console.error(`Jarvis could not read ${scope}:`, error instanceof Error ? error.name : "unknown error");
       sources[scope] = { status: "error", count: 0 };
     }
   }));
@@ -54,6 +56,16 @@ export async function runJarvis({ db, config = {}, fetchImpl = globalThis.fetch,
   const matching = sortNewestFirst(searchItems(collected, options.query));
   const briefing = buildBriefing(matching, { hours: options.hours });
   briefing.topics = buildTopics(matching);
+  // A source that could not be read must never look like "nothing happened".
+  const trouble = Object.entries(sources).filter(([, report]) => report.status === "error" || report.status === "partial")
+    .map(([scope, report]) => ({ scope, label: SOURCE_LABEL[scope] ?? scope, status: report.status }));
+  if (trouble.length) {
+    briefing.incomplete = trouble;
+    const names = trouble.map((entry) => entry.label).join(" and ");
+    briefing.headline = matching.length === 0
+      ? `I could not read ${names} just now, so I cannot tell you whether anything is new.`
+      : `${briefing.headline} I could not fully read ${names}, so this may be incomplete.`;
+  }
   return {
     generatedAt: new Date(now).toISOString(),
     audience: JARVIS_AUDIENCE,

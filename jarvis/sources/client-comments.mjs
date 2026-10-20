@@ -10,12 +10,12 @@ const queries = [
   {
     name: "project_message",
     sql: `SELECT m.id AS id, m.sender_label AS customerName, m.body AS body, m.created_at AS at,
-        c.request_code AS requestCode, c.project_code AS projectCode
+        c.project_code AS projectCode
       FROM customer_messages m LEFT JOIN workflow_cases c ON c.id = m.case_id
       WHERE m.sender = 'Customer' AND m.created_at >= ? ORDER BY m.created_at DESC LIMIT ?`,
     item: (row) => makeItem({
       id: `comment:${row.id}`, source: SOURCE, kind: "customer_message", at: row.at,
-      title: `Comment from ${row.customerName || "a customer"}`, who: row.customerName || "Customer", project: row.projectCode || row.requestCode, body: row.body,
+      title: `Comment from ${row.customerName || "a customer"}`, who: row.customerName || "Customer", project: row.projectCode, body: row.body,
     }),
   },
   {

@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const env = await runtimeBindings();
     const result = await sendOwnerReply({ db: env.DB, config: jarvisConfig(), fetchImpl: networkFetch(), owner: gate.owner, input: await readJson(request) as never });
-    console.info(JSON.stringify({ jarvis: "send", owner: gate.owner.email, mailbox: result.mailbox, to: result.to, subject: result.subject }));
+    console.info(JSON.stringify({ jarvis: "send", mailbox: result.mailbox })); // who it went to is in the mailbox's Sent folder and in Jarvis's own log, not in the Worker logs
     return Response.json(result, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not send that reply. Nothing was sent.");
