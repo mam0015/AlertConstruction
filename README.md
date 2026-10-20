@@ -15,6 +15,8 @@ No real credential, Team Code, session secret or customer record belongs in GitH
 - `release/wordpress/` — WordPress secure portal bridge
 - `release-docs/` — Persian installation, environment and security guides
 - `scripts/security-setup.mjs` — local password-hash and session-secret generator
+- `jarvis/` — the Owner's private assistant: reads company email, employee updates and client comments, suggests next steps, and drafts email replies that are sent only when the Owner presses Send; see `jarvis/README.md`
+- `docs/REPO_MAP.md` — what every folder in this repository is (the root also holds the GitHub Pages copy and older static pages)
 - `tests/` — release, access-control and workflow checks
 
 The production delivery ZIP intentionally excludes all demonstration/preview folders, generated output, secrets and local dependencies.
@@ -28,11 +30,11 @@ npm ci
 npm test
 ```
 
-For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
+`npm run verify` runs everything (lint, type check, build, all tests) in one go. `npm run package:full` writes one clean, complete ZIP of the committed project (third-party copies and build output left out, private settings never included). To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
 
 ## Hosting from GitHub
 
-GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers: see `release-docs/DEPLOY-GITHUB-TO-CLOUDFLARE-FA.md`.
+GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers. The complete go-live guide (accounts, secrets, first-day checklist, domain, backups, Jarvis) is `docs/GO-LIVE.md` (English) and `docs/GO-LIVE-FA.md` (Persian).
 
 ## Positions and workflow
 

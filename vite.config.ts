@@ -1,10 +1,17 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json";
+import { existsSync, readFileSync } from "node:fs";
 import { sites } from "./build/sites-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
+
+// `.openai/hosting.json` is a hidden folder that browser/drag-and-drop uploads to GitHub silently skip.
+// Fall back to the binding names this app always uses (DB / BUCKET) so the build never depends on it.
+const hostingFile = new URL("./.openai/hosting.json", import.meta.url);
+const hostingConfig: { d1?: string; r2?: string } = existsSync(hostingFile)
+  ? JSON.parse(readFileSync(hostingFile, "utf8"))
+  : { d1: "DB", r2: "BUCKET" };
 
 const { d1, r2 } = hostingConfig;
 

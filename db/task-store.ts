@@ -2,6 +2,7 @@ import { workerStaffRoles } from "../app/staff-access";
 import type { PersonalTaskSnapshot, TaskManagementSnapshot, TaskPerson, TeamTask } from "../app/tasks/types";
 import { ensureWorkflowDatabase } from "./workflow-store";
 import { ensureStaffAccessTable } from "./staff-store";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -12,7 +13,7 @@ const allowedPriorities = new Set(["Normal", "High", "Urgent"]);
 const allowedStatuses = new Set(["assigned", "in_progress", "completed"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The task database is unavailable.");
   return env.DB;
 }
@@ -45,7 +46,7 @@ export function taskGroup(role: string): TaskPerson["group"] | null {
   return null;
 }
 
-export async function ensureTaskDatabase() {
+async function ensureTaskDatabaseOnce() {
   await ensureWorkflowDatabase();
   await ensureStaffAccessTable();
   const db = await database();
@@ -206,3 +207,5 @@ export async function setPersonalTaskStatus(emailInput: string, taskIdInput: unk
   await db.prepare("UPDATE team_tasks SET status=?,updated_at=?,completed_at=? WHERE id=? AND LOWER(assignee_email)=?").bind(status, now, status === "completed" ? now : "", id, email).run();
   await taskEvent(db, { caseId: Number(task.caseId), title: String(task.title) }, "Assignee", email, "team_task_self_status", `Marked ${status.replaceAll("_", " ")}`);
 }
+
+export const ensureTaskDatabase = memoizePerDatabase(ensureTaskDatabaseOnce);

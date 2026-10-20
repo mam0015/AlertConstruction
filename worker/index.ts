@@ -21,7 +21,8 @@ interface ExecutionContext {
 
 function securityHeaders(response: Response, url: URL) {
   const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; worker-src 'self' blob:");
+  // A route may set a stricter policy of its own (downloaded files use "sandbox"); only fill the default when it did not.
+  if (!headers.has("Content-Security-Policy")) headers.set("Content-Security-Policy", "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; worker-src 'self' blob:");
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
@@ -29,11 +30,49 @@ function securityHeaders(response: Response, url: URL) {
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   if (url.protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  if (/^\/(?:api|owner|admin|site-supervisor|worker|team|track)(?:\/|$)/.test(url.pathname)) {
+  if (/^\/(?:api|owner|admin|manager|estimator|site-supervisor|worker|workers|team|track)(?:\/|$)/.test(url.pathname)) {
     headers.set("Cache-Control", "private, no-store, max-age=0");
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+// Browsers parse every /api answer as JSON. A plain-text error (the framework's "Payload Too Large", an unhandled exception)
+// used to show up as "Unexpected token 'P'..." in the interface, so errors from /api/* always leave as {"error": "..."}.
+// Text that only a programmer should ever see: JavaScript and database error messages. A few routes still pass such a message on as
+// the "error" of a 400 answer; here it is replaced by a plain sentence (the original is written to the Worker log).
+const INTERNAL_ERROR = /(?:is not a function|Cannot read propert|Cannot convert|is not defined|is not valid JSON|Unexpected (?:token|end of)|D1_ERROR|SQLITE_|TypeError|ReferenceError|RangeError|SyntaxError|\bat \S+ \(|JSON\.parse|undefined)/;
+
+async function jsonErrors(response: Response, url: URL) {
+  if (!url.pathname.startsWith("/api/") || response.status < 400) return response;
+  const type = response.headers.get("content-type") ?? "";
+  if (/json/i.test(type)) {
+    const text = await response.clone().text().catch(() => "");
+    if (text.length > 4000 || !INTERNAL_ERROR.test(text)) return response;
+    console.error("Internal error hidden from the client:", text.slice(0, 300));
+    const headers = new Headers(response.headers);
+    headers.delete("Content-Length");
+    return Response.json({ error: response.status >= 500 ? "Something went wrong on the server. Please try again." : "The request could not be completed. Please check the details and try again." }, { status: response.status, headers });
+  }
+  const text = (await response.text()).slice(0, 200).trim();
+  const error = response.status === 413 ? "That file is too large to upload."
+    : response.status >= 500 ? "Something went wrong on the server. Please try again."
+    : text || response.statusText || "The request could not be completed.";
+  const headers = new Headers(response.headers);
+  headers.set("Content-Type", "application/json");
+  headers.delete("Content-Length");
+  return new Response(JSON.stringify({ error }), { status: response.status, headers });
+}
+
+async function appResponse(request: Request, env: Env, ctx: ExecutionContext, url: URL) {
+  try {
+    return await jsonErrors(await handler.fetch(request, env, ctx), url);
+  } catch (error) {
+    console.error("Unhandled error:", error instanceof Error ? error.message : error);
+    return url.pathname.startsWith("/api/")
+      ? Response.json({ error: "Something went wrong on the server. Please try again." }, { status: 500 })
+      : new Response("Something went wrong on the server. Please try again.", { status: 500, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -58,7 +97,7 @@ const worker = {
       return securityHeaders(imageResponse, url);
     }
 
-    return securityHeaders(await handler.fetch(request, env, ctx), url);
+    return securityHeaders(await appResponse(request, env, ctx, url), url);
   },
 };
 

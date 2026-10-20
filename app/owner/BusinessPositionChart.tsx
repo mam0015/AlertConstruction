@@ -26,7 +26,7 @@ export default function BusinessPositionChart({ rows }: { rows: Row[] }) {
   const incomePath = smoothPath(incomePoints);
   const outcomePath = smoothPath(outcomePoints);
   const net = chartRows.reduce((sum, row) => sum + row.income - row.outcome, 0);
-  const formatter = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
+  const formatter = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   return <div className={styles.businessChart}>
     <div className={styles.businessChartMeta}>

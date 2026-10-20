@@ -1,7 +1,9 @@
 import { adminSessionFromRequest } from "../../../admin-auth";
 import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-auth";
-import { addWorkflowFile, getWorkflowFile, getWorkflowSnapshot } from "../../../../db/workflow-store";
+import { addWorkflowFile, canAccessWorkflowCase, getWorkflowFile, getWorkflowSnapshot, validCustomerFileLink } from "../../../../db/workflow-store";
 import type { WorkflowRole } from "../../../workflow/types";
+import { runtimeBindings } from "../../../../db/runtime";
+import { downloadHeaders } from "../../../file-safety";
 
 async function imageSignatureMatches(file: File) {
   const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
     const snapshot = await getWorkflowSnapshot(identity.role, identity.email);
     const item = snapshot.cases.find((entry) => entry.id === caseId);
     if (!item) throw new Error("This project is not available to your role.");
-    const { env } = await import("cloudflare:workers");
+    const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Project photo storage is not configured.");
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100);
     const prefix = item.projectFolder || `requests/${item.requestCode}`;
@@ -61,20 +63,22 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const id = Number(new URL(request.url).searchParams.get("id"));
+  const url = new URL(request.url);
+  const id = Number(url.searchParams.get("id"));
   if (!Number.isInteger(id)) return Response.json({ error: "Invalid file." }, { status: 400 });
   const identity = await actor(request);
-  const record = await getWorkflowFile(id, !identity);
-  const { env } = await import("cloudflare:workers");
+  let record = null;
+  if (identity) {
+    // Staff only get files of cases they are allowed to see, never any file by number.
+    record = await getWorkflowFile(id, false);
+    if (record && !await canAccessWorkflowCase(identity.role, identity.email, Number(record.caseId))) record = null;
+  } else {
+    // Customers use a signed link to a published photo.
+    if (await validCustomerFileLink(id, url.searchParams.get("k") ?? "")) record = await getWorkflowFile(id, true);
+  }
+  const env = await runtimeBindings();
   if (!record || !env.BUCKET) return Response.json({ error: "File not found." }, { status: 404 });
   const object = await env.BUCKET.get(record.objectKey);
   if (!object) return Response.json({ error: "File not found." }, { status: 404 });
-  const disposition = record.mimeType.startsWith("image/") ? "inline" : "attachment";
-  return new Response(object.body, {
-    headers: {
-      "Content-Type": record.mimeType,
-      "Content-Disposition": `${disposition}; filename="${record.fileName.replace(/[\r\n"\\]/g, "").slice(-100)}"`,
-      "Cache-Control": identity ? "private, no-store" : "public, max-age=300",
-    },
-  });
+  return new Response(object.body, { headers: downloadHeaders(record.mimeType, record.fileName, { inlinePdf: true }) });
 }

@@ -21,7 +21,7 @@ type CustomerData = {
   messages: Array<{ id: number; sender: "Admin" | "Customer"; senderLabel: string; body: string; kind: "message" | "document_request"; createdAt: string }>;
 };
 
-function money(cents: number) { return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(cents / 100); }
+function money(cents: number) { return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(cents / 100); }
 function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }).format(parsed); }
 
 export default function CustomerWorkflowPanel({ code }: { code: string }) {

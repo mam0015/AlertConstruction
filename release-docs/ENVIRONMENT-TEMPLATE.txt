@@ -27,3 +27,22 @@ CUSTOMER_CONTACT_HASH_SECRET=<RANDOM_SECRET>
 
 # Production must never seed demonstration data.
 ATP_DEMO_SEED=false
+
+# Optional: Jarvis (the Owner-only assistant). Everything below can be left out: Jarvis then still reads employee updates and
+# client comments and gives rule-based advice; it just reports "Company email: not connected" / "Simple mode".
+#
+# Company email — get the mailbox value by running: node jarvis/scripts/gmail-authorize.mjs <mailbox> [--allow-replies]
+JARVIS_GMAIL_CLIENT_ID=<GOOGLE_OAUTH_CLIENT_ID>
+JARVIS_GMAIL_CLIENT_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+JARVIS_GMAIL_ACCOUNTS=<JSON_LIST_OF_MAILBOXES_REFRESH_TOKENS_AND_canReply>
+#
+# Smart mode (AI): lets Jarvis answer questions and write email replies from a short instruction. This sends the question and
+# the records it needs to Anthropic's API (email addresses and phone numbers are removed first). Create a key at
+# https://console.anthropic.com and keep it private.
+JARVIS_ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
+# Optional: the model (default claude-opus-5-5; claude-sonnet-5-5 is cheaper), "off" to switch Smart mode off while keeping the key,
+# "off" to disable the automatic safety fallback, and the company name used in reply sign-offs (default Alert Construction).
+JARVIS_AI_MODEL=<MODEL_ID>
+JARVIS_AI=<on_or_off>
+JARVIS_AI_FALLBACKS=<on_or_off>
+JARVIS_COMPANY_NAME=<COMPANY_NAME>

@@ -1,4 +1,4 @@
-import { access, cp, mkdir, rm } from "node:fs/promises";
+import { access, cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -34,6 +34,9 @@ export function sites(): Plugin {
 
       if (await exists(hostingConfig)) {
         await cp(hostingConfig, resolve(outputDirectory, "hosting.json"));
+      } else {
+        // Hidden folders are dropped by browser uploads to GitHub; ship the standard bindings instead.
+        await writeFile(resolve(outputDirectory, "hosting.json"), `${JSON.stringify({ d1: "DB", r2: "BUCKET" }, null, 2)}\n`);
       }
       if (await exists(drizzleSource)) {
         await cp(drizzleSource, resolve(outputDirectory, "drizzle"), {

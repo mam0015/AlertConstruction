@@ -3,6 +3,7 @@ import { staffName } from "../app/team-identity";
 import { ensureOwnerDatabase } from "./owner-store";
 import { getPrimaryOwnerAccount } from "./access-settings-store";
 import { ensureStaffAccessTable, listStaffAccessRequests } from "./staff-store";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -22,7 +23,7 @@ const CHANNEL = "*";
 const canPlan = new Set(["Owner", "Admin", "Manager"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The team database is unavailable.");
   return env.DB;
 }
@@ -35,7 +36,7 @@ function bounded(value: unknown, label: string, max: number) {
   return result;
 }
 
-export async function ensureTeamTables() {
+async function ensureTeamTablesOnce() {
   await ensureOwnerDatabase();
   await ensureStaffAccessTable();
   const db = await database();
@@ -185,3 +186,5 @@ export async function listProjectCodes() {
   const rows = await db.prepare("SELECT code,name FROM projects ORDER BY updated_at DESC LIMIT 100").all<{ code: string; name: string }>();
   return rows.results;
 }
+
+export const ensureTeamTables = memoizePerDatabase(ensureTeamTablesOnce);

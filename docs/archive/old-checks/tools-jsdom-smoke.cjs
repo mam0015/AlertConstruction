@@ -1,0 +1,203 @@
+// OBSOLETE — archived October 2026. This old release check no longer matches the app (it failed on the current code and is not part of
+// `npm test`). It is kept only for history; `npm run verify` is the real check. Its relative paths were not updated when it was moved.
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const waitFor=async(test,label)=>{for(let i=0;i<100;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10))}throw new Error(`Timed out waiting for ${label}`)};
+
+function domFor(html){
+  const dom=new JSDOM(read(html),{url:`https://mam0015.github.io/Alert-Construction/${html.replace('index.html','')}`,runScripts:'outside-only'});
+  dom.window.HTMLElement.prototype.scrollIntoView=function(){};
+  dom.window.scrollTo=function(){};
+  return dom;
+}
+
+(async()=>{
+  const plan=domFor('plan-ai/index.html');
+  plan.window.eval(read('plan-ai/config.js'));
+  let planRequest;
+  plan.window.fetch=async(_url,options)=>{planRequest={headers:options.headers,body:JSON.parse(options.body)};return{ok:true,status:200,json:async()=>({responseId:'r1',analysis:{status:'success',summary:'Plans compared',legend_findings:[{plan:'existing',symbol_label:'DL',meaning:'Downlight',evidence:'Legend',confidence:'high'},{plan:'proposed',symbol_label:'DL',meaning:'Downlight',evidence:'Legend',confidence:'high'}],symbols:[{symbol_label:'DL',description:'LED downlight',added_catalog_index:0,removed_catalog_index:-1,moved_catalog_index:1,existing_quantity:3,proposed_quantity:12,unchanged_quantity:3,added_quantity:9,removed_quantity:0,moved_quantity:0,confidence:'high',existing_evidence:'3 existing DL symbols',proposed_evidence:'12 proposed DL symbols'},{symbol_label:'GPO',description:'Power point',added_catalog_index:5,removed_catalog_index:6,moved_catalog_index:6,existing_quantity:2,proposed_quantity:1,unchanged_quantity:1,added_quantity:0,removed_quantity:1,moved_quantity:0,confidence:'high',existing_evidence:'2 existing GPO symbols',proposed_evidence:'1 proposed GPO symbol'}],items:[{action:'added',catalog_index:0,quantity:9,existing_quantity:3,proposed_quantity:12,added_quantity:9,removed_quantity:0,moved_quantity:0,confidence:'high',evidence:'9 added DL symbols'},{action:'removed',catalog_index:6,quantity:1,existing_quantity:2,proposed_quantity:1,added_quantity:0,removed_quantity:1,moved_quantity:0,confidence:'high',evidence:'1 removed GPO mapped to replacement/fit-off allowance'}],assumptions:[],warnings:['Removal uses the existing-work allowance'],unpriced_items:[]}})}};
+  plan.window.eval(read('plan-ai/app.js'));
+  const existingFile=new plan.window.File([new Uint8Array([37,80,68,70])],'existing.pdf',{type:'application/pdf'}),proposedFile=new plan.window.File([new Uint8Array([37,80,68,70])],'proposed.pdf',{type:'application/pdf'});
+  Object.defineProperty(plan.window.document.querySelector('#existingPlanFile'),'files',{value:[existingFile]});
+  plan.window.document.querySelector('#existingPlanFile').dispatchEvent(new plan.window.Event('change'));
+  Object.defineProperty(plan.window.document.querySelector('#proposedPlanFile'),'files',{value:[proposedFile]});
+  plan.window.document.querySelector('#proposedPlanFile').dispatchEvent(new plan.window.Event('change'));
+  plan.window.document.querySelector('#chatInput').value='Compare the existing and proposed electrical symbols';
+  plan.window.document.querySelector('#chatForm').dispatchEvent(new plan.window.Event('submit',{cancelable:true}));
+  await waitFor(()=>plan.window.document.querySelector('.result-card'),'plan result');
+  if(planRequest.body.scanMode!=='fast')throw new Error('Fast Vision did not send scanMode=fast');
+  if(planRequest.body.priceMode!=='builder')throw new Error('Plan comparison did not send the selected Builder price mode');
+  if(planRequest.body.mode!=='compare'||!planRequest.body.existingFileData||!planRequest.body.proposedFileData)throw new Error('Plan comparison did not send both labelled files');
+  if(planRequest.headers.Authorization||planRequest.headers.authorization)throw new Error('Plan request incorrectly sent Authorization');
+  if(!planRequest.headers.apikey)throw new Error('Plan request did not send apikey');
+  if(!plan.window.document.querySelector('.comparison-table').textContent.includes('Removed'))throw new Error('Plan result did not render the change schedule');
+  if(!plan.window.document.querySelector('.legend-read').textContent.includes('DL = Downlight'))throw new Error('Plan result did not show the learned plan legend');
+  if(!plan.window.document.querySelector('.action-badge.removed'))throw new Error('Plan result did not price the matched removal action');
+  if(!plan.window.document.querySelector('[data-final-total]').textContent.includes('818.40'))throw new Error('Builder Plan total did not add 20% margin then 10% GST to all matched actions');
+  plan.window.document.querySelector('[data-price-mode="customer"]').click();
+  if(!plan.window.document.querySelector('[data-final-total]').textContent.includes('682.00'))throw new Error('Customer Direct Plan total incorrectly included the 20% building margin');
+  const planCapture=await plan.window.ACProjectCapture();
+  if(planCapture.attachments.length!==2||planCapture.data.symbols[1].removed_quantity!==1||planCapture.data.priceMode!=='customer')throw new Error('Plan project capture did not preserve both files, removals and selected price mode');
+
+  const electrical=domFor('electrical/index.html'),electricalScripts=[...electrical.window.document.querySelectorAll('script:not([src])')];
+  electrical.window.eval(electricalScripts[0].textContent);
+  electrical.window.document.querySelector('.qtyInput').value='10';electrical.window.ACQuoteCalculator.calculateTotals();
+  if(!electrical.window.document.querySelector('#grandTotal').textContent.includes('858.00'))throw new Error('Electrical Builder Quote did not add 20% margin then 10% GST');
+  electrical.window.document.querySelector('#mode').value='customer';electrical.window.ACQuoteCalculator.calculateTotals();
+  if(!electrical.window.document.querySelector('#grandTotal').textContent.includes('715.00'))throw new Error('Electrical Customer Direct price incorrectly included the 20% building margin');
+
+  const quote=domFor('quote-analysis/index.html');
+  quote.window.eval(read('plan-ai/config.js'));
+  let quoteRequest;
+  quote.window.fetch=async(_url,options)=>{quoteRequest={headers:options.headers,body:JSON.parse(options.body)};return{ok:true,status:200,json:async()=>({analysis:{supplier:'Test',quote_number:'Q1',summary:'Test',gst_treatment:'ex_gst',quote_total_ex_gst:1000,quote_total_inc_gst:1100,items:[{quoted_name:'Downlights',description:'Supply and install',quantity:10,quoted_line_total_ex_gst:1000,catalog_index:0,evidence:'Line 1',notes:''}],warnings:[]}})}};
+  quote.window.eval(read('quote-analysis/app.js'));
+  const quoteFile=new quote.window.File([new Uint8Array([37,80,68,70])],'quote.pdf',{type:'application/pdf'});
+  Object.defineProperty(quote.window.document.querySelector('#quoteFile'),'files',{value:[quoteFile]});
+  quote.window.document.querySelector('#quoteFile').dispatchEvent(new quote.window.Event('change'));
+  quote.window.document.querySelector('#analyseBtn').click();
+  await waitFor(()=>quote.window.document.querySelector('#results').classList.contains('show'),'quote result');
+  if(quoteRequest.headers.Authorization||quoteRequest.headers.authorization)throw new Error('Quote request incorrectly sent Authorization');
+  if(quote.window.document.querySelector('#expensiveCount').textContent!=='1')throw new Error('Quote $100 rule did not mark the line expensive');
+
+  const projects=domFor('projects/index.html');
+  projects.window.eval(read('shared/project-store.js'));
+  projects.window.eval(read('projects/app.js'));
+  projects.window.document.querySelector('#newProjectBtn').click();
+  projects.window.document.querySelector('#newName').value='Smoke Test Project';
+  projects.window.document.querySelector('#projectModal .modal-save').click();
+  if(!projects.window.document.body.textContent.includes('Smoke Test Project'))throw new Error('Project could not be saved locally');
+  if(!projects.window.document.querySelector('.storage-note').textContent.includes('secure team sync'))throw new Error('Cloud-sync storage notice is missing');
+
+  const renovation=domFor('renovation-budget/index.html');
+  renovation.window.eval(read('renovation-budget/rates.js'));
+  renovation.window.eval(read('shared/project-store.js'));
+  renovation.window.eval(read('renovation-budget/app.js'));
+  renovation.window.document.querySelector('#projectName').value='Bathroom Smoke Test';
+  renovation.window.document.querySelector('#budget').value='50000';
+  renovation.window.document.querySelector('[data-next="2"]').click();
+  renovation.window.document.querySelector('[data-category="bathroom"]').click();
+  renovation.window.document.querySelector('[data-next="3"]').click();
+  if(!renovation.window.document.querySelector('[data-scope="bathroom"]'))throw new Error('Bathroom questions did not open from the category');
+  renovation.window.document.querySelector('#bathroomFloorArea').value='8';
+  renovation.window.document.querySelector('#bathroomFloorArea').dispatchEvent(new renovation.window.Event('change'));
+  renovation.window.document.querySelector('#calculateBtn').click();
+  if(!renovation.window.document.querySelector('[data-step="4"]').classList.contains('active'))throw new Error('Renovation estimate result did not open');
+  if(!renovation.window.document.querySelector('.grand-total')?.textContent.includes('$'))throw new Error('Renovation total was not calculated');
+  if(!renovation.window.document.querySelector('.chip.ac')||!renovation.window.document.querySelector('.chip.allowance'))throw new Error('Verified AC rates and planning allowances were not distinguished');
+  const capture=await renovation.window.ACProjectCapture();
+  if(capture.module!=='renovation-budget'||!capture.data.state)throw new Error('Renovation project capture is incomplete');
+  const renovationProject=renovation.window.ACProjects.create({name:'Saved Renovation Project'});
+  renovation.window.eval(read('shared/project-bridge.js'));
+  renovation.window.document.querySelector('.acp-fab').click();
+  renovation.window.document.querySelector('#acpProject').value=renovationProject.id;
+  renovation.window.document.querySelector('.acp-save').click();
+  await waitFor(()=>renovation.window.ACProjects.get(renovationProject.id).records.length===1,'renovation project save');
+  const savedRecord=renovation.window.ACProjects.get(renovationProject.id).records[0];
+  if(savedRecord.module!=='renovation-budget')throw new Error('Renovation estimate was not saved as a project record');
+  renovation.window.document.querySelector('#bathroomCount').value='2';
+  renovation.window.document.querySelector('#bathroomCount').dispatchEvent(new renovation.window.Event('change'));
+  renovation.window.document.querySelector('#calculateBtn').click();
+  renovation.window.document.querySelector('.acp-fab').click();
+  renovation.window.document.querySelector('#acpProject').value=renovationProject.id;
+  renovation.window.document.querySelector('.acp-save').click();
+  await waitFor(()=>renovation.window.ACProjects.get(renovationProject.id).records[0].data.state.answers.bathroomCount===2,'renovation project update');
+  if(renovation.window.ACProjects.get(renovationProject.id).records.length!==1)throw new Error('Editing a saved renovation created a duplicate record');
+
+  const reopened=domFor('renovation-budget/index.html');
+  reopened.window.localStorage.setItem('ac_project_renovation_restore_v1',JSON.stringify({state:capture.data.state,projectId:renovationProject.id,recordId:savedRecord.id}));
+  reopened.window.eval(read('renovation-budget/rates.js'));
+  reopened.window.eval(read('shared/project-store.js'));
+  reopened.window.eval(read('renovation-budget/app.js'));
+  if(!reopened.window.document.querySelector('#restoreNote').classList.contains('show'))throw new Error('Saved renovation estimate did not reopen from Projects');
+  if(!reopened.window.document.querySelector('.grand-total'))throw new Error('Reopened renovation estimate was not recalculated');
+
+  const property=domFor('property-estimate/index.html');
+  property.window.confirm=()=>true;
+  property.window.eval(read('shared/project-store.js'));
+  property.window.eval(read('property-estimate/victoria-sales-data.js'));
+  property.window.eval(read('property-estimate/app.js'));
+  const rowvilleGuide=property.window.ACPropertyEstimator.calculate({suburb:'Rowville',postcode:'3178',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]});
+  const meltonGuide=property.window.ACPropertyEstimator.calculate({suburb:'Melton',postcode:'3337',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]});
+  if(rowvilleGuide.method!=='official-suburb'||rowvilleGuide.midpoint<1100000||rowvilleGuide.midpoint>1250000)throw new Error('Rowville did not use its official matching-suburb evidence');
+  if(meltonGuide.midpoint<500000||meltonGuide.midpoint>600000||rowvilleGuide.midpoint-meltonGuide.midpoint<500000)throw new Error('Property suburb did not materially change the estimate');
+  let missingLocalBlocked=false;try{property.window.ACPropertyEstimator.calculate({suburb:'Not A Real Place',postcode:'',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',comparables:[]})}catch(_){missingLocalBlocked=true}
+  if(!missingLocalBlocked)throw new Error('Property estimator invented a price without local evidence');
+  const medianGuide=property.window.ACPropertyEstimator.calculate({suburb:'Geelong',postcode:'3220',region:'regional',propertyType:'unit',suburbMedian:'540000',benchmarkDate:'2026-06-30',marketTrend:'',comparables:[]});
+  if(medianGuide.method!=='official-and-independent'||medianGuide.localEvidence.officialValue!==647250||medianGuide.midpoint>=635000)throw new Error('Independent and official matching-suburb medians were not blended correctly');
+  const outlierGuide=property.window.ACPropertyEstimator.calculate({suburb:'Rowville',postcode:'3178',region:'metro',propertyType:'house',suburbMedian:'',benchmarkDate:'',marketTrend:'',bedrooms:'3',bathrooms:'2',landArea:'500',floorArea:'160',condition:'average',comparables:[{price:900000,date:'2026-02-01',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'},{price:920000,date:'2026-02-05',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'},{price:2000000,date:'2026-02-09',bedrooms:3,bathrooms:2,landArea:500,floorArea:160,condition:'average'}]});
+  if(outlierGuide.comparables.filter(comp=>comp.used===false).length!==1||outlierGuide.midpoint>=1200000)throw new Error('Extreme comparable sale was not excluded safely');
+  property.window.document.querySelector('#estimateName').value='Victoria Home Test';
+  property.window.document.querySelector('#suburb').value='Rowville';
+  property.window.document.querySelector('#postcode').value='3178';
+  property.window.document.querySelector('#bedrooms').value='4';
+  property.window.document.querySelector('#bathrooms').value='2';
+  property.window.document.querySelector('#landArea').value='620';
+  property.window.document.querySelector('#floorArea').value='205';
+  property.window.document.querySelector('#condition').value='average';
+  const comparableCards=[...property.window.document.querySelectorAll('[data-comparable]')];
+  [[910000,'2026-03-20',4,2,600,195],[955000,'2026-02-10',4,2,650,210],[925000,'2025-12-12',3,2,610,185]].forEach((values,index)=>{
+    const card=comparableCards[index];card.querySelector('.comp-address-value').value=`Comparable ${index+1}, Rowville`;card.querySelector('.comp-price').value=String(values[0]);card.querySelector('.comp-date').value=values[1];card.querySelector('.comp-bedrooms').value=String(values[2]);card.querySelector('.comp-bathrooms').value=String(values[3]);card.querySelector('.comp-land').value=String(values[4]);card.querySelector('.comp-floor').value=String(values[5]);card.querySelector('.comp-condition').value='average';
+  });
+  property.window.document.querySelector('#calculate').click();
+  if(!property.window.document.querySelector('[data-step="4"]').classList.contains('active'))throw new Error('Property value result did not open');
+  if(!property.window.document.querySelector('.estimate-main')?.textContent.includes('$'))throw new Error('Property value midpoint was not calculated');
+  if(!property.window.document.querySelector('#results').textContent.includes('3 adjusted comparable sales'))throw new Error('Property estimator did not use the three comparable sales');
+  const propertyCapture=await property.window.ACProjectCapture();
+  if(propertyCapture.module!=='property-estimate'||propertyCapture.data.result.confidence<70)throw new Error('Property project capture or evidence confidence is incomplete');
+  const propertyProject=property.window.ACProjects.create({name:'Saved Property Project'});
+  property.window.eval(read('shared/project-bridge.js'));
+  property.window.document.querySelector('.acp-fab').click();
+  property.window.document.querySelector('#acpProject').value=propertyProject.id;
+  property.window.document.querySelector('.acp-save').click();
+  await waitFor(()=>property.window.ACProjects.get(propertyProject.id).records.length===1,'property project save');
+  const propertyRecord=property.window.ACProjects.get(propertyProject.id).records[0];
+  if(propertyRecord.module!=='property-estimate'||!propertyRecord.data.state.suburb)throw new Error('Property value guide was not saved into Projects');
+
+  const propertyReopened=domFor('property-estimate/index.html');
+  propertyReopened.window.localStorage.setItem('ac_project_property_restore_v1',JSON.stringify({state:propertyCapture.data.state,result:propertyCapture.data.result,projectId:propertyProject.id,recordId:propertyRecord.id}));
+  propertyReopened.window.eval(read('shared/project-store.js'));
+  propertyReopened.window.eval(read('property-estimate/victoria-sales-data.js'));
+  propertyReopened.window.eval(read('property-estimate/app.js'));
+  if(!propertyReopened.window.document.querySelector('#restoreNote').classList.contains('show'))throw new Error('Saved property estimate did not reopen from Projects');
+  if(!propertyReopened.window.document.querySelector('.estimate-main'))throw new Error('Reopened property estimate did not restore its value guide');
+
+  const permit=domFor('permit-checklist/index.html');
+  permit.window.confirm=()=>true;
+  permit.window.eval(read('shared/project-store.js'));
+  permit.window.eval(read('permit-checklist/app.js'));
+  const permitResult=permit.window.ACPermitChecklist.assess({projectType:'extension',structural:true,external:true,plumbing:true,electrical:true,boundary:true,deliveryRole:'owner-builder',projectValue:'over20'});
+  if(!permitResult.permits.some(item=>item.id==='planning'&&item.status==='likely'))throw new Error('Extension did not flag a likely planning permit');
+  if(!permitResult.permits.some(item=>item.id==='building'&&item.status==='likely'))throw new Error('Structural extension did not flag a likely building permit');
+  if(!permitResult.permits.some(item=>item.id==='owner-builder'&&item.status==='likely'))throw new Error('Owner-builder threshold did not flag Certificate of Consent');
+  permit.window.document.querySelector('#projectName').value='Permit Smoke Test';
+  permit.window.document.querySelector('#projectType').value='extension';
+  permit.window.document.querySelector('#structural').checked=true;
+  permit.window.document.querySelector('#external').checked=true;
+  permit.window.document.querySelector('#followUpDate').value='2026-07-20';
+  permit.window.document.querySelector('#generate').click();
+  if(!permit.window.document.querySelector('#results').classList.contains('show'))throw new Error('Permit Checklist result did not open');
+  if(!permit.window.document.querySelector('#permitList').textContent.includes('Planning permit'))throw new Error('Permit result did not render its approvals');
+  const permitCapture=await permit.window.ACProjectCapture();
+  if(permitCapture.module!=='permit-checklist'||!permitCapture.data.state||!permitCapture.data.result)throw new Error('Permit project capture is incomplete');
+  const permitProject=permit.window.ACProjects.create({name:'Saved Permit Project'});
+  permit.window.eval(read('shared/project-bridge.js'));
+  permit.window.document.querySelector('.acp-fab').click();
+  permit.window.document.querySelector('#acpProject').value=permitProject.id;
+  permit.window.document.querySelector('.acp-save').click();
+  await waitFor(()=>permit.window.ACProjects.get(permitProject.id).records.length===1,'permit project save');
+  const permitRecord=permit.window.ACProjects.get(permitProject.id).records[0];
+  if(permitRecord.module!=='permit-checklist')throw new Error('Permit checklist was not saved into Projects');
+  if(!permit.window.ACProjects.get(permitProject.id).tasks.some(task=>task.notes===`permit-checklist:${permitRecord.id}`))throw new Error('Permit follow-up task was not scheduled');
+
+  const permitReopened=domFor('permit-checklist/index.html');
+  permitReopened.window.localStorage.setItem('ac_project_permit_restore_v1',JSON.stringify({state:permitCapture.data.state,result:permitCapture.data.result,projectId:permitProject.id,recordId:permitRecord.id}));
+  permitReopened.window.eval(read('shared/project-store.js'));
+  permitReopened.window.eval(read('permit-checklist/app.js'));
+  if(!permitReopened.window.document.querySelector('#restoreNote').classList.contains('show'))throw new Error('Saved Permit Checklist did not reopen from Projects');
+  if(!permitReopened.window.document.querySelector('#permitList').textContent.includes('Building permit'))throw new Error('Reopened Permit Checklist did not restore its results');
+
+  console.log('PASS: Fast Vision, pricing, Quote Analysis, Projects, Renovation Budget, Property Value Guide and Victoria Permit Checklist UI');
+})().catch(error=>{console.error(error);process.exit(1)});

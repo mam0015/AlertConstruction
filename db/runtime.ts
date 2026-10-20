@@ -7,3 +7,20 @@ export async function runtimeBindings(): Promise<WorkerEnv> {
   return env;
 }
 
+
+// Creating tables and seeding rows ("ensure…") only has to happen once per database in a running Worker; doing it on every request
+// cost several database round trips each time (and Cloudflare counts every one against the per-request limit).
+export function memoizePerDatabase(init: () => Promise<void>) {
+  const finished = new WeakMap<object, Promise<void>>();
+  return async () => {
+    const env = await runtimeBindings();
+    const key = (env.DB ?? scopeKey) as object;
+    let pending = finished.get(key);
+    if (!pending) {
+      pending = init().catch((error) => { finished.delete(key); throw error; });
+      finished.set(key, pending);
+    }
+    await pending;
+  };
+}
+const scopeKey = {};

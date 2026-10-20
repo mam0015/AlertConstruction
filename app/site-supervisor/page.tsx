@@ -5,6 +5,9 @@ import SiteSupervisor from "./SiteSupervisor";
 
 import HubLink from "../team/HubLink";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Site Supervisor", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function SiteSupervisorPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

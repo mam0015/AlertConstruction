@@ -1,11 +1,12 @@
 import { ensureWorkflowDatabase } from "./workflow-store";
 import type { WorkerManagementSnapshot, WorkerSnapshot } from "../app/workers/types";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The Worker database is unavailable.");
   return env.DB;
 }
@@ -37,7 +38,7 @@ export function melbourneDate(value = new Date()) {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
-export async function ensureWorkerDatabase() {
+async function ensureWorkerDatabaseOnce() {
   await ensureWorkflowDatabase();
   const db = await database();
   await db.batch([
@@ -271,7 +272,7 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
     const assigned = await db.prepare("SELECT id FROM worker_project_assignments WHERE case_id=? AND worker_email=? AND status='active' LIMIT 1").bind(caseId, email).first();
     if (!assigned) throw new Error(`${email} must be assigned to this project before receiving a file.`);
   }
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.BUCKET) throw new Error("Private project file storage is not configured.");
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-120) || "project-file";
   const prefix = String(project.projectFolder || `projects/${project.projectCode}`);
@@ -282,11 +283,14 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
     const created = await db.prepare("INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at) VALUES (?,'worker_document',?,?,?,?,?,'internal',?)")
       .bind(caseId, objectKey, file.name, file.type || "application/octet-stream", file.size, actorEmail, now).run();
     const fileId = Number(created.meta.last_row_id);
-    await db.batch(uniqueWorkers.map((email) => db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?)").bind(fileId, caseId, email, actorEmail, now)));
-    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_file_uploaded", `Project file shared with ${uniqueWorkers.length} Worker account(s)`, file.name);
+    // "Upload privately" (nobody ticked) is allowed: the file is only for Owner and Admin. (An empty batch used to fail with "No SQL statements".)
+    if (uniqueWorkers.length) await db.batch(uniqueWorkers.map((email) => db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?)").bind(fileId, caseId, email, actorEmail, now)));
+    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_file_uploaded", uniqueWorkers.length ? `Project file shared with ${uniqueWorkers.length} Worker account(s)` : "Project file stored privately", file.name);
     return fileId;
   } catch (error) {
-    await env.BUCKET.delete(objectKey);
+    // Undo both halves: the stored object and the file record (a record without an object showed up in lists and gave "File not found").
+    await env.BUCKET.delete(objectKey).catch(() => undefined);
+    await db.prepare("DELETE FROM workflow_files WHERE object_key=?").bind(objectKey).run().catch(() => undefined);
     throw error;
   }
 }
@@ -299,3 +303,5 @@ export async function getWorkerFile(fileId: number, workerEmail?: string, manage
   return db.prepare("SELECT file.object_key AS objectKey,file.mime_type AS mimeType,file.file_name AS fileName FROM workflow_files file JOIN worker_file_access access ON access.file_id=file.id JOIN worker_project_assignments assignment ON assignment.case_id=access.case_id AND assignment.worker_email=access.worker_email AND assignment.status='active' WHERE file.id=? AND file.category='worker_document' AND access.worker_email=? LIMIT 1")
     .bind(fileId, workerEmail.toLowerCase()).first<{ objectKey: string; mimeType: string; fileName: string }>();
 }
+
+export const ensureWorkerDatabase = memoizePerDatabase(ensureWorkerDatabaseOnce);

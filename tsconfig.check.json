@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false, "plugins": [] },
+  "include": ["app/**/*.ts", "app/**/*.tsx", "db/**/*.ts", "jarvis/**/*.ts", "jarvis/**/*.tsx", "worker/**/*.ts", "build/**/*.ts", "vite.config.ts", "worker-configuration.d.ts"],
+  "exclude": ["node_modules"]
+}

@@ -6,6 +6,9 @@ import AdminDashboard from "./AdminDashboard";
 
 import HubLink from "../team/HubLink";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Admin", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

@@ -343,7 +343,7 @@
   color: #6b6e6f !important;
 }
 
-[class*="ownerShell"] [class*="pie"] > span {
+[class*="ownerShell"] [class*="pie"] > span:not([class*="pieCenter"]) {
   color: #121313 !important;
   background: #fff !important;
 }
@@ -739,3 +739,6 @@
     transform: translateY(-2px);
   }
 }
+
+/* Audit UI-07: the centre label sits over the ring and must not be a white box. */
+[class*="ownerShell"] [class*="pieCenter"]{background:transparent!important;color:#e6e2db!important}

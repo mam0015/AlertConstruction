@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { pbkdf2Sync } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { TestD1, TestR2 } from "./helpers/test-d1.mjs";
 
 function hash(value, saltText) {
   const salt = Buffer.from(saltText.padEnd(16, "0").slice(0, 16));
@@ -19,39 +19,6 @@ process.env.OWNER_SESSION_SECRET = "owner-session-secret-for-automated-verificat
 process.env.ADMIN_TEAM_CODE_HASH = hash(teamCode, "team-code-salt");
 process.env.ADMIN_SESSION_SECRET = "admin-session-secret-for-automated-verification";
 
-class PreparedStatement {
-  constructor(db, sql, params = []) { this.db = db; this.sql = sql; this.params = params; }
-  bind(...params) { return new PreparedStatement(this.db, this.sql, params); }
-  run() {
-    const result = this.db.prepare(this.sql).run(...this.params);
-    return Promise.resolve({ success: true, meta: { changes: Number(result.changes ?? 0), last_row_id: Number(result.lastInsertRowid ?? 0) } });
-  }
-  first(column) {
-    const row = this.db.prepare(this.sql).get(...this.params) ?? null;
-    return Promise.resolve(column && row ? row[column] ?? null : row);
-  }
-  all() { return Promise.resolve({ success: true, results: this.db.prepare(this.sql).all(...this.params) }); }
-  batchResult() {
-    const statement = this.db.prepare(this.sql);
-    if (/^\s*(select|pragma|with)\b/i.test(this.sql)) return { success: true, results: statement.all(...this.params) };
-    const result = statement.run(...this.params);
-    return { success: true, results: [], meta: { changes: Number(result.changes ?? 0), last_row_id: Number(result.lastInsertRowid ?? 0) } };
-  }
-}
-
-class TestD1 {
-  constructor() { this.sqlite = new DatabaseSync(":memory:"); }
-  prepare(sql) { return new PreparedStatement(this.sqlite, sql); }
-  async batch(statements) { return statements.map((statement) => statement.batchResult()); }
-  close() { this.sqlite.close(); }
-}
-
-class TestR2 {
-  constructor() { this.objects = new Map(); }
-  async put(key, value, options) { this.objects.set(key, { value: Buffer.from(value), options }); }
-  async delete(key) { this.objects.delete(key); }
-}
-
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("flow-test", `${process.pid}-${Date.now()}`);
 const { default: worker } = await import(workerUrl.href);
@@ -65,8 +32,12 @@ const env = {
 globalThis.__ATP_TEST_BINDINGS__ = env;
 const ctx = { waitUntil() {}, passThroughOnException() {} };
 
+// Browsers always send Origin on state-changing requests and the app rejects those without a same-origin signal (CSRF guard).
 async function request(path, init = {}) {
-  return worker.fetch(new Request(`http://localhost${path}`, init), env, ctx);
+  const headers = new Headers(init.headers);
+  const method = (init.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD"].includes(method) && !headers.has("origin")) headers.set("origin", "http://localhost");
+  return worker.fetch(new Request(`http://localhost${path}`, { ...init, headers }), env, ctx);
 }
 
 function cookieFrom(response, name) {
@@ -79,6 +50,13 @@ function cookieFrom(response, name) {
 test("protected Owner and Admin APIs reject anonymous access", async () => {
   assert.equal((await request("/api/owner/data")).status, 401);
   assert.equal((await request("/api/admin/data")).status, 401);
+});
+
+test("tampered or malformed session cookies are treated as signed out, not as a server error", async () => {
+  for (const cookie of ["atp_owner_session=forged.value", "atp_owner_session=%%%.***", "atp_team_session=forged.value", "atp_team_session=a.b.c"]) {
+    assert.equal((await request("/api/owner/data", { headers: { cookie } })).status, 401, cookie);
+    assert.equal((await request("/api/admin/data", { headers: { cookie } })).status, 401, cookie);
+  }
 });
 
 test("Owner login, finance persistence and server-side session protection work", async () => {
@@ -156,7 +134,7 @@ test("new staff remains pending until Owner assigns Admin, then receives restric
   assert.equal(approved.status, 200);
   const approvedBody = await approved.json();
   assert.equal(approvedBody.redirect, "/admin");
-  const adminCookie = cookieFrom(approved, "atp_admin_session");
+  const adminCookie = cookieFrom(approved, "atp_team_session");
 
   const adminData = await request("/api/admin/data", { headers: { cookie: adminCookie } });
   assert.equal(adminData.status, 200);

@@ -6,6 +6,9 @@ import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import { ownerCookieName, verifyOwnerSession } from "../owner-auth";
 import ManagerOverview from "./ManagerOverview";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Manager", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function ManagerPage() {

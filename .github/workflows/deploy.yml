@@ -1,0 +1,61 @@
+# Publishes Alert Tradie Pro to Cloudflare Workers (with a D1 database and a private R2 bucket) every time `main` changes.
+# Setup, once: docs/GO-LIVE.md (English) or docs/GO-LIVE-FA.md (Persian). Add the secrets below under
+# GitHub > Settings > Secrets and variables > Actions. Six are required (the REQUIRED list in scripts/deploy-cloudflare.mjs);
+# any other secret you leave out is simply not set.
+# The same file is kept, visible, at docs/deploy-workflow.yml for people whose upload tool drops hidden folders like .github.
+name: Deploy Alert Tradie Pro
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-alert-tradie-pro
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Builds the app and runs every test. If anything fails, nothing is deployed.
+      - name: Build and test
+        run: npm test
+
+      - name: Deploy to Cloudflare
+        run: node scripts/deploy-cloudflare.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OWNER_PASSWORD_HASH: ${{ secrets.OWNER_PASSWORD_HASH }}
+          OWNER_DISPLAY_NAME: ${{ secrets.OWNER_DISPLAY_NAME }}
+          OWNER_SESSION_SECRET: ${{ secrets.OWNER_SESSION_SECRET }}
+          TEAM_SESSION_SECRET: ${{ secrets.TEAM_SESSION_SECRET }}
+          TEAM_CODE: ${{ secrets.TEAM_CODE }}
+          TEAM_CODE_HASH: ${{ secrets.TEAM_CODE_HASH }}
+          CUSTOMER_CONTACT_HASH_SECRET: ${{ secrets.CUSTOMER_CONTACT_HASH_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TEAM_NOTIFICATION_EMAIL_FROM: ${{ secrets.TEAM_NOTIFICATION_EMAIL_FROM }}
+          JARVIS_GMAIL_CLIENT_ID: ${{ secrets.JARVIS_GMAIL_CLIENT_ID }}
+          JARVIS_GMAIL_CLIENT_SECRET: ${{ secrets.JARVIS_GMAIL_CLIENT_SECRET }}
+          JARVIS_GMAIL_ACCOUNTS: ${{ secrets.JARVIS_GMAIL_ACCOUNTS }}
+          JARVIS_ANTHROPIC_API_KEY: ${{ secrets.JARVIS_ANTHROPIC_API_KEY }}
+          JARVIS_AI_MODEL: ${{ secrets.JARVIS_AI_MODEL }}
+          JARVIS_AI: ${{ secrets.JARVIS_AI }}
+          JARVIS_AI_FALLBACKS: ${{ secrets.JARVIS_AI_FALLBACKS }}
+          JARVIS_COMPANY_NAME: ${{ secrets.JARVIS_COMPANY_NAME }}

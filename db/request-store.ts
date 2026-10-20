@@ -1,5 +1,5 @@
-import { ensureOwnerDatabase, getOwnerSnapshot } from "./owner-store";
-import { runtimeBindings } from "./runtime";
+import { ensureOwnerDatabase } from "./owner-store";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 export type PublicRequestInput = {
   service: string;
@@ -33,7 +33,7 @@ async function database() {
   return env.DB;
 }
 
-export async function ensureRequestFilesTable() {
+async function ensureRequestFilesTableOnce() {
   await ensureOwnerDatabase();
   const db = await database();
   await db.prepare(`CREATE TABLE IF NOT EXISTS request_files (
@@ -103,7 +103,8 @@ export async function createPublicRequest(input: PublicRequestInput, files: File
       }
     }
   } catch (error) {
-    if (env.BUCKET) await Promise.all(uploadedKeys.map((key) => env.BUCKET.delete(key).catch(() => undefined)));
+    const bucket = env.BUCKET;
+    if (bucket) await Promise.all(uploadedKeys.map((key) => bucket.delete(key).catch(() => undefined)));
     await db.prepare("DELETE FROM request_files WHERE request_code=?").bind(code).run().catch(() => undefined);
     await db.prepare("DELETE FROM job_requests WHERE code=?").bind(code).run().catch(() => undefined);
     throw error;
@@ -112,20 +113,19 @@ export async function createPublicRequest(input: PublicRequestInput, files: File
   return { code, submittedAt: now };
 }
 
+// The old public tracking page. Its codes are only five digits, so it must say very little: no project lookup (project records
+// hold the Owner's private notes), and none of the customer's name, address or summary. The private customer portal uses the
+// long REQ- reference instead (db/workflow-store.ts).
 export async function getTrackingRecord(codeInput: string): Promise<TrackingRecord | null> {
   await ensureRequestFilesTable();
-  await getOwnerSnapshot();
   const db = await database();
   const code = codeInput.trim().toUpperCase();
-  const project = await db.prepare(`SELECT code,name,service,stage,progress,suburb,notes,updated_at AS updatedAt
-    FROM projects WHERE code=? LIMIT 1`).bind(code).first<Omit<TrackingRecord, "recordType" | "attachmentCount">>();
-  if (project) return { ...project, recordType: "project", attachmentCount: 0 };
-
-  const request = await db.prepare(`SELECT code,customer_name AS name,service,status AS stage,suburb,summary AS notes,
-    updated_at AS updatedAt,(SELECT COUNT(*) FROM request_files WHERE request_code=job_requests.code) AS attachmentCount
-    FROM job_requests WHERE code=? LIMIT 1`).bind(code).first<Omit<TrackingRecord, "recordType" | "progress">>();
+  if (!/^ATP-\d{4}-[A-Z0-9-]{3,40}$/.test(code)) return null;
+  const request = await db.prepare(`SELECT code,service,status AS stage,updated_at AS updatedAt,
+    (SELECT COUNT(*) FROM request_files WHERE request_code=job_requests.code) AS attachmentCount
+    FROM job_requests WHERE code=? LIMIT 1`).bind(code).first<{ code: string; service: string; stage: string; updatedAt: string; attachmentCount: number }>();
   if (!request) return null;
-  return { ...request, recordType: "request", progress: request.stage === "New" ? 5 : request.stage === "Contacted" ? 12 : 18 };
+  return { ...request, recordType: "request", name: "Your request", suburb: "", notes: "", progress: request.stage === "New" ? 5 : request.stage === "Contacted" ? 12 : 18 };
 }
 
 export async function createCustomerMessage(codeInput: string, subject: string, message: string) {
@@ -135,3 +135,5 @@ export async function createCustomerMessage(codeInput: string, subject: string, 
   await db.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)")
     .bind(`Customer · ${record.code}`, "Admin", `${subject.trim()}\n${message.trim()}`, new Date().toISOString()).run();
 }
+
+export const ensureRequestFilesTable = memoizePerDatabase(ensureRequestFilesTableOnce);

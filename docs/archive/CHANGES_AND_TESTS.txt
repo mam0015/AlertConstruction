@@ -1,0 +1,410 @@
+OBSOLETE — archived October 2026. An old changelog (it stops at an earlier release). Kept for history only.
+
+PRODUCT FOUNDATION & CLIENT ROADMAP — 14 JULY 2026
+==================================================
+
+INVOICE GENERATOR — V38 — 22 JULY 2026
+========================================
+
+- Added a team-isolated Invoice Generator with automatic backend invoice numbers,
+  live base-cost/profit/GST calculations, discounts, payment tracking and balances.
+- Added exact role enforcement: Owner full access, Estimator create/edit/PDF,
+  Manager customer-safe read only, Site Supervisor and Worker no access.
+- Manager invoice responses omit profit, base cost, private notes and creator IDs;
+  direct table access is revoked and all reads use role-shaped Supabase RPCs.
+- Added private Supabase buckets for saved invoice PDFs and Owner-managed logos.
+- Added A4 TAX INVOICE PDF generation based on the supplied Alert Construction
+  reference, with repeated table headers, protected rows, page footers and no
+  unnecessary balance-only final page.
+- Added project linking, filters, duplicate, preview, print, saved PDF download,
+  owner-only company settings and invoice audit events.
+- Added responsive Dark/Light UI, dashboard/Projects links and PWA V38 caching.
+
+Validation completed:
+- JavaScript syntax and invoice calculation tests: pass.
+- Owner, Estimator and Manager role UI tests: pass.
+- PostgreSQL and PL/pgSQL parser validation: pass.
+- A4 one-page and multi-page PDF render/text inspection: pass.
+- Customer PDF internal-cost/profit/private-note leak scan: pass.
+
+ICON ACTION PRICING + BUILDER/CUSTOMER MODES — 17 JULY 2026
+===========================================================
+
+- The Plan Estimator now reads each Existing and Proposed legend separately
+  and can identify a clear standard Australian trade icon when no legend is
+  supplied, with reduced confidence and explicit evidence.
+- Every recognised symbol now has separate catalogue mappings for Added,
+  Removed and Moved actions. The app no longer assumes one rate fits all three.
+- Added work uses verified new-work rates. Electrical removals can use the
+  matching existing-work Replacement / fit-off allowance for power points and
+  1/2/3/4-gang switches; clearly moved downlights can use Install only.
+- Plumbing drain removal/relocation can use Sanitary Drain Alteration where the
+  plan genuinely shows remove/reinstall. Unsupported action rates stay clearly
+  Unpriced instead of receiving an invented amount.
+- The result now prices all matched actions, labels every line Added, Removed or
+  Moved, and retains editable quantities and source evidence.
+- Added a visible Builder Quote / Customer Direct selector to Plan Estimator.
+  Builder Quote = catalogue subtotal + 20% building margin, then 10% GST.
+  Customer Direct = catalogue subtotal + 10% GST only, with no 20% margin.
+- Aligned Electrical, Plumbing and Cladding calculators with the same pricing
+  mode definitions so transferred AI quantities keep the selected mode.
+- Updated Project records with price mode, subtotal, margin, GST and final total.
+- Added browser tests for action-based removal pricing and both final-total modes.
+- Bumped the offline cache to ac-action-pricing-v24.
+
+Deployment required:
+- Upload the complete website package.
+- Replace and redeploy supabase/functions/analyse-plan/index.ts.
+- No new SQL migration is required.
+
+EXISTING VS PROPOSED AI PLAN COMPARISON — 17 JULY 2026
+======================================================
+
+- Replaced the single-plan upload with separate Existing/Before and
+  Proposed/Future plan uploads.
+- Restricted plan comparison files to PDF or supported images so drawing
+  symbols remain visible; PDF is recommended for multi-page drawings.
+- The secure Edge Function now receives both labelled files, reads each file's
+  own legend, counts symbols by page/room, and compares matching locations.
+- Added a visible change schedule for Existing, Proposed, Added, Removed, Moved
+  and Unchanged quantities with confidence and evidence.
+- Added deterministic server-side arithmetic so every comparison satisfies:
+  Existing = Unchanged + Removed + Moved and
+  Proposed = Unchanged + Added + Moved.
+- Only supported additions are automatically priced. Removed, relocated and
+  unmatched work is reported but stays unpriced until verified rates exist.
+- Saving to Projects now keeps both uploaded plans, the full change schedule,
+  priced additions and the human-correction audit details.
+- Added integration tests for the dual-file request, removal result, pricing of
+  additions only, and saving both attachments.
+- Bumped the offline cache so an installed app replaces the single-plan tool.
+
+Deployment required:
+- Upload the complete website package.
+- Replace and redeploy supabase/functions/analyse-plan/index.ts.
+- No new SQL migration is required for this change.
+
+EMAIL VERIFICATION CALLBACK FIX — 17 JULY 2026
+================================================
+
+- Added the deployed app login URL to signup, resend-verification and password
+  reset requests instead of relying on Supabase's default Site URL.
+- The callback is calculated from the loaded app path, so the current GitHub
+  Pages /test/ deployment and a future repository or domain keep working.
+- Verified that every authentication email request points back to the matching
+  /login/ page where the returned access token is securely consumed.
+- Bumped the offline cache so browsers replace the older signup code.
+- Corrected the Luxury Builder preview so its Tools section shows all 11 tools
+  from the live dashboard instead of an abbreviated six-tool sample.
+
+LUXURY BUILDER VISUAL DIRECTION — 16 JULY 2026
+================================================
+
+- Replaced the busy photo-on-every-card treatment with a calmer, premium
+  residential-builder direction.
+- Added a new editorial hero featuring pale limestone, warm timber, black steel
+  and natural Australian daylight.
+- Limited photography to four featured workflows: renovation planning, plan
+  review, project control and property evidence.
+- Rebuilt the full tool grid as clean stone-and-paper cards with refined line
+  icons, restrained brass details and stronger typography.
+- Changed light mode from blueprint/construction graphics to warm architectural
+  surfaces with subtle shadows and fewer decorative elements.
+- Added a dedicated Luxury Builder HTML preview and mobile horizontal story rail.
+- Optimised and cached five new WebP architectural images for reliable loading.
+
+REALISTIC CONSTRUCTION VISUAL EXPERIENCE — 16 JULY 2026
+=========================================================
+
+- Reworked the dashboard from a plain template into an image-led construction
+  workspace while preserving the existing Alert Construction content and theme.
+- Added an original realistic renovation-site hero with a deliberate left-side
+  text area, active trade work and warm daylight depth.
+- Added purpose-made visual scenes for electrical, plumbing, cladding, plans,
+  renovation, permits, property and site-supervision sections.
+- Combined each realistic scene with the existing section icon, trust label and
+  tool description so the dashboard remains clear and practical.
+- Added layered image gradients, floating icon plaques, safety-yellow details,
+  blueprint texture and concrete surfaces for a more energetic visual identity.
+- Optimised the generated visual assets as WebP files and added them to the PWA
+  cache so they remain available during normal offline use.
+- Updated the standalone HTML light-mode preview to show the same visual system.
+
+CONSTRUCTION DAYLIGHT MODE — 16 JULY 2026
+===========================================
+
+- Rebuilt light mode as a field-ready construction interface rather than a
+  generic white recolour.
+- Added warm concrete/off-white surfaces, charcoal structure, safety-yellow
+  accents, blueprint grid lines, stronger borders and practical card shadows.
+- Improved daylight contrast for navigation, forms, calculators, project
+  records, checklists, result panels, buttons, warnings and account controls.
+- Added a dedicated dark-on-light AC header logo so the yellow brand colour
+  stays correct instead of being distorted by an invert filter.
+- Kept the existing dark theme unchanged and renamed the toggle to Daylight.
+
+DASHBOARD LOGO REFRESH — 16 JULY 2026
+=======================================
+
+- Replaced the lightning symbol in the dashboard header with the supplied AC
+  monogram while keeping the ALERT CONSTRUCTION wording and existing colours.
+- Prepared the supplied mark with a transparent background so it remains clean
+  in the current black header and daylight mode.
+- Added the new logo asset to the offline cache and retained the existing
+  dashboard dimensions, navigation, tools and content.
+- Changed the dashboard to a new self-contained logo filename with a cache
+  version, preventing an older service-worker/CDN copy from hiding the update.
+
+PROPERTY VALUE GUIDE — LOCAL-EVIDENCE CORRECTION — 16 JULY 2026
+================================================================
+
+- Removed the defective Melbourne/regional fallback that ignored the suburb
+  entered by the user and could materially overstate a property's value.
+- Added official Valuer-General Victoria 2025 annual and October–December 2025
+  house/unit sales medians for 809 Victorian localities.
+- The calculator now finds an exact suburb and property-type series, weights
+  the annual and latest-quarter evidence by the published sales count, and
+  shows the local figures used in the result.
+- If no matching local series, verified independent median or comparable sale
+  exists, the calculator stops instead of inventing a price.
+- Matching comparable sales are blended with the local median; extreme sales
+  outside 25% of the comparable centre are excluded when two valid sales remain.
+- Reduced and capped feature, condition, timing and comparable adjustments so
+  optional answers cannot compound into an unrealistic uplift.
+- Townhouses are clearly identified as a local house/unit model because the
+  official tables do not publish a separate townhouse series.
+- Older saved estimates are recalculated with the corrected engine before they
+  are shown, and the offline cache now includes the local sales dataset.
+- Kept the existing black, white and yellow theme, Project save/reopen, notes,
+  attachments, follow-up tasks and print support.
+
+Validation completed:
+- 809-locality data integrity and known Rowville source value: pass.
+- Rowville versus Melton locality-sensitive estimates: pass.
+- Unknown-suburb no-evidence stop, outlier removal and capped adjustments: pass.
+- Property calculation, Project save and reopen smoke tests: pass.
+
+VICTORIA PERMIT CHECKLIST — 15 JULY 2026
+==========================================
+
+- Added a rule-based Permit Checklist for Victorian building and renovation
+  projects without using AI.
+- Project-type and optional scope questions flag possible planning, building,
+  report-and-consent, protection work, owner-builder, trade, pool, demolition,
+  asbestos, council-asset, easement and overlay requirements.
+- Results deliberately use only “Likely required” or “Confirm with authority”;
+  the tool never makes a final “no permit required” decision.
+- Added a project-specific document checklist with completion ticks and notes.
+- Added prominent warnings that the tool can be incomplete or wrong and that
+  council, a registered building surveyor and relevant authorities must confirm
+  the result in writing before work starts.
+- Strengthened every Permit Checklist warning to call the result a best-effort
+  guess that is not always true, cannot prove a permit is or is not required,
+  and must be checked with the correct qualified person or authority.
+- Rechecked the rules against current official Victorian sources on 15 July
+  2026 and display that review date with each generated result.
+- Reworded the final result notice in a calmer, more professional tone while
+  preserving the requirement to obtain written confirmation before proceeding.
+- Added official Victorian source links, Save Draft, Print, Save to Project,
+  reopen/edit support and automatic Schedule follow-up tasks.
+- Connected the tool to dashboard search, Projects, sign-in protection,
+  privacy-safe usage analytics and the offline PWA cache.
+
+Validation completed:
+- Static foundation, secrets and required-warning checks: pass.
+- Rule outcomes for extension, structural work and owner-builder threshold: pass.
+- Generate, document list, Project save, Schedule follow-up and reopen: pass.
+- Existing AI, quote, renovation, property, security and account tests: pass.
+
+OPTIONAL TEAM CODE SIGNUP — 15 JULY 2026
+=========================================
+
+- Made Team Code explicitly optional during account creation.
+- A blank code now creates a separate private workspace and Owner account.
+- A valid invitation code joins the existing workspace as Site Supervisor.
+- Hid the confusing Join Existing Team control from Owners.
+- Added clear copy explaining that no code is required for personal use.
+- Added a safe migration that updates future signup behaviour and gives
+  accounts created before the profiles table existed a private Owner workspace.
+- Bumped the offline cache so the corrected account page replaces old copies.
+- Added Continue Individually for missing or inactive workspace profiles.
+- Individual recovery creates a private Owner workspace, immediately restores
+  tool access and generates a Team Code that can be copied and shared.
+- Reworded the protected-tool gate so it no longer claims a Team Code or Owner
+  restoration is the only way to continue.
+
+Validation completed:
+- Blank-code and supplied-code signup payloads: pass.
+- Owner invitation display and hidden Join Team control: pass.
+- Database migration markers, syntax and full product tests: pass.
+
+
+VICTORIA PROPERTY VALUE GUIDE — 14 JULY 2026
+=============================================
+
+- Added a guided residential Property Value Guide for Victoria.
+- Kept only suburb, region and property type as essential questions; all other
+  answers are optional and improve the evidence-confidence score.
+- Uses recent comparable sales first, a matching suburb median second and the
+  December 2025 Valuer-General Victoria broad market figures only as fallback.
+- Adjusts comparable sales transparently for sale timing, land/floor area,
+  bedrooms, bathrooms, car spaces and condition when those facts are supplied.
+- Shows a midpoint, defensible range, evidence source, confidence score, every
+  applied adjustment and the missing information that would improve the guide.
+- Added plan/photo/PDF attachments for human review without using AI.
+- Added notes, follow-up date, Save Draft, Print / Save PDF, Save to Project,
+  reopen/edit support and automatic project follow-up tasks.
+- Added multi-file Project attachments while retaining old single-file records.
+- Added the tool to dashboard search, Projects quick links and offline PWA cache.
+- Clearly distinguishes a preliminary guide from a formal valuation, agent
+  estimated selling price and Victorian Statement of Information.
+
+Validation completed:
+- JavaScript syntax and product validation: pass.
+- Three-comparable calculation, confidence, project save and reopen tests: pass.
+
+
+SECURITY & AUDIT HARDENING — CLIENT REVIEW PASS
+===============================================
+
+- Added a real authenticated catalogue_access_probe server check.
+- Catalogue rows now remain hidden if the server/RLS check cannot be verified.
+- Added active membership enforcement to organisation and role RLS helpers.
+- Added Owner controls to rotate the team code and revoke/restore a member.
+- Added account, role, sign-out and last-synced information to the dashboard.
+- Made Owner, Office/Estimator and Site Supervisor permissions visible.
+- Added recent activity showing catalogue versions, project/AI saves and team
+  access changes with actor identity and timestamps.
+- Added server audit writes when a project or corrected AI result is saved.
+- Added per-correction correctedBy and correctedAt metadata.
+- Added dashboard tool search, category filtering and trust labels.
+- Made daylight mode visible in the dashboard header without changing the
+  existing black, white and yellow default theme.
+- Added password-reset, verification resend and email verification status.
+- Added explicit confirmation/Undo copy to calculator clears and checklist
+  reset; checklist reset now has a seven-second Undo action.
+- Standardised the Electrical page title and Checklist AC mark.
+
+Deployment required for this review pass:
+- Run supabase/migrations/20260714_security_audit_hardening.sql after the
+  original product foundation migration.
+
+- Added secure Supabase email/password accounts.
+- Added Owner, Office/Estimator and Site Supervisor roles.
+- Added private team joining codes and Owner role management.
+- Locked internal tools and AI features behind sign-in.
+- Added a Row Level Security database migration.
+- Added local-first project sync across authorised devices.
+- Added automatic cloud workspace version history.
+- Added a live company price catalogue with role-limited editing.
+- Added price change history and private cloud rate overrides.
+- Connected calculators and AI tools to the live catalogue runtime.
+- Added AI line confidence, original output and human-change audit data.
+- Added audit summaries to saved Project records.
+- Added optional daylight/high-contrast mode without replacing the theme.
+- Added item search, confirm-before-clear and seven-second Undo.
+- Added first-run onboarding and a safe sample project.
+- Added meta description and Open Graph link metadata.
+- Expanded the PWA cache and added an offline fallback page.
+- Retained deterministic, non-AI renovation budgeting and its missing-rate list.
+
+Deployment required:
+- Run supabase/migrations/20260714_product_foundation.sql.
+- Deploy the included analyse-plan Edge Function.
+- Create the first Owner account and assign team roles.
+
+Known boundary:
+- Project metadata syncs centrally; large IndexedDB attachments remain on the
+  originating browser and are included in manual Export Backup.
+- Original static fallback rates remain for backwards-compatible offline use;
+  future catalogue overrides are private and versioned.
+
+
+RENOVATION BUDGET PLANNER — 14 JULY 2026
+=========================================
+
+- Added a guided Renovation Budget Planner that does not use AI.
+- Added Full House, Bathroom, Kitchen, Bathroom + Kitchen, Laundry,
+  Living & Bedrooms, Exterior & Outdoor, and Custom / Multiple Areas.
+- Questions change automatically for the selected renovation areas.
+- Reused verified Electrical, Plumbing and Thermory Cladding prices from the
+  existing calculators.
+- Clearly labels other costs as planning allowances until AC invoices or
+  verified trade price lists are supplied.
+- Retains the existing 20% customer margin, then 10% GST calculation.
+- Adds finish levels, priorities, contingency and budget recommendations.
+- Adds Do Now, Do Later and Optional Upgrade lists.
+- Adds draft saving, Print / Save PDF, Save to Project and reopen/edit support.
+- Saving an edited estimate to the same project updates its existing record.
+- Kept the existing black, white and yellow Alert Construction theme.
+
+Validation completed:
+- JavaScript syntax, rate reuse, pricing formula and local link checks: pass.
+- Category, calculation, project save, update and reopen smoke tests: pass.
+
+
+COMPLETE AI FIX — CHANGES AND VALIDATION
+========================================
+
+Major fixes
+-----------
+- Full website package now starts at the ZIP root (no enclosing app folder).
+- Added missing logo/app-icon assets and .nojekyll.
+- Replaced local OCR Fast Scan with actual AI-backed Fast Vision.
+- Smart Review uses deeper reasoning and symbol/legend instructions.
+- Added PDF, Word, PNG, JPG, WEBP, TXT and CSV handling.
+- Strengthened electrical/plumbing/cladding symbol and scope rules.
+- Added explicit no-guess rules for moves, replacements and duplicate legends.
+- Plan totals use catalogue subtotal +20% profit, then +10% GST.
+- Fixed Quote Analysis authentication header for new Supabase publishable keys.
+- Quote Analysis uses fixed AC catalogues and the line-by-line $100 rule.
+- Updated Supabase function to support both plan and quote modes.
+- Removed the extra web-search stage from Quote Analysis to reduce failures.
+- Added a visible device-only storage warning and kept Backup/Restore.
+- Carpentry estimator scaffold remains hidden and disabled.
+- Updated service-worker cache version and made missing optional assets harmless.
+
+Validation completed
+--------------------
+- JavaScript syntax checks: pass.
+- Supabase TypeScript bundle check: pass.
+- 23 Electrical, 25 Plumbing and 11 Cladding rates checked across calculators,
+  Plan Estimator, Quote Analysis and Edge Function: pass.
+- Rate ordering consistency: pass.
+- 20% profit then 10% GST formula: pass.
+- Root route/static asset HTTP checks: pass.
+- Fast Vision request/auth mock integration: pass.
+- Quote Analysis extraction and $100 rule mock integration: pass.
+- Projects local-save UI integration: pass.
+- Secret-pattern scan: pass.
+- ZIP integrity and clean extraction: run before delivery.
+
+Not possible without the owner's live credentials
+-------------------------------------------------
+- A real OpenAI response through the owner's deployed Supabase function.
+- Confirmation of the owner's OpenAI model access/billing/quota.
+- Final accuracy against every possible third-party drawing convention.
+
+Always verify AI quantities against the legend and have the relevant licensed
+trade/Builder confirm scope before issuing a real quote.
+AI SECURITY, LEGAL AND ANALYTICS — 15 JULY 2026
+===============================================
+
+- Replaced the ineffective AI auth-mode wrapper with direct Supabase Auth user
+  verification for every Edge Function request.
+- Requests without an Origin, valid bearer token or verified Supabase user now
+  fail before file validation and before any OpenAI call.
+- Added an APP-aligned Privacy Policy and Australian Terms of Use.
+- Added prominent estimate-only/not-a-valuation/not-a-quote disclaimers to the
+  Property Value Guide, AI Plan Estimator and Quote Price Analysis.
+- Added Privacy and Terms links to every app page and a collection notice to
+  Create Account.
+- Added first-party Supabase usage analytics with no plan, quote, address,
+  notes, search text, uploaded file or estimate-value collection.
+- Added Owner-only 30-day Usage Insights and 180-day detailed event retention.
+- Added legal and analytics files to the offline cache.
+
+Deployment required:
+- Run supabase/migrations/20260715_privacy_analytics.sql.
+- Redeploy supabase/functions/analyse-plan/index.ts.
+- Set supportEmail in shared/platform-config.js before production.

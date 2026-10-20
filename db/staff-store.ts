@@ -1,4 +1,5 @@
 import type { StaffRole } from "../app/admin-auth";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 export type StaffAccessStatus = "Pending" | "Approved" | "Rejected";
 
@@ -15,12 +16,12 @@ export type StaffAccessRequest = {
 };
 
 async function database() {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The staff access database is unavailable.");
   return env.DB;
 }
 
-export async function ensureStaffAccessTable() {
+async function ensureStaffAccessTableOnce() {
   const db = await database();
   await db.prepare(`CREATE TABLE IF NOT EXISTS staff_access_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,3 +83,5 @@ export async function reviewStaffAccessRequest(id: number, status: StaffAccessSt
   await db.prepare("UPDATE staff_access_requests SET status=?,role=?,trade_title=?,reviewed_at=? WHERE id=?")
     .bind(status, role, tradeTitle.trim(), reviewedAt, id).run();
 }
+
+export const ensureStaffAccessTable = memoizePerDatabase(ensureStaffAccessTableOnce);

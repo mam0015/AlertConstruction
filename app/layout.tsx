@@ -14,8 +14,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Alert Tradie Pro",
-  description: "Request construction and engineering services and track your project online.",
+  title: { default: "Alert Tradie Pro | Renovations, Extensions & Engineering in Victoria", template: "%s | Alert Tradie Pro" },
+  description: "Request kitchen and bathroom renovations, extensions, new homes, building inspections and engineering services in Victoria, and follow your project online.",
+  openGraph: {
+    type: "website",
+    locale: "en_AU",
+    siteName: "Alert Tradie Pro",
+    title: "Alert Tradie Pro | Renovations, Extensions & Engineering in Victoria",
+    description: "Request building and engineering services in Victoria and follow your project online.",
+    images: [{ url: "/images/hero-construction.webp" }],
+  },
+  twitter: { card: "summary_large_image" },
+  // Marker the hosting preview and tests/rendered-html.test.mjs look for; harmless to visitors.
   other: {
     "codex-preview": "development",
   },
@@ -27,7 +37,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en-AU">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
     </html>
   );

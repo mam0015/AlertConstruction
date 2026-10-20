@@ -1,21 +1,26 @@
 import { estimatorStages, type WorkflowRole, type WorkflowSnapshot, type WorkflowStage } from "../app/workflow/types";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The project workflow database is unavailable.");
   return env.DB;
 }
 
+// No free-text field needs more than this; without a limit one account could fill the database with megabytes per note.
+const MAX_TEXT = 10_000;
+
 function clean(value: unknown, fallback = "") {
-  return typeof value === "string" ? value.trim() : fallback;
+  return typeof value === "string" ? value.trim().slice(0, MAX_TEXT) : fallback;
 }
 
 function required(value: unknown, label: string) {
-  const result = clean(value);
-  if (!result) throw new Error(`${label} is required.`);
-  return result;
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) throw new Error(`${label} is required.`);
+  if (raw.length > MAX_TEXT) throw new Error(`${label} is too long.`);
+  return raw;
 }
 
 function bounded(value: unknown, label: string, max: number) {
@@ -45,6 +50,25 @@ function requiredContactHashSecret() {
   return value;
 }
 
+// Customers see published photos through links that carry a signature, so a photo id cannot simply be counted up by a stranger.
+async function fileLinkSignature(id: number) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(`${requiredContactHashSecret()}|file-link`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`file:${id}`)));
+  return Array.from(bytes.slice(0, 12), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function customerFileLink(id: number) {
+  return `/api/workflow/files?id=${id}&k=${await fileLinkSignature(id)}`;
+}
+
+export async function validCustomerFileLink(id: number, signature: string) {
+  const expected = await fileLinkSignature(id);
+  if (signature.length !== expected.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) difference |= expected.charCodeAt(index) ^ signature.charCodeAt(index);
+  return difference === 0;
+}
+
 async function customerContactHash(kind: CustomerContactKind, value: string) {
   const normalised = normaliseCustomerContact(kind, value);
   const key = await crypto.subtle.importKey(
@@ -58,7 +82,7 @@ async function customerContactHash(kind: CustomerContactKind, value: string) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function ensureWorkflowDatabase() {
+async function ensureWorkflowDatabaseOnce() {
   const db = await database();
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, service TEXT NOT NULL, stage TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, contract_value INTEGER NOT NULL DEFAULT 0, balance INTEGER NOT NULL DEFAULT 0, customer_name TEXT NOT NULL DEFAULT '', suburb TEXT NOT NULL DEFAULT '', start_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`),
@@ -177,7 +201,8 @@ export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string
     db.prepare("SELECT id,case_id AS caseId,amount_cents AS amountCents,scope,terms,status,created_by AS createdBy,created_at AS createdAt,sent_at AS sentAt,customer_decided_at AS customerDecidedAt,confirmed_at AS confirmedAt FROM workflow_estimates"),
     db.prepare("SELECT id,case_id AS caseId,work_date AS workDate,supervisor_email AS supervisorEmail,internal_update AS internalUpdate,customer_update AS customerUpdate,status,admin_note AS adminNote,owner_note AS ownerNote,created_at AS createdAt,admin_reviewed_at AS adminReviewedAt,owner_reviewed_at AS ownerReviewedAt,published_at AS publishedAt FROM project_updates ORDER BY created_at DESC"),
     db.prepare("SELECT id,case_id AS caseId,supervisor_email AS supervisorEmail,inspected_at AS inspectedAt,summary,defects,status,admin_note AS adminNote,owner_note AS ownerNote,submitted_at AS submittedAt,reviewed_at AS reviewedAt,completed_at AS completedAt FROM quality_inspections"),
-    db.prepare("SELECT id,case_id AS caseId,actor_role AS actorRole,actor_email AS actorEmail,event_type AS eventType,title,detail,audience,created_at AS createdAt FROM workflow_events ORDER BY created_at DESC,id DESC LIMIT 250"),
+    // The newest 60 events of EACH project (one company-wide limit of 250 used to empty the timeline of older jobs).
+    db.prepare("SELECT id,caseId,actorRole,actorEmail,eventType,title,detail,audience,createdAt FROM (SELECT id,case_id AS caseId,actor_role AS actorRole,actor_email AS actorEmail,event_type AS eventType,title,detail,audience,created_at AS createdAt,ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY created_at DESC,id DESC) AS position FROM workflow_events) WHERE position<=60 ORDER BY createdAt DESC,id DESC"),
     db.prepare("SELECT email,COALESCE(NULLIF(trade_title,''),role) AS name FROM staff_access_requests WHERE status='Approved' AND role='Site Supervisor' ORDER BY email"),
     db.prepare("SELECT id,case_id AS caseId,title,detail,status,created_by AS createdBy,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals ORDER BY created_at DESC"),
     db.prepare("SELECT id,case_id AS caseId,sender,sender_label AS senderLabel,body,kind,created_at AS createdAt FROM customer_messages ORDER BY created_at,id"),
@@ -239,15 +264,46 @@ function requireStage(current: unknown, allowed: WorkflowStage[]) {
   if (!allowed.includes(String(current) as WorkflowStage)) throw new Error("This action is not available at the current project stage.");
 }
 
-function projectCodeFrom(requestCode: string) {
-  const digits = requestCode.match(/(\d{3,})$/)?.[1] ?? String(Date.now()).slice(-5);
-  return `ATP-${new Date().getFullYear()}-${digits.padStart(5, "0")}`;
+// The company works on Melbourne time, so the year in a code is the Melbourne year (not UTC).
+function businessYear() {
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", year: "numeric" }).format(new Date());
+}
+
+// Project codes are ATP-YYYY-NNNNN, counting up from the highest number already used (in projects or in workflow cases), so two
+// customers can never be given the same code. The caller retries if two approvals pick the same number at the same instant.
+async function nextProjectCode(db: D1) {
+  const prefix = `ATP-${businessYear()}-`;
+  const used = await db.prepare("SELECT code AS value FROM projects WHERE code LIKE ? UNION SELECT project_code AS value FROM workflow_cases WHERE project_code LIKE ?").bind(`${prefix}%`, `${prefix}%`).all<{ value: string }>();
+  let highest = 0;
+  for (const row of used.results) {
+    const match = /^ATP-\d{4}-(\d+)$/.exec(String(row.value));
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return `${prefix}${String(highest + 1).padStart(5, "0")}`;
 }
 
 function privateRequestCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `REQ-${new Date().getFullYear()}-${token}`;
+  return `REQ-${businessYear()}-${token}`;
+}
+
+// The photo numbers a screen sends are only a request: keep the ones that really are this job's photos of the right kind (and, for
+// daily updates, not already used by another update), and insist on at least one. `unclaimedOnly` is for photos that belong to
+// exactly one update.
+async function realPhotos(db: D1, caseId: number, input: unknown, category: string, message: string, unclaimedOnly = false) {
+  const wanted = [...new Set((Array.isArray(input) ? input : []).map(Number).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 60);
+  if (!wanted.length) throw new Error(message);
+  const marks = wanted.map(() => "?").join(",");
+  const found = await db.prepare(`SELECT id FROM workflow_files WHERE case_id=? AND category=? ${unclaimedOnly ? "AND update_id=0" : ""} AND id IN (${marks})`).bind(caseId, category, ...wanted).all<{ id: number }>();
+  const ids = found.results.map((row) => Number(row.id));
+  if (!ids.length) throw new Error(message);
+  return ids;
+}
+
+async function requireApprovedSupervisor(db: D1, email: string) {
+  const row = await db.prepare("SELECT email FROM staff_access_requests WHERE LOWER(email)=? AND status='Approved' AND role='Site Supervisor' LIMIT 1").bind(email.toLowerCase()).first();
+  if (!row) throw new Error("Choose an approved Site Supervisor account.");
 }
 
 export async function performWorkflowAction(role: WorkflowRole, actorEmail: string, action: string, caseId: number, payload: Record<string, unknown>) {
@@ -268,26 +324,45 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, "Admin contacted the customer", note);
   } else if (action === "approve_intake") {
     allow(role, "admin"); requireStage(stage, ["admin_review", "customer_contacted"]);
-    const projectCode = projectCodeFrom(String(item.requestCode));
-    const folder = `projects/${projectCode}`;
-    await db.batch([
-      db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=?").bind(projectCode, folder, now, caseId),
-      db.prepare("INSERT OR IGNORE INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,?,?,?,'Created from approved customer request.',?)").bind(projectCode, `${item.service} · ${item.suburb}`, item.service, "Site inspection", item.customerName, item.suburb, "", now),
-    ]);
+    let projectCode = "";
+    let folder = "";
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      projectCode = await nextProjectCode(db);
+      folder = `projects/${projectCode}`;
+      try {
+        await db.batch([
+          db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=?").bind(projectCode, folder, now, caseId),
+          db.prepare("INSERT INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,?,?,?,'Created from approved customer request.',?)").bind(projectCode, `${item.service} · ${item.suburb}`, item.service, "Site inspection", item.customerName, item.suburb, "", now),
+        ]);
+        break;
+      } catch (error) {
+        // Another approval took this number a moment ago: look again for the next free one.
+        if (attempt === 5 || !/unique|constraint/i.test(error instanceof Error ? error.message : String(error))) throw error;
+      }
+    }
     await event(db, caseId, "Admin", actorEmail, action, "Admin approved intake and created the project folder", folder);
   } else if (action === "assign_visit") {
     allow(role, "admin"); requireStage(stage, ["site_visit_ready", "site_visit_scheduled", "visit_changes_requested"]);
     const supervisorEmail = required(payload.supervisorEmail, "Site Supervisor").toLowerCase();
+    await requireApprovedSupervisor(db, supervisorEmail);
     const supervisorName = required(payload.supervisorName, "Site Supervisor name");
     const visitAt = required(payload.visitAt, "Site visit date and time");
     await db.prepare("UPDATE workflow_cases SET stage='site_visit_scheduled',assigned_supervisor_email=?,assigned_supervisor_name=?,site_visit_at=?,updated_at=? WHERE id=?")
       .bind(supervisorEmail, supervisorName, visitAt, now, caseId).run();
     await event(db, caseId, "Admin", actorEmail, action, `Site visit assigned to ${supervisorName}`, visitAt);
+  } else if (action === "reassign_supervisor") {
+    // When a Site Supervisor leaves or is unavailable, Admin or the Owner can hand the job to another approved Site Supervisor.
+    if (role !== "admin" && role !== "owner") throw new Error("Admin or Owner access is required for this action.");
+    requireStage(stage, ["site_visit_scheduled", "visit_changes_requested", "active_project", "quality_inspection"]);
+    const supervisorEmail = required(payload.supervisorEmail, "Site Supervisor").toLowerCase();
+    await requireApprovedSupervisor(db, supervisorEmail);
+    const supervisorName = required(payload.supervisorName, "Site Supervisor name");
+    await db.prepare("UPDATE workflow_cases SET assigned_supervisor_email=?,assigned_supervisor_name=?,updated_at=? WHERE id=?").bind(supervisorEmail, supervisorName, now, caseId).run();
+    await event(db, caseId, role === "owner" ? "Owner" : "Admin", actorEmail, action, `Site Supervisor changed to ${supervisorName}`, `Previously ${String(item.assignedSupervisorName || item.assignedSupervisorEmail)}.`);
   } else if (action === "submit_site_visit") {
     allow(role, "supervisor"); requireStage(stage, ["site_visit_scheduled", "visit_changes_requested"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one site photo is required before the visit report can be submitted.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "site_visit", "At least one site photo is required before the visit report can be submitted.");
     const values = [caseId, actorEmail, required(payload.visitDate, "Visit date"), required(payload.summary, "Visit summary"), required(payload.findings, "Findings"), required(payload.recommendations, "Recommendations"), clean(payload.internalNotes), "submitted", "", now, ""];
     const previous = await db.prepare("SELECT id FROM site_visit_reports WHERE case_id=? ORDER BY id DESC LIMIT 1").bind(caseId).first<{ id?: number }>();
     if (previous?.id) {
@@ -312,9 +387,9 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, decision === "approved" ? "Admin approved the site visit report" : "Admin returned the site visit report", note);
   } else if (action === "save_estimate") {
     if (role !== "estimator" && role !== "admin" && role !== "owner") throw new Error("Estimator access is required for this action.");
-    requireStage(stage, ["site_visit_approved", "estimate_ready"]);
+    requireStage(stage, ["site_visit_approved", "estimate_ready", "estimate_declined"]);
     const amountCents = Math.round(number(payload.amount) * 100);
-    if (amountCents <= 0) throw new Error("Enter a valid estimate amount.");
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 10_000_000_000) throw new Error("Enter a valid estimate amount (more than $0 and under $100,000,000).");
     const scope = required(payload.scope, "Estimate scope");
     const terms = clean(payload.terms);
     await db.batch([
@@ -342,19 +417,17 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
   } else if (action === "submit_progress_update") {
     allow(role, "supervisor"); requireStage(stage, ["active_project"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one progress photo is required for the daily update.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "progress", "At least one progress photo is required for the daily update.", true);
     const created = await db.prepare("INSERT INTO project_updates (case_id,work_date,supervisor_email,internal_update,customer_update,status,created_at) VALUES (?,?,?,?,?,'pending_admin',?)")
       .bind(caseId, required(payload.workDate, "Work date"), actorEmail, required(payload.internalUpdate, "Internal team update"), required(payload.customerUpdate, "Customer update"), now).run();
     const updateId = Number(created.meta.last_row_id);
     const placeholders = fileIds.map(() => "?").join(",");
-    await db.prepare(`UPDATE workflow_files SET update_id=? WHERE case_id=? AND id IN (${placeholders})`).bind(updateId, caseId, ...fileIds).run();
+    await db.prepare(`UPDATE workflow_files SET update_id=? WHERE case_id=? AND category='progress' AND update_id=0 AND id IN (${placeholders})`).bind(updateId, caseId, ...fileIds).run();
     await event(db, caseId, "Site Supervisor", actorEmail, action, "Daily update submitted to Admin", "Internal notes are visible to management. Customer copy remains hidden.");
   } else if (action === "submit_quality_inspection") {
     allow(role, "supervisor"); requireStage(stage, ["active_project"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one completion photo is required for quality inspection.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "quality", "At least one completion photo is required for quality inspection.");
     const inspectedAt = required(payload.inspectedAt, "Inspection date");
     const summary = required(payload.summary, "Quality inspection summary");
     const defects = clean(payload.defects);
@@ -383,7 +456,8 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
       db.prepare("UPDATE workflow_cases SET stage='complete',updated_at=? WHERE id=?").bind(now, caseId),
       db.prepare("UPDATE projects SET stage='Complete',progress=100,updated_at=? WHERE code=?").bind(now, item.projectCode),
     ]);
-    await event(db, caseId, "Owner", actorEmail, action, "Owner marked the project complete", note, "customer");
+    await event(db, caseId, "Owner", actorEmail, action, "Owner marked the project complete", "", "customer");
+    if (note) await event(db, caseId, "Owner", actorEmail, "completion_note", "Owner's completion note", note);
   } else if (action === "admin_approve_update") {
     allow(role, "admin");
     const updateId = number(payload.updateId);
@@ -509,7 +583,7 @@ export async function getPublicWorkflow(code: string) {
     db.prepare("SELECT id,title,detail,status,created_at AS createdAt,customer_reply AS customerReply,decided_at AS decidedAt FROM change_proposals WHERE case_id=? ORDER BY created_at DESC").bind(caseId),
     db.prepare("SELECT id,sender,sender_label AS senderLabel,body,kind,created_at AS createdAt FROM customer_messages WHERE case_id=? ORDER BY created_at,id").bind(caseId),
   ]);
-  const files = (result[2].results as Raw[]).map((file): Raw & { url: string } => ({ ...file, url: `/api/workflow/files?id=${file.id}` }));
+  const files = await Promise.all((result[2].results as Raw[]).map(async (file): Promise<Raw & { url: string }> => ({ ...file, url: await customerFileLink(Number(file.id)) })));
   return {
     ...item,
     estimate: result[0].results[0] ?? null,
@@ -529,10 +603,10 @@ export async function customerEstimateDecision(code: string, decision: "accept" 
   const caseId = Number(item.id);
   const now = new Date().toISOString();
   const accepted = decision === "accept";
-  await db.batch([
-    db.prepare("UPDATE workflow_estimates SET status=?,customer_decided_at=? WHERE case_id=? AND status='sent'").bind(accepted ? "customer_accepted" : "customer_declined", now, caseId),
-    db.prepare("UPDATE workflow_cases SET stage=?,updated_at=? WHERE id=?").bind(accepted ? "customer_approved" : "estimate_declined", now, caseId),
-  ]);
+  // The guard is in the statement itself: if Accept and Decline arrive together, only the first one changes anything.
+  const moved = await db.prepare("UPDATE workflow_cases SET stage=?,updated_at=? WHERE id=? AND stage='estimate_sent'").bind(accepted ? "customer_approved" : "estimate_declined", now, caseId).run();
+  if (Number(moved.meta.changes) !== 1) throw new Error("This estimate is no longer waiting for a decision.");
+  await db.prepare("UPDATE workflow_estimates SET status=?,customer_decided_at=? WHERE case_id=? AND status='sent'").bind(accepted ? "customer_accepted" : "customer_declined", now, caseId).run();
   await event(db, caseId, "Customer", String(item.customerEmail), "customer_estimate_decision", accepted ? "Customer accepted the estimate" : "Customer declined the estimate", "", "customer");
 }
 
@@ -559,7 +633,8 @@ export async function customerChangeDecision(code: string, proposalId: number, d
   const now = new Date().toISOString();
   const accepted = decision === "accept";
   const safeReply = clean(reply).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").slice(0, 500);
-  await db.prepare("UPDATE change_proposals SET status=?,customer_reply=?,decided_at=? WHERE id=?").bind(accepted ? "accepted" : "declined", safeReply, now, proposalId).run();
+  const decided = await db.prepare("UPDATE change_proposals SET status=?,customer_reply=?,decided_at=? WHERE id=? AND status='sent'").bind(accepted ? "accepted" : "declined", safeReply, now, proposalId).run();
+  if (Number(decided.meta.changes) !== 1) throw new Error("This change request is no longer waiting for a decision.");
   await event(db, caseId, "Customer", String(item.customerEmail), "customer_change_decision", accepted ? `Customer approved the change: ${proposal.title}` : `Customer declined the change: ${proposal.title}`, safeReply, "customer");
 }
 
@@ -578,5 +653,20 @@ export async function getWorkflowFile(id: number, publicOnly: boolean) {
   await ensureWorkflowDatabase();
   const db = await database();
   const where = publicOnly ? "id=? AND visibility='published'" : "id=?";
-  return db.prepare(`SELECT object_key AS objectKey,mime_type AS mimeType,file_name AS fileName FROM workflow_files WHERE ${where} LIMIT 1`).bind(id).first<{ objectKey: string; mimeType: string; fileName: string }>();
+  return db.prepare(`SELECT case_id AS caseId,object_key AS objectKey,mime_type AS mimeType,file_name AS fileName FROM workflow_files WHERE ${where} LIMIT 1`).bind(id).first<{ caseId: number; objectKey: string; mimeType: string; fileName: string }>();
 }
+
+// The same visibility rules as getWorkflowSnapshot: Owner/Admin see every case, an Estimator the cases at estimating stages,
+// a Site Supervisor only the cases assigned to them.
+export async function canAccessWorkflowCase(role: WorkflowRole, actorEmail: string, caseId: number) {
+  if (role === "owner" || role === "admin") return true;
+  await ensureWorkflowDatabase();
+  const db = await database();
+  const row = await db.prepare("SELECT stage,assigned_supervisor_email AS supervisor FROM workflow_cases WHERE id=? LIMIT 1").bind(caseId).first<{ stage: string; supervisor: string }>();
+  if (!row) return false;
+  if (role === "supervisor") return String(row.supervisor).toLowerCase() === actorEmail.toLowerCase();
+  if (role === "estimator") return (estimatorStages as readonly string[]).includes(row.stage);
+  return false;
+}
+
+export const ensureWorkflowDatabase = memoizePerDatabase(ensureWorkflowDatabaseOnce);

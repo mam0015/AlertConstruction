@@ -1,6 +1,7 @@
 import type { FollowUpItem, OperationsProject, OperationsRole, OperationsSnapshot, SiteIssue } from "../app/operations/types";
 import { ensureOwnerDatabase } from "./owner-store";
 import { ensureWorkflowDatabase } from "./workflow-store";
+import { memoizePerDatabase, runtimeBindings } from "./runtime";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -9,7 +10,7 @@ const followUpStatuses = new Set(["open", "completed", "cancelled"]);
 const severities = new Set(["Normal", "High", "Critical"]);
 
 async function database(): Promise<D1> {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeBindings();
   if (!env.DB) throw new Error("The operations database is unavailable.");
   return env.DB;
 }
@@ -42,7 +43,7 @@ function melbourneDate(offsetDays = 0) {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
-export async function ensureOperationsDatabase() {
+async function ensureOperationsDatabaseOnce() {
   await ensureOwnerDatabase();
   await ensureWorkflowDatabase();
   const db = await database();
@@ -214,3 +215,5 @@ export async function performOperationsAction(identity: { email: string; role: O
 
   throw new Error("Unknown operations action.");
 }
+
+export const ensureOperationsDatabase = memoizePerDatabase(ensureOperationsDatabaseOnce);

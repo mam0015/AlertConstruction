@@ -5,6 +5,9 @@ import WorkflowBoard from "../workflow/WorkflowBoard";
 import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import { ownerCookieName, verifyOwnerSession } from "../owner-auth";
 
+// Private area: its own tab title, and never listed by search engines.
+export const metadata = { title: "Estimator", robots: { index: false, follow: false } };
+
 export const dynamic = "force-dynamic";
 
 export default async function EstimatorPage() {
