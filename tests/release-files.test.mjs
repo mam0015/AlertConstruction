@@ -1,0 +1,55 @@
+// Guards the go-live path: the deploy workflow, the deploy script, the environment template and the code must agree on
+// which secrets exist, so a value the app reads can always be set, and a deploy never silently drops one.
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import test from "node:test";
+
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const names = (block) => [...block.matchAll(/"([A-Z][A-Z0-9_]+)"/g)].map((match) => match[1]);
+
+const deployScript = read("scripts/deploy-cloudflare.mjs");
+const REQUIRED = names(deployScript.match(/const REQUIRED = \[(.*?)\];/s)[1]);
+const SECRETS = names(deployScript.match(/const SECRETS = \[(.*?)\];/s)[1]);
+const workflow = read(".github/workflows/deploy.yml");
+const passed = [...workflow.matchAll(/^\s+([A-Z][A-Z0-9_]+): \$\{\{ secrets\.([A-Z][A-Z0-9_]+) \}\}\s*$/gm)];
+
+test("deploy workflow: exists, has a visible copy, and runs the tests before it deploys", () => {
+  assert.ok(existsSync(new URL("../.github/workflows/deploy.yml", import.meta.url)));
+  assert.equal(read("docs/deploy-workflow.yml"), workflow, "the visible copy for people whose upload drops hidden folders must match");
+  assert.match(workflow, /branches: \[main\]/);
+  assert.match(workflow, /workflow_dispatch:/);
+  const testStep = workflow.indexOf("run: npm test");
+  assert.ok(testStep > 0 && testStep < workflow.indexOf("run: node scripts/deploy-cloudflare.mjs"), "tests run first, so a failing build is never deployed");
+  assert.match(workflow, /permissions:\s+contents: read/);
+  assert.ok(!/\bpull_request_target\b/.test(workflow), "secrets are never exposed to pull requests");
+});
+
+test("deploy workflow passes exactly the secrets the deploy script can store", () => {
+  assert.ok(passed.every(([, name, secret]) => name === secret), "each variable is filled from the secret of the same name");
+  const sent = passed.map(([, name]) => name);
+  for (const name of [...REQUIRED, ...SECRETS]) assert.ok(sent.includes(name), `${name} is read by the deploy script but the workflow does not pass it`);
+  for (const name of sent) assert.ok([...REQUIRED, ...SECRETS].includes(name), `${name} is passed by the workflow but the deploy script ignores it`);
+  assert.equal(new Set(sent).size, sent.length, "no secret is listed twice");
+  assert.equal(REQUIRED.length, 6);
+});
+
+test("every private setting the code reads can be deployed and is documented", () => {
+  const template = read("release-docs/ENVIRONMENT-TEMPLATE.txt");
+  const jarvisRead = [...read("jarvis/server.ts").matchAll(/process\.env\.(JARVIS_[A-Z_]+)/g)].map((match) => match[1]);
+  assert.ok(jarvisRead.length >= 8);
+  for (const name of jarvisRead) {
+    assert.ok(SECRETS.includes(name), `${name} is read by Jarvis but deploy-cloudflare.mjs cannot set it`);
+    assert.ok(template.includes(`${name}=`), `${name} is missing from release-docs/ENVIRONMENT-TEMPLATE.txt`);
+  }
+  for (const name of REQUIRED.filter((entry) => !entry.startsWith("CLOUDFLARE_"))) assert.ok(template.includes(`${name}=`), `${name} is missing from the environment template`);
+});
+
+test("the guides exist in English and Persian and name the real commands and files", () => {
+  for (const file of ["docs/GO-LIVE.md", "docs/GO-LIVE-FA.md"]) {
+    const text = read(file);
+    for (const needle of ["deploy.yml", "security-setup.mjs", "JARVIS_ANTHROPIC_API_KEY", "wrangler d1 export", "npm run verify"]) assert.ok(text.includes(needle), `${file} should mention ${needle}`);
+    for (const name of REQUIRED) assert.ok(text.includes(name), `${file} should list the required secret ${name}`);
+  }
+  const scripts = JSON.parse(read("package.json")).scripts;
+  for (const name of ["verify", "typecheck", "lint", "test", "build", "preview:local", "setup:credentials"]) assert.ok(scripts[name], `npm run ${name} exists`);
+});

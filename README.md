@@ -30,11 +30,11 @@ npm ci
 npm test
 ```
 
-To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
+`npm run verify` runs everything (lint, type check, build, all tests) in one go. To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
 
 ## Hosting from GitHub
 
-GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers: see `release-docs/DEPLOY-GITHUB-TO-CLOUDFLARE-FA.md`.
+GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers. The complete go-live guide (accounts, secrets, first-day checklist, domain, backups, Jarvis) is `docs/GO-LIVE.md` (English) and `docs/GO-LIVE-FA.md` (Persian).
 
 ## Positions and workflow
 

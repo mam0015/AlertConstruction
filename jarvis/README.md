@@ -98,8 +98,8 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
 ## Good to know
 
 * AI can make mistakes. **Always read a draft before sending** — that is why Send is always your decision.
-* Each source returns at most the newest 60–200 items; each mailbox at most 20 messages per refresh and 5 mailboxes in total
-  (Cloudflare's per-request limits). A very busy period can have more than the briefing counts.
+* Each source returns at most the newest 60–200 items; each mailbox at most 20 messages per refresh (fewer when several mailboxes are connected: 18 each for two, 11 for three, 6 for five)
+  and 5 mailboxes in total — Cloudflare's per-request limits. A very busy period can have more than the briefing counts.
 * Adding a new source later means: add it to `JARVIS_SCOPES` in `policy.mjs`, add its tables to `READABLE_TABLES` in
   `readonly-db.mjs`, write a `sources/*.mjs` reader with named columns, and add tests. Nothing is reachable until all four are done.
 * Jarvis's own log table `jarvis_log` is created automatically the first time it is needed (no migration to run).
