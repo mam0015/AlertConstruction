@@ -114,6 +114,9 @@ test("jarvis 2 client: it finds the JSON in chatty answers, asks once more when 
   assert.deepEqual(extractJson('<think>maybe {not json}</think>{"ok": true}'), { ok: true });
   assert.equal(extractJson("no json here"), null);
   assert.equal(extractJson("[1,2,3]"), null);
+  const started = Date.now();
+  assert.equal(extractJson("{".repeat(40_000)), null, "unbalanced braces give up quickly");
+  assert.ok(Date.now() - started < 1500, "and in bounded time");
   assert.deepEqual(skeleton(RESPONSE_SCHEMA), { reply: "", suggestions: [], draft: null, actions: [] });
 
   const schemaParams = (extra = {}) => ({ system: "s", messages: [{ role: "user", content: "q" }], max_tokens: 1000, output_config: { format: { type: "json_schema", schema: { type: "object", properties: { x: { type: "string" } }, required: ["x"] } } }, ...extra });

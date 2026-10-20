@@ -34,7 +34,7 @@ npm test
 
 ## Hosting from GitHub
 
-GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers. The complete go-live guide (accounts, secrets, first-day checklist, domain, backups, Jarvis) is `docs/GO-LIVE.md` (English) and `docs/GO-LIVE-FA.md` (Persian).
+GitHub Pages cannot run this app (it needs a server, D1 and R2). Push to GitHub and let `.github/workflows/deploy.yml` publish it to Cloudflare Workers. The complete go-live guide (accounts, secrets, first-day checklist, domain, backups, Jarvis) is `docs/GO-LIVE.md` (English) and `docs/GO-LIVE-FA.md` (Persian). Jarvis 2 (the open-source OpenJarvis as a second brain you run yourself) is in `docs/JARVIS2-OPENJARVIS.md` and `docs/JARVIS2-OPENJARVIS-FA.md`.
 
 ## Positions and workflow
 

@@ -76,8 +76,10 @@ async function call(target, fetchImpl, path, init = {}) {
 
 // Small local models often wrap JSON in prose, markdown fences or <think> blocks. This finds the first complete {...} object.
 export function extractJson(text) {
-  const cleaned = String(text ?? "").replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/```(?:json)?/gi, "");
-  for (let start = cleaned.indexOf("{"); start !== -1; start = cleaned.indexOf("{", start + 1)) {
+  // Bounded work: a hostile or broken answer full of unbalanced braces cannot make this loop quadratic.
+  const cleaned = String(text ?? "").slice(0, 40_000).replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/```(?:json)?/gi, "");
+  let tries = 0;
+  for (let start = cleaned.indexOf("{"); start !== -1 && tries < 60; start = cleaned.indexOf("{", start + 1), tries += 1) {
     let depth = 0;
     let inString = false;
     let escaped = false;
