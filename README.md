@@ -30,7 +30,7 @@ npm ci
 npm test
 ```
 
-`npm run verify` runs everything (lint, type check, build, all tests) in one go. To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
+`npm run verify` runs everything (lint, type check, build, all tests) in one go. `npm run package:full` writes one clean, complete ZIP of the committed project (third-party copies and build output left out, private settings never included). To run the real app on your own computer use `npm run preview:local` (see `docs/UPDATE-ON-MY-COMPUTER.md`; `npm run dev` is shadowed by the Pages files in the repo root). For local interface development, run `npm run dev`. The production application uses Cloudflare Workers-compatible hosting, D1 and R2. GitHub stores the complete source; GitHub Pages cannot run this private full-stack application.
 
 ## Hosting from GitHub
 

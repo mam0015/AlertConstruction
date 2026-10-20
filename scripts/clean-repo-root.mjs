@@ -1,6 +1,7 @@
 // Tidies the repository root. Safe by design:
 //   node scripts/clean-repo-root.mjs            → DRY RUN: only prints what would be removed, and why
 //   node scripts/clean-repo-root.mjs --apply    → runs `git rm` on exactly that list (git history keeps everything)
+//   node scripts/clean-repo-root.mjs --print    → prints that list (NUL-separated, nothing else) for scripts/make-package.mjs
 //
 // It only ever removes four kinds of file, and every one is provably not your code:
 //   A. copies of npm packages that were uploaded into the repo (byte-for-byte identical to a file inside
@@ -83,6 +84,12 @@ const groups = [
   ["D. generated build info", buildInfo, "remove"],
 ];
 
+const removable = [...copies, ...generated, ...staleBundles, ...buildInfo];
+if (process.argv.includes("--print")) {
+  process.stdout.write([...removable, ...distTracked].join("\0"));
+  process.exit(0);
+}
+
 console.log(apply ? "APPLYING cleanup\n" : "DRY RUN — nothing is changed. Add --apply to do it.\n");
 for (const [title, files, action] of groups) {
   console.log(`${title}: ${files.length} file${files.length === 1 ? "" : "s"} (${action})`);
@@ -94,7 +101,6 @@ if (tracked.includes("LICENSE") && known.has(sha(readFileSync(join(root, "LICENS
   console.log("\nNote: the root LICENSE file is Babel's licence text (Sebastian McKenzie), not yours. It was left in place; decide whether to replace it with your own.");
 }
 
-const removable = [...copies, ...generated, ...staleBundles, ...buildInfo];
 if (!apply) {
   console.log(`\nWould remove ${removable.length} tracked files and untrack ${distTracked.length} under dist/. Everything stays in git history.`);
   process.exit(0);
