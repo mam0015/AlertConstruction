@@ -37,7 +37,7 @@ function toISO(value) {
 }
 
 // The only shape that ever leaves Jarvis. Extra columns from a query can never leak into the response.
-export function makeItem({ id, source, kind, at, title, who = "", project = "", mailbox = "", body = "", extraFlags = [], flagFrom = [] }) {
+export function makeItem({ id, source, kind, at, title, who = "", project = "", mailbox = "", body = "", extraFlags = [], flagFrom = [], email = null }) {
   const flags = [...new Set([...extraFlags, ...flagText(title, body, ...flagFrom)])];
   return {
     id: String(id),
@@ -51,6 +51,8 @@ export function makeItem({ id, source, kind, at, title, who = "", project = "", 
     preview: clip(body),
     flags,
     urgent: flags.length > 0,
+    // Only email items carry this: what Jarvis needs to offer a reply (never an address — the recipient is looked up when replying).
+    email: email ? { mailbox: clip(email.mailbox, 120), messageId: String(email.messageId ?? "").slice(0, 64), threadId: String(email.threadId ?? "").slice(0, 64), canReply: email.canReply === true } : null,
   };
 }
 

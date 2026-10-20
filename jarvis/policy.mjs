@@ -1,11 +1,13 @@
-// Jarvis access policy — the single place that says what Jarvis may see.
+// Jarvis access policy — the single place that says what Jarvis may see and do.
 //
 // Jarvis is the Owner's private assistant. It can READ exactly three things and nothing else:
-//   1. company_email      – the company mailboxes the Owner has connected (Gmail, read-only scope)
+//   1. company_email      – the company mailboxes the Owner has connected (Gmail)
 //   2. employee_updates   – the reports/updates employees submit (end-of-day, worker, supervisor, site visit, site issue)
 //   3. client_comments    – messages customers send about their request or project
 //
-// It never writes, never sends, never deletes, and never touches finance, passwords, sessions, staff
+// It takes instructions only from the Owner. It advises, and it can draft an email reply from what the Owner tells it
+// to say — but it sends a reply only when the Owner presses Send on that draft, and only back to the person who wrote
+// the original email (reply.mjs). It never deletes anything and never touches finance, passwords, sessions, staff
 // access, team chat or customer contact details. Anything not listed here is refused.
 
 export class JarvisAccessError extends Error {
@@ -34,7 +36,7 @@ export function assertScope(scope) {
   return scope;
 }
 
-function boundedInteger(value, fallback, min, max, label) {
+export function boundedInteger(value, fallback, min, max, label) {
   if (value === null || value === undefined || value === "") return fallback;
   const number = Number(value);
   if (!Number.isInteger(number) || number < min || number > max) {

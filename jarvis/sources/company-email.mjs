@@ -1,13 +1,14 @@
-// Company email, read-only, through the Gmail API.
+// Company email — READING, through the Gmail API.
 //
-// Each company mailbox is connected once by whoever owns that mailbox, approving ONLY the
-// "gmail.readonly" scope (see jarvis/scripts/gmail-authorize.mjs). That scope cannot send, delete, label or
-// change anything — Google enforces it — and this file additionally refuses to call anything except
-// GET .../users/me/messages[/id]. Jarvis fetches headers + Google's short snippet, never full bodies or attachments.
+// This file only reads: it asks Gmail for message headers and Google's short snippet, and it refuses to call anything
+// except GET .../users/me/messages[/id]. Sending a reply is a separate, Owner-triggered step in reply.mjs.
+//
+// Each company mailbox is connected once by whoever owns that mailbox (see jarvis/scripts/gmail-authorize.mjs). Read-only
+// by default; the owner can additionally allow replies for a mailbox ("canReply": true).
 //
 // Secrets (Cloudflare Worker secrets, never in GitHub):
 //   JARVIS_GMAIL_CLIENT_ID, JARVIS_GMAIL_CLIENT_SECRET   – the Google OAuth client used to authorise
-//   JARVIS_GMAIL_ACCOUNTS                                – JSON: [{"label":"info@company.com.au","refreshToken":"…"}]
+//   JARVIS_GMAIL_ACCOUNTS                                – JSON: [{"label":"info@company.com.au","refreshToken":"…","canReply":true}]
 
 import { makeItem } from "../briefing.mjs";
 import { JarvisAccessError } from "../policy.mjs";
@@ -26,7 +27,7 @@ export function parseAccounts(raw) {
     return (Array.isArray(parsed) ? parsed : [])
       .filter((account) => account && typeof account.label === "string" && typeof account.refreshToken === "string" && account.label && account.refreshToken)
       .slice(0, MAX_ACCOUNTS)
-      .map((account) => ({ label: account.label.trim(), refreshToken: account.refreshToken.trim() }));
+      .map((account) => ({ label: account.label.trim(), refreshToken: account.refreshToken.trim(), canReply: account.canReply === true }));
   } catch {
     return [];
   }
@@ -36,7 +37,7 @@ export function emailConfigured(config) {
   return Boolean(config?.clientId && config?.clientSecret && parseAccounts(config?.accounts).length > 0);
 }
 
-async function accessTokenFor(fetchImpl, config, account) {
+export async function accessTokenFor(fetchImpl, config, account) {
   const response = await fetchImpl(TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -49,7 +50,7 @@ async function accessTokenFor(fetchImpl, config, account) {
 }
 
 // The only Gmail call Jarvis can make: GET messages or one message.
-async function gmailGet(fetchImpl, accessToken, path, params = {}) {
+export async function gmailGet(fetchImpl, accessToken, path, params = {}) {
   if (!/^messages(\/[A-Za-z0-9_-]+)?$/.test(path)) throw new JarvisAccessError("Jarvis may only read messages.", 500);
   const url = new URL(GMAIL_BASE + path);
   for (const [key, value] of Object.entries(params)) {
@@ -80,6 +81,7 @@ function toItem(account, message) {
     who: sent ? `To: ${header(message, "To")}` : header(message, "From"),
     mailbox: account.label,
     body: decodeEntities(message.snippet),
+    email: { mailbox: account.label, messageId: message.id, threadId: message.threadId, canReply: account.canReply },
   });
 }
 
@@ -110,9 +112,9 @@ export async function readCompanyEmail({ config, sinceMs, limit, fetchImpl }) {
     const result = settled[index];
     if (result.status === "fulfilled") {
       items.push(...result.value);
-      return { label: account.label, status: "ok", count: result.value.length };
+      return { label: account.label, status: "ok", count: result.value.length, canReply: account.canReply };
     }
-    return { label: account.label, status: "error", count: 0 };
+    return { label: account.label, status: "error", count: 0, canReply: account.canReply };
   });
   const failed = report.filter((entry) => entry.status === "error").length;
   return { status: failed === report.length ? "error" : failed > 0 ? "partial" : "ok", items, accounts: report };

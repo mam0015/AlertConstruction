@@ -15,7 +15,7 @@ No real credential, Team Code, session secret or customer record belongs in GitH
 - `release/wordpress/` — WordPress secure portal bridge
 - `release-docs/` — Persian installation, environment and security guides
 - `scripts/security-setup.mjs` — local password-hash and session-secret generator
-- `jarvis/` — the Owner's private, read-only assistant (company email, employee updates, client comments); see `jarvis/README.md`
+- `jarvis/` — the Owner's private assistant: reads company email, employee updates and client comments, suggests next steps, and drafts email replies that are sent only when the Owner presses Send; see `jarvis/README.md`
 - `docs/REPO_MAP.md` — what every folder in this repository is (the root also holds the GitHub Pages copy and older static pages)
 - `tests/` — release, access-control and workflow checks
 

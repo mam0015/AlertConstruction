@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { pbkdf2Sync } from "node:crypto";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { createTables, seed, ago } from "./helpers/jarvis-fixtures.mjs";
 import { TestD1, TestR2 } from "./helpers/test-d1.mjs";
 import { buildBriefing, flagText, hasRealIssue, makeItem, searchItems } from "../jarvis/briefing.mjs";
 import { runJarvis } from "../jarvis/jarvis.mjs";
@@ -25,47 +25,6 @@ process.env.OWNER_PASSWORD_HASH = hash(ownerPassword, "owner-jarvis-salt");
 process.env.OWNER_SESSION_SECRET = "owner-session-secret-for-jarvis-verification";
 process.env.ADMIN_TEAM_CODE_HASH = hash(teamCode, "team-code-salt");
 process.env.ADMIN_SESSION_SECRET = "admin-session-secret-for-jarvis-verification";
-
-// ---- real table definitions, read from the app's own source so Jarvis's SELECTs are checked against the true schema ----
-const storeSource = ["db/owner-store.ts", "db/workflow-store.ts", "db/worker-store.ts", "db/operations-store.ts"]
-  .map((file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8")).join("\n");
-
-function createStatement(table) {
-  const start = storeSource.search(new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\s*\\(`));
-  assert.ok(start >= 0, `${table} DDL not found in the app source`);
-  let depth = 0;
-  for (let index = storeSource.indexOf("(", start); index < storeSource.length; index += 1) {
-    if (storeSource[index] === "(") depth += 1;
-    if (storeSource[index] === ")" && --depth === 0) return storeSource.slice(start, index + 1);
-  }
-  throw new Error(`${table} DDL is not balanced`);
-}
-
-const TABLES = ["eod_reports", "team_messages", "workflow_cases", "customer_messages", "worker_reports", "project_updates", "site_visit_reports", "site_issue_reports"];
-const ago = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
-
-function createTables(d1) {
-  for (const table of TABLES) d1.sqlite.exec(createStatement(table));
-}
-
-function seed(d1) {
-  const q = d1.sqlite;
-  q.prepare("INSERT INTO workflow_cases (id,request_code,project_code,customer_name,customer_email,customer_phone,service,created_at,updated_at) VALUES (1,'REQ-2026-AAAA','ATP-2026-00124','Sam Customer','sam.private@example.com','0400 000 000','Kitchen',?,?)").run(ago(500), ago(500));
-  const message = q.prepare("INSERT INTO customer_messages (case_id,sender,sender_label,body,kind,created_at) VALUES (1,?,?,?,?,?)");
-  message.run("Customer", "Sam Customer", "I am not happy with the delay on the kitchen, please call me.", "message", ago(1));
-  message.run("Admin", "Alert Tradie Pro", "ADMIN-ONLY reply that must not appear as a client comment", "message", ago(1));
-  const chat = q.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)");
-  chat.run("Customer · ATP-2026-00200", "Admin", "Question about quote\nWhen can you start the bathroom?", ago(3));
-  chat.run("worker@alert.test", "Admin", "PRIVATE STAFF CHAT that Jarvis must never read", ago(2));
-  q.prepare("INSERT INTO eod_reports (person,role,project_code,summary,submitted_at,status) VALUES (?,?,?,?,?,?)").run("Ali Worker", "Worker", "ATP-2026-00124", "Framing finished on level one.", ago(2), "Pending");
-  q.prepare("INSERT INTO eod_reports (person,role,project_code,summary,submitted_at,status) VALUES (?,?,?,?,?,?)").run("Old Timer", "Worker", "ATP-2026-00001", "Ancient report outside the window.", ago(24 * 10), "Approved");
-  const worker = q.prepare("INSERT INTO worker_reports (case_id,worker_email,work_date,completed_work,next_step,issues_delays,submitted_at) VALUES (1,?,?,?,?,?,?)");
-  worker.run("tiler@alert.test", "2026-10-18", "Waterproofing done", "Start tiling", "Delivery delayed by the supplier", ago(4));
-  worker.run("plumber@alert.test", "2026-10-18", "Rough-in complete", "Fit fixtures", "None", ago(5));
-  q.prepare("INSERT INTO project_updates (case_id,work_date,supervisor_email,internal_update,customer_update,created_at) VALUES (1,'2026-10-18','super@alert.test','Slab poured, curing for 7 days.','Slab poured.',?)").run(ago(6));
-  q.prepare("INSERT INTO site_visit_reports (case_id,supervisor_email,visit_date,summary,findings,recommendations,submitted_at) VALUES (1,'super@alert.test','2026-10-17','Site walk completed','Minor crack in retaining wall','Engineer to inspect',?)").run(ago(7));
-  q.prepare("INSERT INTO site_issue_reports (case_id,project_code,site_location,affected_trade,issue_type,severity,summary,reporter_email,reporter_name,status,reported_at,updated_at) VALUES (1,'ATP-2026-00124','Rear yard','Plumber','Safety','High','Unsafe trench left open overnight','super@alert.test','Sue Supervisor','reported',?,?)").run(ago(8), ago(8));
-}
 
 // ---------------------------------------------------------------------------------------------------------------------
 test("policy: exactly three sources, unknown ones refused, options validated", () => {
@@ -241,7 +200,7 @@ test("company email: one broken mailbox does not hide the others; unconfigured i
 
   assert.equal((await readCompanyEmail({ config: {}, sinceMs: 0, limit: 5, fetchImpl })).status, "not_connected");
   assert.deepEqual(parseAccounts("not json"), []);
-  assert.deepEqual(parseAccounts(JSON.stringify([{ label: "", refreshToken: "x" }, { label: "ok@x", refreshToken: "t" }])), [{ label: "ok@x", refreshToken: "t" }]);
+  assert.deepEqual(parseAccounts(JSON.stringify([{ label: "", refreshToken: "x" }, { label: "ok@x", refreshToken: "t" }])), [{ label: "ok@x", refreshToken: "t", canReply: false }]);
 });
 
 test("mailbox authorisation helper asks Google for read-only access only and rejects a forged callback", async () => {
@@ -260,11 +219,29 @@ test("mailbox authorisation helper asks Google for read-only access only and rej
     child.stdout.on("data", () => { const found = output.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?\S+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const auth = new URL(link);
-  assert.equal(auth.searchParams.get("scope"), "https://www.googleapis.com/auth/gmail.readonly", "only the read-only Gmail scope is requested");
+  assert.equal(auth.searchParams.get("scope"), "https://www.googleapis.com/auth/gmail.readonly", "by default only the read-only Gmail scope is requested");
   assert.equal(auth.searchParams.get("access_type"), "offline");
   assert.equal(auth.searchParams.get("login_hint"), "info@alert.test");
   const callback = await fetch(`${auth.searchParams.get("redirect_uri")}/?code=forged&state=wrong`);
   assert.equal(callback.status, 400, "a callback with the wrong state is rejected");
+  assert.equal(await exited, 1);
+});
+
+test("mailbox authorisation helper asks for 'send' only when --allow-replies is given, and never anything broader", async () => {
+  const script = fileURLToPath(new URL("../jarvis/scripts/gmail-authorize.mjs", import.meta.url));
+  const env = { ...process.env, JARVIS_GMAIL_CLIENT_ID: "client-id", JARVIS_GMAIL_CLIENT_SECRET: "client-secret" };
+  const child = spawn(process.execPath, [script, "info@alert.test", "--allow-replies"], { env, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk; });
+  const exited = new Promise((resolve) => child.on("exit", resolve));
+  const link = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("authorisation link was not printed")), 5000);
+    child.stdout.on("data", () => { const found = output.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?\S+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+  });
+  const auth = new URL(link);
+  assert.equal(auth.searchParams.get("scope"), "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send");
+  assert.ok(!/gmail\.modify|mail\.google\.com|gmail\.compose|gmail\.settings/.test(link), "no broader Gmail scope is ever requested");
+  assert.equal((await fetch(`${auth.searchParams.get("redirect_uri")}/?code=forged&state=wrong`)).status, 400);
   assert.equal(await exited, 1);
 });
 

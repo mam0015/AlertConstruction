@@ -1,38 +1,33 @@
 import { runtimeBindings } from "../../../../db/runtime";
+import { aiEnabled, DEFAULT_MODEL } from "../../../../jarvis/ai.mjs";
+import { recentSends } from "../../../../jarvis/audit.mjs";
 import { runJarvis } from "../../../../jarvis/jarvis.mjs";
-import { ownerSessionFromRequest } from "../../../owner-auth";
+import { parseAccounts } from "../../../../jarvis/sources/company-email.mjs";
+import { fail, headers, jarvisConfig, networkFetch, notAllowed, requireOwner } from "../../../../jarvis/server";
 
-// Jarvis is the Owner's read-only assistant. Only the Owner session may call it (Admin, Team and Customer sessions are
-// refused), and only GET exists — there is no endpoint that can change, send or delete anything.
-const headers = { "Cache-Control": "no-store" };
-const notAllowed = () => Response.json({ error: "Jarvis is read-only." }, { status: 405, headers: { ...headers, Allow: "GET" } });
-
+// The briefing. Only the Owner session may call it (Admin, Team and Customer sessions are refused), and it only reads.
+// Asking Jarvis something is /ask; sending a reply the Owner approved is /send. This endpoint changes nothing.
 export async function GET(request: Request) {
-  const session = await ownerSessionFromRequest(request);
-  if (!session) return Response.json({ error: "Owner sign-in required." }, { status: 401, headers });
+  const gate = await requireOwner(request, { write: false });
+  if (!gate.owner) return gate.response;
   try {
     const env = await runtimeBindings();
-    const result = await runJarvis({
-      db: env.DB,
-      params: new URL(request.url).searchParams,
-      config: {
-        clientId: process.env.JARVIS_GMAIL_CLIENT_ID?.trim(),
-        clientSecret: process.env.JARVIS_GMAIL_CLIENT_SECRET?.trim(),
-        accounts: process.env.JARVIS_GMAIL_ACCOUNTS,
-      },
-    });
+    const config = jarvisConfig();
+    const result = await runJarvis({ db: env.DB, params: new URL(request.url).searchParams, config, fetchImpl: networkFetch() });
+    const capabilities = {
+      ai: aiEnabled(config),
+      model: aiEnabled(config) ? config.model || DEFAULT_MODEL : "",
+      replyMailboxes: parseAccounts(config.accounts).filter((account) => account.canReply).map((account) => account.label),
+    };
     // Audit line (no content): who asked, what Jarvis was allowed to read, how much it returned.
-    console.info(JSON.stringify({ jarvis: "read", owner: session.email, scopes: result.scopes, items: result.items.length }));
-    return Response.json(result, { headers });
+    console.info(JSON.stringify({ jarvis: "read", owner: gate.owner.email, scopes: result.scopes, items: result.items.length }));
+    return Response.json({ ...result, capabilities, sent: await recentSends(env.DB, 10) }, { headers });
   } catch (error) {
-    const status = (error as { status?: number })?.status;
-    if (typeof status === "number" && status >= 400 && status < 500) return Response.json({ error: (error as Error).message }, { status, headers });
-    console.error("Jarvis failed:", error instanceof Error ? error.message : error);
-    return Response.json({ error: "Jarvis could not read the company records right now." }, { status: 503, headers });
+    return fail(error, "Jarvis could not read the company records right now.");
   }
 }
 
-export const POST = notAllowed;
-export const PUT = notAllowed;
-export const PATCH = notAllowed;
-export const DELETE = notAllowed;
+export const POST = notAllowed("GET");
+export const PUT = notAllowed("GET");
+export const PATCH = notAllowed("GET");
+export const DELETE = notAllowed("GET");

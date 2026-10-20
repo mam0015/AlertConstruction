@@ -1,6 +1,7 @@
-// Jarvis orchestrator: reads the three permitted sources for the Owner and returns a briefing.
+// Jarvis orchestrator: reads the three permitted sources for the Owner and returns a briefing with suggested next steps.
 // Nothing here writes anything. The caller (app/api/owner/jarvis/route.ts) has already proved the request is the Owner.
 
+import { buildTopics, withSuggestions } from "./advisor.mjs";
 import { buildBriefing, searchItems, sortNewestFirst } from "./briefing.mjs";
 import { assertScope, JARVIS_AUDIENCE, JARVIS_MODE, LIMITS, parseOptions } from "./policy.mjs";
 import { createReader } from "./readonly-db.mjs";
@@ -46,6 +47,8 @@ export async function runJarvis({ db, config = {}, fetchImpl = globalThis.fetch,
   }));
 
   const matching = sortNewestFirst(searchItems(collected, options.query));
+  const briefing = buildBriefing(matching, { hours: options.hours });
+  briefing.topics = buildTopics(matching);
   return {
     generatedAt: new Date(now).toISOString(),
     audience: JARVIS_AUDIENCE,
@@ -54,7 +57,7 @@ export async function runJarvis({ db, config = {}, fetchImpl = globalThis.fetch,
     query: options.query,
     scopes: options.scopes,
     sources,
-    briefing: buildBriefing(matching, { hours: options.hours }),
-    items: matching.slice(0, Math.min(options.limit, LIMITS.maxLimit)),
+    briefing,
+    items: matching.slice(0, Math.min(options.limit, LIMITS.maxLimit)).map(withSuggestions),
   };
 }
