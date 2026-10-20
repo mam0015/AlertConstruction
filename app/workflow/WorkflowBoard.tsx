@@ -96,6 +96,8 @@ export default function WorkflowBoard({ role }: { role: WorkflowRole }) {
       const result = await response.json() as { data?: WorkflowSnapshot; error?: string };
       if (!response.ok || !result.data) throw new Error(result.error ?? "The action could not be completed.");
       setData(result.data); setNotice(success); window.setTimeout(() => setNotice(""), 3600);
+      // A report uses the photos chosen for it; the next one starts with none (they used to be re-sent with the next report).
+      if (name.startsWith("submit_")) { setSitePhotoIds([]); setProgressPhotoIds([]); }
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The action could not be completed."); }
     finally { setWorking(false); }
   }

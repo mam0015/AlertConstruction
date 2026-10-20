@@ -1,17 +1,9 @@
 import { createPublicWorkflowRequest, customerChangeDecision, customerEstimateDecision, getPublicWorkflow } from "../../../../db/workflow-store";
-import { clearLoginFailures, getLoginAttempt, recordLoginFailure } from "../../../../db/owner-store";
+import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../../db/throttle";
 import { requestIsSameOrigin } from "../../../owner-auth";
 
-async function throttleKey(request: Request, purpose: string) {
-  const input = `${purpose}|${request.headers.get("cf-connecting-ip") ?? "local"}`;
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input)));
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function blocked(key: string) {
-  const attempt = await getLoginAttempt(key);
-  return { attempt, isBlocked: Boolean(attempt && attempt.lockedUntil > Date.now()) };
-}
+const TRACK_WINDOW = 30 * 60 * 1000;
+const CREATE_WINDOW = 60 * 60 * 1000;
 
 function failed(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -22,31 +14,30 @@ function failed(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const key = await throttleKey(request, "customer-track");
-  const limit = await blocked(key);
-  if (limit.isBlocked) return Response.json({ error: "Too many reference attempts. Try again later." }, { status: 429 });
+  const key = await sha256Hex(`customer-track|${clientAddress(request)}`);
+  const limit = await throttleExceeded(key, 12, TRACK_WINDOW);
+  if (limit.exceeded) return tooManyRequests("Too many reference attempts. Try again later.", limit.retryAfterSeconds);
   const code = new URL(request.url).searchParams.get("code")?.trim() ?? "";
   if (!code) return Response.json({ error: "Enter your project reference." }, { status: 400 });
   const data = await getPublicWorkflow(code);
   if (!data) {
-    const count = (limit.attempt?.failedCount ?? 0) + 1;
-    await recordLoginFailure(key, count, count >= 12 ? Date.now() + 30 * 60 * 1000 : 0);
+    await throttleHit(key, 12, TRACK_WINDOW);
     return Response.json({ error: "We could not find that project reference." }, { status: 404 });
   }
-  await clearLoginFailures(key);
   return Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-    const key = await throttleKey(request, "customer-create");
-    const limit = await blocked(key);
-    if (limit.isBlocked) return Response.json({ error: "Too many requests. Try again later." }, { status: 429 });
-    const payload = await request.json() as Record<string, unknown>;
+    // Five new requests per hour per visitor; typing mistakes that are refused do not count, and the count really expires.
+    const key = await sha256Hex(`customer-create|${clientAddress(request)}`);
+    const limit = await throttleExceeded(key, 5, CREATE_WINDOW);
+    if (limit.exceeded) return tooManyRequests("Too many requests. Try again later.", limit.retryAfterSeconds);
+    const payload = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return Response.json({ error: "The request could not be read." }, { status: 400 });
     const created = await createPublicWorkflowRequest(payload);
-    const count = (limit.attempt?.failedCount ?? 0) + 1;
-    await recordLoginFailure(key, count, count >= 5 ? Date.now() + 60 * 60 * 1000 : 0);
+    await throttleHit(key, 5, CREATE_WINDOW);
     return Response.json({ data: created }, { status: 201 });
   } catch (error) {
     return failed(error);
@@ -56,8 +47,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-    const body = await request.json() as { code?: string; decision?: "accept" | "decline"; proposalId?: number; reply?: string };
-    if (!body.code || !body.decision || !["accept", "decline"].includes(body.decision)) return Response.json({ error: "Invalid decision." }, { status: 400 });
+    const body = await request.json().catch(() => null) as { code?: string; decision?: "accept" | "decline"; proposalId?: number; reply?: string } | null;
+    if (!body || typeof body.code !== "string" || !body.code || !body.decision || !["accept", "decline"].includes(body.decision)) return Response.json({ error: "Invalid decision." }, { status: 400 });
     if (Number.isInteger(body.proposalId)) await customerChangeDecision(body.code, body.proposalId!, body.decision, body.reply ?? "");
     else await customerEstimateDecision(body.code, body.decision);
     return Response.json({ data: await getPublicWorkflow(body.code) });

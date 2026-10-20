@@ -1,18 +1,15 @@
-import { clearLoginFailures, getLoginAttempt, recordLoginFailure } from "../../../../../db/owner-store";
+import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../../../db/throttle";
 import { findCustomerProjectsByContact, normaliseCustomerContact, type CustomerContactKind } from "../../../../../db/workflow-store";
 import { requestIsSameOrigin } from "../../../../owner-auth";
 
-async function sha256Hex(input: string) {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input)));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-// Throttle per visitor IP and, separately, per targeted contact, so guessing is limited even when many IPs are used or the IP header is absent.
-async function requestKeys(request: Request, kind: CustomerContactKind, contact: string) {
-  const ip = request.headers.get("cf-connecting-ip");
-  const keys = [await sha256Hex(`customer-access-target|${kind}|${contact}`)];
-  if (ip) keys.push(await sha256Hex(`customer-access|${kind}|${ip}`));
-  return keys;
+// Wrong guesses are limited per visitor address (10 an hour) and, more loosely, per targeted contact (40 an hour), so one person
+// guessing cannot be stopped by an address change, and one person cannot easily lock a real customer out of their own project.
+const WINDOW = 60 * 60 * 1000;
+async function limits(request: Request, kind: CustomerContactKind, contact: string) {
+  return [
+    { key: await sha256Hex(`customer-access|${kind}|${clientAddress(request)}`), limit: 10 },
+    { key: await sha256Hex(`customer-access-target|${kind}|${contact}`), limit: 40 },
+  ];
 }
 
 export async function POST(request: Request) {
@@ -29,19 +26,15 @@ export async function POST(request: Request) {
   if (!valid) return Response.json({ error: kind === "email" ? "Enter a valid email address." : "Enter a valid Australian phone number." }, { status: 400 });
   if (location.length < 4) return Response.json({ error: "Enter the site address or suburb you gave us (at least 4 characters)." }, { status: 400 });
 
-  const keys = await requestKeys(request, kind, contact);
-  const attempts = await Promise.all(keys.map((key) => getLoginAttempt(key)));
-  if (attempts.some((attempt) => attempt && attempt.lockedUntil > Date.now())) return Response.json({ error: "Too many lookup attempts. Try again later." }, { status: 429 });
+  const guards = await limits(request, kind, contact);
+  const states = await Promise.all(guards.map((guard) => throttleExceeded(guard.key, guard.limit, WINDOW)));
+  const over = states.find((state) => state.exceeded);
+  if (over) return tooManyRequests("Too many lookup attempts. Try again later.", over.retryAfterSeconds);
 
   const projects = await findCustomerProjectsByContact(kind, contact, location);
   if (!projects.length) {
-    await Promise.all(keys.map((key, index) => {
-      const count = (attempts[index]?.failedCount ?? 0) + 1;
-      return recordLoginFailure(key, count, count >= 5 ? Date.now() + 60 * 60 * 1000 : 0);
-    }));
+    await Promise.all(guards.map((guard) => throttleHit(guard.key, guard.limit, WINDOW)));
     return Response.json({ error: "No project matches those details." }, { status: 404, headers: { "Cache-Control": "no-store" } });
   }
-
-  await Promise.all(keys.map((key) => clearLoginFailures(key)));
   return Response.json({ ok: true, projects }, { headers: { "Cache-Control": "no-store" } });
 }

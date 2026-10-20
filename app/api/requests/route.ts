@@ -1,5 +1,6 @@
 import { createPublicRequest, type PublicRequestInput } from "../../../db/request-store";
 import { requestIsSameOrigin } from "../../owner-auth";
+import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../db/throttle";
 
 const allowedServices = new Set([
   "Kitchen Renovations", "Bathroom Renovations", "Home Renovations", "Home Extensions",
@@ -17,6 +18,10 @@ function text(form: FormData, name: string, max = 500) {
 
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
+  // Five requests an hour per visitor (refused or invalid forms do not count).
+  const limitKey = await sha256Hex(`legacy-request|${clientAddress(request)}`);
+  const limit = await throttleExceeded(limitKey, 5, 60 * 60 * 1000);
+  if (limit.exceeded) return tooManyRequests("Too many requests. Try again later.", limit.retryAfterSeconds);
   const form = await request.formData().catch(() => null);
   if (!form) return Response.json({ error: "The request form could not be read." }, { status: 400 });
 
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await createPublicRequest(input, files);
+    await throttleHit(limitKey, 5, 60 * 60 * 1000);
     return Response.json({ ok: true, code: result.code, redirect: `/track/${encodeURIComponent(result.code)}` }, {
       status: 201,
       headers: { "Cache-Control": "no-store" },

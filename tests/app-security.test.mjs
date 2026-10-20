@@ -10,11 +10,15 @@ const admin = await app.staffCookie("admin.sec@alert.test", "Admin");
 
 const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
 
+const withAddress = (init, address) => ({ ...init, headers: { ...init.headers, "cf-connecting-ip": address } });
+let visitor = 0;
 async function newRequest(label) {
-  const created = await request("/api/workflow/public", json(null, {
+  // Each customer comes from a different address: new requests are limited to five an hour per address.
+  visitor += 1;
+  const created = await request("/api/workflow/public", withAddress(json(null, {
     name: `Customer ${label}`, email: `${label}@customer.test`, phone: "0400111222", service: "Bathroom renovation", location: "Parramatta NSW 2150",
     details: "Full bathroom renovation, approximately six square metres.", timeframe: "Next month", budget: "$20k", termsAccepted: "on",
-  }));
+  }), `198.18.0.${visitor}`));
   assert.equal(created.status, 201, await created.clone().text());
   const data = (await created.json()).data;
   // Customers may upload documents once the Admin has asked for them.
@@ -126,4 +130,123 @@ test("errors: a failing API call always answers with JSON the screens can read",
   assert.ok(missing.status >= 400);
   assert.match(missing.headers.get("content-type"), /json/);
   assert.equal(typeof (await missing.json()).error, "string");
+});
+
+test("project codes: every approved request gets its own code, even next to a project the Owner numbered by hand", async () => {
+  const year = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", year: "numeric" }).format(new Date());
+  app.d1.sqlite.exec(`CREATE TABLE IF NOT EXISTS projects_probe (x)`); // keep the helper tables untouched
+  const codes = [];
+  for (const label of ["code1", "code2", "code3"]) {
+    const { caseId } = await newRequest(label);
+    if (label === "code2") {
+      // The Owner added a project by hand that uses the next number.
+      const used = app.d1.sqlite.prepare("SELECT code FROM projects ORDER BY code DESC LIMIT 1").get()?.code;
+      const next = used ? Number(used.split("-")[2]) + 1 : 1;
+      app.d1.sqlite.prepare("INSERT INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,'Mr Jones','Toorak','','private',?)")
+        .run(`ATP-${year}-${String(next).padStart(5, "0")}`, "Manual", "Kitchen", "Planning", new Date().toISOString());
+    }
+    assert.equal((await request("/api/workflow", json(admin, { action: "review_started", caseId, payload: {} }))).status, 200);
+    const approved = await request("/api/workflow", json(admin, { action: "approve_intake", caseId, payload: {} }));
+    assert.equal(approved.status, 200, await approved.clone().text());
+    codes.push(app.d1.sqlite.prepare("SELECT project_code AS code FROM workflow_cases WHERE id = ?").get(caseId).code);
+  }
+  assert.equal(new Set(codes).size, 3, `codes must differ: ${codes}`);
+  for (const code of codes) assert.match(code, new RegExp(`^ATP-${year}-\\d{5}$`));
+  const owners = app.d1.sqlite.prepare("SELECT customer_name FROM projects WHERE code = ?").get(codes[1]);
+  assert.notEqual(owners?.customer_name, "Mr Jones", "the Owner's own project is never reused for a customer's request");
+  assert.equal(app.d1.sqlite.prepare("SELECT COUNT(*) AS n FROM projects WHERE code IN (?,?,?)").get(...codes).n, 3);
+});
+
+test("old public tracking: says almost nothing, never shows the Owner's notes, and is rate limited", async () => {
+  app.d1.sqlite.prepare("INSERT OR REPLACE INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES ('ATP-2026-48213','Kitchen','Kitchen','Planning',5,0,0,'Mr Secret','9 Secret Lane','','OWNER PRIVATE: customer pays late',?)").run(new Date().toISOString());
+  const project = await request("/api/track/ATP-2026-48213");
+  assert.equal(project.status, 404, "a project number is not a way in");
+
+  const form = new FormData();
+  for (const [key, value] of Object.entries({ service: "Kitchen Renovations", name: "Private Person", phone: "0400 111 222", email: "private@example.com", location: "9 Secret Lane", timeframe: "Within 1–3 months", budget: "$25,000–$75,000", material: "Premium", details: "Please renovate the whole kitchen, this is a detailed enough description." })) form.set(key, value);
+  const created = await request("/api/requests", { method: "POST", body: form, headers: { "cf-connecting-ip": "203.0.113.7" } });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { code } = await created.json();
+  const record = await (await request(`/api/track/${code}`, { headers: { "cf-connecting-ip": "203.0.113.7" } })).json();
+  assert.equal(record.service, "Kitchen Renovations");
+  assert.equal(record.notes, "");
+  assert.ok(!JSON.stringify(record).includes("Private Person") && !JSON.stringify(record).includes("Secret Lane"));
+
+  let blocked = 0;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const guess = await request(`/api/track/ATP-2026-${String(10000 + attempt)}`, { headers: { "cf-connecting-ip": "198.51.100.9" } });
+    if (guess.status === 429) blocked += 1;
+  }
+  assert.ok(blocked >= 3, `guessing must be stopped quickly, blocked=${blocked}`);
+  let created429 = 0;
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    const again = new FormData();
+    for (const [key, value] of form.entries()) again.set(key, value);
+    if ((await request("/api/requests", { method: "POST", body: again, headers: { "cf-connecting-ip": "198.51.100.77" } })).status === 429) created429 += 1;
+  }
+  assert.ok(created429 >= 1, "a visitor cannot file unlimited requests");
+});
+
+test("sign-in: wrong guesses lock quickly, a parallel burst cannot slip past, and changing the e-mail does not reset the count", async () => {
+  const attempt = (email, address = "192.0.2.50") => request("/api/team/login", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": address }, body: JSON.stringify({ email, password: "not-the-password", teamCode: "WRONG-CODE" }) });
+  let first429 = -1;
+  for (let index = 0; index < 12; index += 1) {
+    const response = await attempt("someone@alert.test");
+    if (response.status === 429 && first429 < 0) first429 = index;
+  }
+  assert.ok(first429 > 0 && first429 <= 8, `locked after at most 8 wrong answers (locked at ${first429})`);
+  assert.equal((await attempt("someone-else@alert.test")).status, 401, "another e-mail from the same address is still allowed under the address limit");
+
+  // Guessing the Team Code while changing the e-mail each time is stopped by the address limit.
+  let statuses = [];
+  for (let index = 0; index < 22; index += 1) statuses.push((await attempt(`guess${index}@alert.test`, "192.0.2.60")).status);
+  assert.ok(statuses.includes(429), "rotating the e-mail address does not avoid the lock");
+
+  const burst = await Promise.all(Array.from({ length: 90 }, (_, index) => attempt(`burst${index}@alert.test`, "192.0.2.70")));
+  assert.ok(burst.filter((response) => response.status === 429).length >= 25, "a parallel burst is cut off after 60 attempts");
+  assert.ok(burst.every((response) => response.status === 401 || response.status === 429));
+});
+
+test("authority switches are really saved, and Admin cannot read messages the Owner sent to other people", async () => {
+  const owner = await app.ownerCookie();
+  await request("/api/owner/data", json(owner, { resource: "message", payload: { recipient: "Site Supervisor 01", body: "ONLY FOR THE SUPERVISOR" } }));
+  await request("/api/owner/data", json(owner, { resource: "message", payload: { recipient: "Operations team", body: "FOR THE WHOLE TEAM" } }));
+  const before = await (await request("/api/admin/data", { headers: { cookie: admin } })).json();
+  const bodies = JSON.stringify(before);
+  assert.ok(!bodies.includes("ONLY FOR THE SUPERVISOR"), "the Owner's private message is not in the Admin's data");
+  assert.ok(bodies.includes("FOR THE WHOLE TEAM"), "the shared channel still is");
+
+  const saved = await request("/api/owner/data", json(owner, { resource: "permission", id: "Admin", payload: { projects: 0, schedule: 0, finance: 0, financeExport: 0 } }, "PATCH"));
+  assert.equal(saved.status, 200);
+  const stored = app.d1.sqlite.prepare("SELECT projects, schedule FROM role_permissions WHERE role = 'Admin'").get();
+  assert.deepEqual({ ...stored }, { projects: 0, schedule: 0 }, "the switches are stored");
+  const after = await (await request("/api/admin/data", { headers: { cookie: admin } })).json();
+  assert.deepEqual(after.data.projects, [], "with the projects switch off Admin sees no projects");
+  await request("/api/owner/data", json(owner, { resource: "permission", id: "Admin", payload: { projects: 1, schedule: 1, finance: 0, financeExport: 0 } }, "PATCH"));
+});
+
+test("photos: a report can only use real photos of the right kind, each used once", async () => {
+  const supervisor = await app.staffCookie("super.photos@alert.test", "Site Supervisor");
+  const { caseId } = await newRequest("photos1");
+  for (const [action, payload] of [["review_started", {}], ["approve_intake", {}], ["assign_visit", { supervisorEmail: "super.photos@alert.test", supervisorName: "Photo Super", visitAt: "2026-12-03T09:00" }]]) {
+    assert.equal((await request("/api/workflow", json(admin, { action, caseId, payload }))).status, 200, action);
+  }
+  const report = (fileIds) => request("/api/workflow", json(supervisor, { action: "submit_site_visit", caseId, payload: { visitDate: "2026-12-03", summary: "Looked", findings: "None", recommendations: "Proceed", internalNotes: "", fileIds } }));
+  const fake = await report([99999999]);
+  assert.equal(fake.status, 400);
+  assert.match((await fake.json()).error, /site photo is required/);
+
+  const upload = async (category) => {
+    const form = new FormData();
+    form.set("caseId", String(caseId));
+    form.set("category", category);
+    form.set("file", new File([png], `${category}.png`, { type: "image/png" }));
+    const response = await request("/api/workflow/files", { method: "POST", headers: { cookie: supervisor }, body: form });
+    assert.equal(response.status, 201, await response.clone().text());
+    return (await response.json()).data.id;
+  };
+  const wrongKind = await upload("progress");
+  assert.equal((await report([wrongKind])).status, 400, "a progress photo cannot stand in for a site-visit photo");
+  const real = await upload("site_visit");
+  assert.equal((await report([real])).status, 200);
 });

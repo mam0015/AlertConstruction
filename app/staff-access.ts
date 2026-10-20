@@ -23,15 +23,24 @@ export function isWorkerRole(role: StaffRole | string): role is StaffRole {
   return workerStaffRoles.includes(role as StaffRole);
 }
 
+// A refused sign-in must take as long as a real password check, or the time it takes tells a stranger which e-mail addresses
+// belong to staff (or to the Owner).
+const SPENT_HASH = "pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+async function invalidAfterCheck(password: string): Promise<StaffSignInResult> {
+  await verifyStoredSecret(password, SPENT_HASH).catch(() => false);
+  return { status: "invalid" };
+}
+
 export async function processStaffSignIn(emailInput: string, password: string, teamCode: string): Promise<StaffSignInResult> {
   const email = emailInput.trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email) || !password) return { status: "invalid" };
-  if (await isRegisteredOwnerEmail(email)) return { status: "invalid" };
+  if (await isRegisteredOwnerEmail(email)) return invalidAfterCheck(password);
 
   const existing = await getStaffAccessRequest(email);
 
   if (!existing) {
-    if (!teamCode || !await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
+    if (!teamCode) return invalidAfterCheck(password);
+    if (!await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
     await createStaffAccessRequest(email, await hashStaffPassword(password));
     await notifyOwnerOfStaffRequest(email).catch(() => undefined);
     return { status: "pending", email };

@@ -259,15 +259,41 @@ function requireStage(current: unknown, allowed: WorkflowStage[]) {
   if (!allowed.includes(String(current) as WorkflowStage)) throw new Error("This action is not available at the current project stage.");
 }
 
-function projectCodeFrom(requestCode: string) {
-  const digits = requestCode.match(/(\d{3,})$/)?.[1] ?? String(Date.now()).slice(-5);
-  return `ATP-${new Date().getFullYear()}-${digits.padStart(5, "0")}`;
+// The company works on Melbourne time, so the year in a code is the Melbourne year (not UTC).
+function businessYear() {
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", year: "numeric" }).format(new Date());
+}
+
+// Project codes are ATP-YYYY-NNNNN, counting up from the highest number already used (in projects or in workflow cases), so two
+// customers can never be given the same code. The caller retries if two approvals pick the same number at the same instant.
+async function nextProjectCode(db: D1) {
+  const prefix = `ATP-${businessYear()}-`;
+  const used = await db.prepare("SELECT code AS value FROM projects WHERE code LIKE ? UNION SELECT project_code AS value FROM workflow_cases WHERE project_code LIKE ?").bind(`${prefix}%`, `${prefix}%`).all<{ value: string }>();
+  let highest = 0;
+  for (const row of used.results) {
+    const match = /^ATP-\d{4}-(\d+)$/.exec(String(row.value));
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return `${prefix}${String(highest + 1).padStart(5, "0")}`;
 }
 
 function privateRequestCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `REQ-${new Date().getFullYear()}-${token}`;
+  return `REQ-${businessYear()}-${token}`;
+}
+
+// The photo numbers a screen sends are only a request: keep the ones that really are this job's photos of the right kind (and, for
+// daily updates, not already used by another update), and insist on at least one. `unclaimedOnly` is for photos that belong to
+// exactly one update.
+async function realPhotos(db: D1, caseId: number, input: unknown, category: string, message: string, unclaimedOnly = false) {
+  const wanted = [...new Set((Array.isArray(input) ? input : []).map(Number).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 60);
+  if (!wanted.length) throw new Error(message);
+  const marks = wanted.map(() => "?").join(",");
+  const found = await db.prepare(`SELECT id FROM workflow_files WHERE case_id=? AND category=? ${unclaimedOnly ? "AND update_id=0" : ""} AND id IN (${marks})`).bind(caseId, category, ...wanted).all<{ id: number }>();
+  const ids = found.results.map((row) => Number(row.id));
+  if (!ids.length) throw new Error(message);
+  return ids;
 }
 
 export async function performWorkflowAction(role: WorkflowRole, actorEmail: string, action: string, caseId: number, payload: Record<string, unknown>) {
@@ -288,12 +314,22 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, "Admin contacted the customer", note);
   } else if (action === "approve_intake") {
     allow(role, "admin"); requireStage(stage, ["admin_review", "customer_contacted"]);
-    const projectCode = projectCodeFrom(String(item.requestCode));
-    const folder = `projects/${projectCode}`;
-    await db.batch([
-      db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=?").bind(projectCode, folder, now, caseId),
-      db.prepare("INSERT OR IGNORE INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,?,?,?,'Created from approved customer request.',?)").bind(projectCode, `${item.service} · ${item.suburb}`, item.service, "Site inspection", item.customerName, item.suburb, "", now),
-    ]);
+    let projectCode = "";
+    let folder = "";
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      projectCode = await nextProjectCode(db);
+      folder = `projects/${projectCode}`;
+      try {
+        await db.batch([
+          db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=?").bind(projectCode, folder, now, caseId),
+          db.prepare("INSERT INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,?,?,?,'Created from approved customer request.',?)").bind(projectCode, `${item.service} · ${item.suburb}`, item.service, "Site inspection", item.customerName, item.suburb, "", now),
+        ]);
+        break;
+      } catch (error) {
+        // Another approval took this number a moment ago: look again for the next free one.
+        if (attempt === 5 || !/unique|constraint/i.test(error instanceof Error ? error.message : String(error))) throw error;
+      }
+    }
     await event(db, caseId, "Admin", actorEmail, action, "Admin approved intake and created the project folder", folder);
   } else if (action === "assign_visit") {
     allow(role, "admin"); requireStage(stage, ["site_visit_ready", "site_visit_scheduled", "visit_changes_requested"]);
@@ -306,8 +342,7 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
   } else if (action === "submit_site_visit") {
     allow(role, "supervisor"); requireStage(stage, ["site_visit_scheduled", "visit_changes_requested"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one site photo is required before the visit report can be submitted.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "site_visit", "At least one site photo is required before the visit report can be submitted.");
     const values = [caseId, actorEmail, required(payload.visitDate, "Visit date"), required(payload.summary, "Visit summary"), required(payload.findings, "Findings"), required(payload.recommendations, "Recommendations"), clean(payload.internalNotes), "submitted", "", now, ""];
     const previous = await db.prepare("SELECT id FROM site_visit_reports WHERE case_id=? ORDER BY id DESC LIMIT 1").bind(caseId).first<{ id?: number }>();
     if (previous?.id) {
@@ -362,19 +397,17 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
   } else if (action === "submit_progress_update") {
     allow(role, "supervisor"); requireStage(stage, ["active_project"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one progress photo is required for the daily update.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "progress", "At least one progress photo is required for the daily update.", true);
     const created = await db.prepare("INSERT INTO project_updates (case_id,work_date,supervisor_email,internal_update,customer_update,status,created_at) VALUES (?,?,?,?,?,'pending_admin',?)")
       .bind(caseId, required(payload.workDate, "Work date"), actorEmail, required(payload.internalUpdate, "Internal team update"), required(payload.customerUpdate, "Customer update"), now).run();
     const updateId = Number(created.meta.last_row_id);
     const placeholders = fileIds.map(() => "?").join(",");
-    await db.prepare(`UPDATE workflow_files SET update_id=? WHERE case_id=? AND id IN (${placeholders})`).bind(updateId, caseId, ...fileIds).run();
+    await db.prepare(`UPDATE workflow_files SET update_id=? WHERE case_id=? AND category='progress' AND update_id=0 AND id IN (${placeholders})`).bind(updateId, caseId, ...fileIds).run();
     await event(db, caseId, "Site Supervisor", actorEmail, action, "Daily update submitted to Admin", "Internal notes are visible to management. Customer copy remains hidden.");
   } else if (action === "submit_quality_inspection") {
     allow(role, "supervisor"); requireStage(stage, ["active_project"]);
     if (String(item.assignedSupervisorEmail).toLowerCase() !== actorEmail.toLowerCase()) throw new Error("This project is not assigned to your account.");
-    const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds.map(Number).filter(Number.isInteger) : [];
-    if (!fileIds.length) throw new Error("At least one completion photo is required for quality inspection.");
+    const fileIds = await realPhotos(db, caseId, payload.fileIds, "quality", "At least one completion photo is required for quality inspection.");
     const inspectedAt = required(payload.inspectedAt, "Inspection date");
     const summary = required(payload.summary, "Quality inspection summary");
     const defects = clean(payload.defects);
