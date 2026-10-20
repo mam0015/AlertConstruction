@@ -25,7 +25,7 @@
   .sidebar{padding:12px 14px 10px;border-right:0;border-bottom:1px solid #292a2a}
   .brand{padding:0 0 10px}
   .roleCard{margin:12px 0 10px;padding:10px 12px}
-  .sidebar nav{display:flex;overflow-x:auto;gap:6px;padding-bottom:6px;scroll-snap-type:x proximity;scrollbar-width:none}
+  .sidebar nav{display:flex;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:6px;scroll-snap-type:x proximity;scrollbar-width:none}
   .sidebar nav::-webkit-scrollbar{display:none}
   .sidebar nav button{display:inline-flex;flex:0 0 auto;min-height:44px;align-items:center;gap:8px;padding:0 14px;border-left:0;border:1px solid rgba(255,255,255,.1);border-radius:2px;white-space:nowrap;scroll-snap-align:start}
   .sidebar nav .active{border-color:var(--gold)}
