@@ -259,9 +259,11 @@
 
 /* ---- Phones ---- */
 @media(max-width:640px){
-  .hud{flex-wrap:wrap}
+  .hud{flex-wrap:wrap;gap:12px}
+  .hudTitle{flex:1 1 calc(100% - 76px)}
+  .hudTitle h1 span{display:block;margin-top:3px;white-space:nowrap}
   .brainPick{grid-template-columns:1fr}
-  .modeOn,.modeOff{order:3}
+  .modeOn,.modeOff{order:3;flex:1 1 100%;justify-content:center}
   .chatForm{grid-template-columns:1fr;grid-template-areas:"prompt" "input" "run"}
   .chatForm .ask{width:100%}
   .turnOwner,.turnJarvis{max-width:100%}

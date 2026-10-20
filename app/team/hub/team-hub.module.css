@@ -32,3 +32,17 @@
 .reportList article{padding:14px;margin-bottom:10px;border:1px solid #2a2b2b;background:#0d0e0e}.status{display:inline-block;padding:2px 8px;font-size:11px;font-weight:700;background:#2a2b2b}.Approved{background:#12261a;color:#a8e8b4}.Pending{background:#2b2410;color:#f5b900}.Rejected,.Needs{background:#2a1517;color:#ffb4b6}
 .roster{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}.roster article{padding:14px;border:1px solid #2a2b2b;background:#0d0e0e}.roster strong{display:block}.roster small{color:#a4a7a7}
 @media(max-width:900px){.calGrid,.chatGrid{grid-template-columns:1fr}.day{min-height:58px}.row2{grid-template-columns:1fr}.msg{max-width:92%}}
+
+/* ---- Dark executive theme (generated) ---- */
+/* These screens live inside the black-and-gold Owner/Admin/Supervisor shells; the original light colours are recoloured here, layout untouched. */
+.top small{color:#a6a4a0}
+.tab{color:#a6a4a0}
+.muted{color:#a6a4a0}
+.dow span{color:#a6a4a0}
+.more{color:#a6a4a0}
+.entry small{color:#a6a4a0}
+.form label{color:#a6a4a0}
+.person small{color:#a6a4a0}
+.msg small{color:#a6a4a0}
+.compose input[type=file]{color:#a6a4a0}
+.roster small{color:#a6a4a0}

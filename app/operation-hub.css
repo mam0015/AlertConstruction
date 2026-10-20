@@ -276,7 +276,7 @@
 }
 
 :is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectCards"], [class*="requestBody"]) :is(h2, dd) {
-  color: #121313 !important;
+  color: #f5f2eb !important;
 }
 
 :is([class*="ownerShell"], [class*="adminShell"]) :is([class*="requestBody"] blockquote, [class*="staffAccessPreview"], [class*="restrictedNotice"]) {
@@ -547,6 +547,54 @@
   }
 }
 
+/* Auto-darkened copy of the pale compatibility rules above (white cards, tables, forms, calendar, charts, messaging, modals): same selectors, dark colours.
+   It sits before the executive dark layer so that layer still wins wherever it has its own look. */
+/* White cards and metric tiles */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panel"]:not([class*="mainPanel"]),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectCards"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="requestGrid"] > article,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="staffCard"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="controlBar"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="transactionsPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectProfitPanel"],
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="permissionsPanel"]{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"]{border-bottom-color:rgba(255,255,255,.1)!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] :is(h2, button){color:#ebeae9!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="panelHeading"] span{color:#bebcb9!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) article{border:1px solid rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) :is(span, small){color:#c0bebb!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="executiveMetrics"], [class*="financeMetricStrip"], [class*="metricStrip"], [class*="staffSummary"]) strong{color:#ebeae9!important}
+/* Tables, records and request cards */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="tableHeader"]{color:#c2c0bd!important;background:#191817!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="attendanceRow"]),
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="scheduleList"] > div{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="projectRow"]:hover{background:rgba(238,189,43,0.14)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="projectRow"], [class*="transactionRow"], [class*="scheduleList"], [class*="projectCards"], [class*="requestBody"]) :is(small, p, dt){color:#c2bfbc!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="requestBody"] blockquote, [class*="staffAccessPreview"], [class*="restrictedNotice"]){color:#cdccc9!important;background:rgba(238,189,43,0.14)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"]{border-color:rgba(255,255,255,.1)!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] button{border-color:rgba(255,255,255,.1)!important;color:#cac8c5!important}
+/* Forms */
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="controlBar"], [class*="recordModal"], [class*="staffControls"], [class*="eodCard"]) :is(input, select, textarea){border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:rgba(173,157,107,0.14)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="financeControls"] > div, [class*="financeControls"] select, [class*="typeSelector"]){border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+/* Schedule */
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]){border-color:rgba(255,255,255,.1)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]) > article{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="calendarGrid"], [class*="weekCalendar"]) button{color:#ebeae9!important;background:#181817!important}
+[class*="ownerShell"] [class*="lineChart"] svg text{fill:#c4c2bf!important}
+[class*="ownerShell"] [class*="chartKey"]{color:#c4c2bf!important}
+[class*="ownerShell"] [class*="pie"] > span:not([class*="pieCenter"]){color:#ebeae9!important;background:#141313!important}
+/* Messaging */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"]{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] > section,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] section > header,
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] form{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="teamMessage"]{border-color:rgba(255,255,255,.1)!important;background:#191918!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="ownMessage"]{background:rgba(238,199,43,0.14)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="teamMessage"], [class*="ownMessage"]) p{color:#ebeae9!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="messageWorkspace"] form input{border-color:rgba(255,255,255,.1)!important;color:#ebeae9!important;background:rgba(173,157,107,0.14)!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="recordModal"]{color:#ebeae9!important;background:#141313!important}
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="recordModal"] h2{color:#ebeae9!important}
+
 /*
  * V69 executive dark layer.
  *
@@ -742,3 +790,76 @@
 
 /* Audit UI-07: the centre label sits over the ring and must not be a white box. */
 [class*="ownerShell"] [class*="pieCenter"]{background:transparent!important;color:#e6e2db!important}
+
+/* Polish: the old light skin above left a few white fields and dark-on-dark texts behind; the dark executive layer wins everywhere. */
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="controlBar"], [class*="recordModal"], [class*="staffControls"], [class*="eodCard"], [class*="messageWorkspace"] form) :is(input, select, textarea) {
+  border-color: rgba(255, 255, 255, .13) !important;
+  color: #f5f2eb !important;
+  background: #0b0c0c !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is(input, select, textarea)::placeholder {
+  color: #6f736f !important;
+}
+
+/* Hovering the current page in the sidebar must keep it gold with dark text (it used to turn dark with dark text). */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] [class*="activeNav"]:hover {
+  color: #080909 !important;
+  background: #f5b900 !important;
+}
+
+/* Finance toolbar: the period switch and project filter were white boxes. */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] {
+  border-color: rgba(255, 255, 255, .13) !important;
+  background: #0b0c0c !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] button {
+  border-color: rgba(255, 255, 255, .08) !important;
+  color: #a6a9a5 !important;
+  background: transparent !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="segmented"] button:hover {
+  color: #f5f2eb !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="segmentActive"], [class*="selectedSegment"]) {
+  color: #080909 !important;
+  background: #f5b900 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) :is([class*="financeControls"] > div, [class*="financeControls"] select, [class*="typeSelector"]) {
+  border-color: rgba(255, 255, 255, .13) !important;
+  color: #f5f2eb !important;
+  background: #0b0c0c !important;
+}
+
+/* The count badges in the sidebar stay white pills with dark numbers. */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarNav"] button b {
+  color: #080909 !important;
+  background: #fff !important;
+}
+
+/* Admin top bar: the date and the product name were running together on one line. */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] > span {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+@media (max-width: 640px) {
+  :is([class*="ownerShell"], [class*="adminShell"]) [class*="topbar"] > span strong {
+    display: none;
+  }
+}
+
+/* Contrast: the initials on the gold avatar are dark, and the small status text in the sidebar footer is lighter. */
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="profileChip"] > span {
+  color: #080909 !important;
+}
+
+:is([class*="ownerShell"], [class*="adminShell"]) [class*="sidebarBottom"] > div > span {
+  color: #98a2ad !important;
+}

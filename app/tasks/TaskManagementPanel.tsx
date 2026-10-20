@@ -87,7 +87,7 @@ export default function TaskManagementPanel({ role, scope }: { role: "owner" | "
           <div className={styles.taskTop}><i className={styles[`priority${task.priority}`]}>{task.priority}</i><span>{task.projectCode}</span><small>{readable(task.updatedAt)}</small></div>
           <h4>{task.title}</h4><p>{task.instructions}</p>
           <div className={styles.assignee}><b>{task.assigneeTitle.slice(0, 2).toUpperCase()}</b><span><strong>{task.assigneeTitle}</strong><small>{task.assigneeEmail}</small></span></div>
-          <footer><select value={task.status} onChange={(event) => void action("set_status", { taskId: task.id, status: event.target.value }, `Task marked ${event.target.value.replaceAll("_", " ")}.`)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><button onClick={() => void action("delete_task", { taskId: task.id }, "Task removed.")}>Remove</button></footer>
+          <footer><select aria-label={`Status of ${task.title}`} value={task.status} onChange={(event) => void action("set_status", { taskId: task.id, status: event.target.value }, `Task marked ${event.target.value.replaceAll("_", " ")}.`)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><button onClick={() => void action("delete_task", { taskId: task.id }, "Task removed.")}>Remove</button></footer>
         </article>)}
         {!tasks.length && <div className={styles.empty}><strong>No tasks in this section.</strong><span>Create the first assignment from the form.</span></div>}
       </section>
