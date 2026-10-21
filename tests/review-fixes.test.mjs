@@ -165,6 +165,24 @@ test("voice: digits are read in the language of the text before them, device voi
   assert.ok(Date.now() - started < 1_000, "linear time");
 });
 
+test("voice: Persian words inside an English sentence go to the Persian voice, English words inside Persian to the English voice", () => {
+  const mixed = chunksFor("Message from علی about tiles. پیام از Ali درباره کاشی 42.", { prefer: "en" });
+  assert.deepEqual(mixed.map((chunk) => [chunk.lang, chunk.text]), [
+    ["en-AU", "Message from"], ["fa-IR", "علی"], ["en-AU", "about tiles."], ["fa-IR", "پیام از"], ["en-AU", "Ali"], ["fa-IR", "درباره کاشی 42."],
+  ]);
+  assert.ok(!mixed.some((chunk) => chunk.lang === "en-AU" && /[\u0600-\u06FF]/.test(chunk.text)), "an English voice never gets Persian letters");
+  assert.deepEqual(chunksFor("12 345", { prefer: "fa" }).map((chunk) => chunk.lang), ["fa-IR"], "text with no letters uses the chosen language");
+  assert.ok(chunksFor("x ".repeat(2000), { max: 100 }).every((chunk) => chunk.text.length <= 100));
+});
+
+test("persian: a source that could not be read is named in Persian when the Owner writes Persian", async () => {
+  const google = googleMock({ messages: {} });
+  const down = async (url, init) => (String(url).includes("googleapis.com/gmail") ? new Response("{}", { status: 500 }) : google.fetchImpl(url, init));
+  const out = await askJarvis({ db: freshDb(), config: baseConfig(), fetchImpl: down, owner, input: parseAskInput({ message: "اخبار چیه؟" }) });
+  assert.ok(!/I could not fully read|Note:/.test(out.reply), out.reply);
+  assert.match(out.reply, /نتوانستم .+ را کامل بخوانم/, "the warning is there, in Persian");
+});
+
 test("voice screen: toggles use aria-pressed with fixed names, a mounted-only reader, and valid font declarations", () => {
   const hook = read("jarvis/useVoice.ts");
   const bar = read("jarvis/VoiceBar.tsx");

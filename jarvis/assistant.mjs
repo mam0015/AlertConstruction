@@ -219,7 +219,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   }
   const persian = wantsPersian(input.message);
   const incomplete = (briefing.briefing.incomplete ?? []).length
-    ? incompleteNote(briefing.briefing.incomplete.map((entry) => entry.label), persian) : "";
+    ? incompleteNote(briefing.briefing.incomplete.map((entry) => (persian ? FA.areas[entry.scope] ?? entry.label : entry.label)), persian) : "";
   // A brain the Owner picked but that is not connected is never swapped for the other one: Jarvis says so and uses basic mode.
   const chosenButOff = !brain.enabled && Boolean(input.brain);
   if (chosenButOff && !notice) notice = notConnectedText(brain);

@@ -50,6 +50,6 @@ export const FA = {
   and: " و ",
   areas: {
     company_email: "ایمیل", employee_updates: "گزارش‌ها", client_comments: "مشتری‌ها", team_messages: "پیام‌های تیم",
-    work: "درخواست‌ها و پروژه‌ها", tasks: "کارها", finance: "مالی", people: "تیم",
+    work: "درخواست‌ها و پروژه‌ها", tasks: "کارها", finance: "مالی", people: "تیم", schedule: "برنامه‌ها",
   },
 };

@@ -58,15 +58,30 @@ export function chunksFor(text, { prefer = "en", max = 170 } = {}) {
       if (rest) pieces.push(rest);
     }
   }
+  // Every sentence is cut into runs of words in one script: a Persian word inside an English sentence goes to the Persian voice, and an English
+  // word inside a Persian sentence to the English voice. Words with no letters (numbers) stay with the words next to them, and text that has no
+  // letters at all is read in the language of what came before it (or the chosen language at the very start).
   const chunks = [];
-  for (const piece of pieces) {
-    const script = scriptOf(piece);
-    // Digits and symbols have no language of their own: they are read in the language of the text before them (or the chosen language at the start).
-    const lang = script === "none" ? (chunks.at(-1)?.lang ?? VOICE_LANGS[fallback]) : VOICE_LANGS[script];
+  const push = (text, lang) => {
     const last = chunks.at(-1);
-    // Short neighbours in the same language are joined, so "1." or "Ali." is not spoken as a separate, choppy phrase.
-    if (last && last.lang === lang && last.text.length + piece.length + 1 <= max) last.text = `${last.text} ${piece}`;
-    else chunks.push({ text: piece, lang });
+    // Neighbours in the same language are joined up to the length limit, so speech is not cut into tiny pieces.
+    if (last && last.lang === lang && last.text.length + text.length + 1 <= max) last.text = `${last.text} ${text}`;
+    else chunks.push({ text, lang });
+  };
+  for (const piece of pieces) {
+    let current = null;
+    const flush = () => {
+      if (current) push(current.text, current.lang ?? chunks.at(-1)?.lang ?? VOICE_LANGS[fallback]);
+      current = null;
+    };
+    for (const word of piece.split(" ")) {
+      const script = scriptOf(word);
+      const lang = script === "none" ? null : VOICE_LANGS[script];
+      if (!current) current = { text: word, lang };
+      else if (lang === null || current.lang === null || lang === current.lang) { current.text = `${current.text} ${word}`; current.lang ??= lang; }
+      else { flush(); current = { text: word, lang }; }
+    }
+    flush();
   }
   return chunks;
 }
