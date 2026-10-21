@@ -1,5 +1,6 @@
 import { createPublicRequest, type PublicRequestInput } from "../../../db/request-store";
 import { requestIsSameOrigin } from "../../owner-auth";
+import { isStorageFull } from "../../../db/storage-usage";
 import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../db/throttle";
 
 const allowedServices = new Set([
@@ -59,7 +60,9 @@ export async function POST(request: Request) {
       status: 201,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch {
+  } catch (error) {
+    // Nothing was saved. The customer is never told how full the company's storage is.
+    if (isStorageFull(error)) return Response.json({ error: "Photos and files cannot be accepted right now. Please send your request without attachments, or contact the company directly." }, { status: 507 });
     return Response.json({ error: "We could not save your request. Please try again." }, { status: 500 });
   }
 }

@@ -41,7 +41,10 @@ If this does not finish cleanly, stop and fix that first. `npm run preview:local
 
 1. Sign up / log in at <https://dash.cloudflare.com>.
 2. Left menu → **R2 Object Storage** → press **Get started / Enable R2** once (it may ask for a card; the free allowance covers a small company).
-3. Left menu → **Workers & Pages**: copy your **Account ID** (right-hand side).
+3. Your Account ID, the existing D1 database and the existing R2 bucket are already written in **`cloudflare.resources.json`**
+   (identifiers only, no passwords). The deploy **uses those** and never creates a second database or bucket. If the database cannot be found
+   it stops and says so. To point the app at a different account or database, edit that file (or set `CLOUDFLARE_ACCOUNT_ID`,
+   `D1_DATABASE_ID`, `R2_BUCKET_NAME`, which win over the file).
 4. Top-right profile → **My Profile → API Tokens → Create Token → "Edit Cloudflare Workers"** template, and add two permissions:
    `Account · D1 · Edit` and `Account · Workers R2 Storage · Edit`. Create the token and copy it (shown once).
 
@@ -63,11 +66,18 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | Name | Where it comes from |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Step 2 |
-| `CLOUDFLARE_ACCOUNT_ID` | Step 2 |
+| `CLOUDFLARE_ACCOUNT_ID` | Already in `cloudflare.resources.json`, so you can skip this secret (a secret of the same name wins if you add one) |
 | `OWNER_EMAIL` | Step 3 |
 | `OWNER_PASSWORD_HASH` | Step 3 |
 | `OWNER_SESSION_SECRET` | Step 3 |
 | `CUSTOMER_CONTACT_HASH_SECRET` | Step 3 |
+
+**The app starts completely empty.** The deploy only connects the app to the database and bucket; it writes no records, and demo data is switched off
+in production (`ATP_DEMO_SEED=false`). The tables are created empty the first time the app runs, and only the company's own people add data after that.
+
+**File limit:** the company's uploaded files (chat attachments, project photos and documents, customer uploads) are capped at **8 GB** in total
+(`filesLimitGb` in `cloudflare.resources.json`, or the `FILES_LIMIT_GB` setting). Uploads that would go over are refused with a clear message, and
+**Settings → File storage** in the Owner dashboard shows a meter that warns at 80%. The database (D1) is separate and has its own Cloudflare plan limit.
 
 **Recommended:** `OWNER_DISPLAY_NAME`, `TEAM_SESSION_SECRET` (both printed in Step 3).
 

@@ -1,6 +1,7 @@
 import { ensureWorkflowDatabase } from "./workflow-store";
 import type { WorkerManagementSnapshot, WorkerSnapshot } from "../app/workers/types";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
+import { assertStorageRoom } from "./storage-usage";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -274,6 +275,7 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
   }
   const env = await runtimeBindings();
   if (!env.BUCKET) throw new Error("Private project file storage is not configured.");
+  await assertStorageRoom(file.size);
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-120) || "project-file";
   const prefix = String(project.projectFolder || `projects/${project.projectCode}`);
   const objectKey = `${prefix}/worker-files/${crypto.randomUUID()}-${safeName}`;

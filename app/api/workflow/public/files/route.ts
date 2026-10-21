@@ -1,6 +1,7 @@
 import { addCustomerRequestFile, getCustomerUploadTarget } from "../../../../../db/workflow-store";
 import { requestIsSameOrigin } from "../../../../owner-auth";
 import { runtimeBindings } from "../../../../../db/runtime";
+import { assertStorageRoom, isStorageFull } from "../../../../../db/storage-usage";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const target = await getCustomerUploadTarget(caseId, code);
     const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Customer document storage is not configured.");
+    await assertStorageRoom(file.size);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100) || "customer-file";
     const prefix = target.projectFolder || `requests/${target.requestCode}`;
     objectKey = `${prefix}/customer-intake/${crypto.randomUUID()}-${safeName}`;
@@ -43,6 +45,8 @@ export async function POST(request: Request) {
       const env = await runtimeBindings();
       await env.BUCKET?.delete(objectKey).catch(() => undefined);
     }
+    // A customer is never told how full the company's storage is.
+    if (isStorageFull(error)) return Response.json({ error: "Uploads are not available right now. Please contact the company directly." }, { status: 507 });
     const message = error instanceof Error ? error.message : "Customer document upload failed.";
     const safe = /(?:valid customer document|only JPG|5 MB|file content|not found|maximum|no longer|not configured)/i.test(message)
       ? message

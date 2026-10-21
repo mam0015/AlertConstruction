@@ -103,10 +103,11 @@
 .turnOwner{align-self:flex-end;border-color:rgba(212,173,82,.45);background:rgba(212,173,82,.09)}
 .turnJarvis{align-self:flex-start;background:rgba(77,255,176,.045)}
 .turnLatest{border-color:var(--j-line2);box-shadow:0 0 22px rgba(77,255,176,.07)}
-.turnOwner>b,.turnJarvis>b{font-family:var(--j-mono);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
-.turnOwner>b{color:var(--j-gold2)}
-.turnJarvis>b{color:var(--j-neon)}
-.turnOwner p,.turnJarvis p{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.turnHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.turnHead>b{font-family:var(--j-mono);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.turnOwner .turnHead>b{color:var(--j-gold2)}
+.turnJarvis .turnHead>b{color:var(--j-neon)}
+.turnOwner p,.turnJarvis p{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:plaintext}
 .turnNotice{color:var(--j-warn);font-size:12px}
 .thinking{color:var(--j-muted)}
 .thinking span{animation:jPulse 1.2s ease-in-out infinite}
@@ -122,7 +123,8 @@
 .chatForm textarea{grid-area:input;width:100%;min-height:52px;padding:12px 14px;border:1px solid var(--j-line2);border-radius:2px;outline:0;color:var(--j-ink);background:#030806;font:14px/1.6 var(--j-mono);resize:vertical;caret-color:var(--j-neon)}
 .chatForm textarea::placeholder{color:var(--j-dim)}
 .chatForm textarea:focus{border-color:var(--j-neon);box-shadow:0 0 0 1px var(--j-neon),0 0 22px rgba(77,255,176,.14)}
-.chatForm .ask{grid-area:run;min-height:52px}
+.chatForm .ask{min-height:52px}
+.runButtons{grid-area:run;display:flex;gap:8px;align-items:stretch}
 .quick{display:flex;flex-wrap:wrap;gap:8px}
 .quick button{min-height:40px;padding:0 14px;border:1px solid var(--j-line2);border-radius:99px;color:var(--j-soft);background:rgba(77,255,176,.05);font-family:var(--j-mono);font-size:11px;cursor:pointer}
 .quick button:hover:not(:disabled){border-color:var(--j-neon);color:var(--j-neon);background:rgba(77,255,176,.1)}
@@ -279,3 +281,27 @@
 @media(prefers-reduced-motion:reduce){
   .jarvis *,.jarvis *::before,.jarvis *::after{animation:none!important;transition:none!important}
 }
+.voiceBar{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--j-line);background:rgba(61,224,255,.035)}
+.voiceRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.langPick{display:inline-flex;border:1px solid var(--j-line2)}
+.langPick button{display:inline-flex;align-items:baseline;gap:6px;min-height:40px;padding:0 14px;border:0;color:var(--j-soft);background:transparent;font:600 14px/1 inherit;font-family:inherit;cursor:pointer}
+.langPick button+button{border-left:1px solid var(--j-line2)}
+.langPick button small{color:var(--j-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.langPick .langActive{color:#03140c;background:var(--j-neon)}
+.langPick .langActive small{color:#03140c}
+.voiceButton{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 14px;border:1px solid var(--j-line2);border-radius:2px;color:var(--j-ink);background:rgba(77,255,176,.06);font:600 12px/1 inherit;font-family:var(--j-mono);letter-spacing:.04em;cursor:pointer}
+.voiceButton:hover:not(:disabled){border-color:var(--j-neon);background:rgba(77,255,176,.12)}
+.voiceButton:disabled{opacity:.45;cursor:not-allowed}
+.voiceStop{border-color:rgba(255,122,143,.55);color:var(--j-bad);background:rgba(255,122,143,.07)}
+.voiceNote{margin:0;color:var(--j-muted);font-size:11.5px;line-height:1.6}
+.listenButton{display:inline-grid;place-items:center;width:34px;height:34px;border:1px solid var(--j-line);border-radius:50%;color:var(--j-soft);background:transparent;cursor:pointer}
+.listenButton:hover,.listenButton[aria-pressed="true"]{border-color:var(--j-neon);color:var(--j-neon);background:rgba(77,255,176,.08)}
+.micButton{display:inline-grid;place-items:center;flex:0 0 52px;width:52px;min-height:52px;border:1px solid var(--j-line2);border-radius:2px;color:var(--j-neon);background:rgba(77,255,176,.06);cursor:pointer}
+.micButton:hover:not(:disabled){border-color:var(--j-neon);background:rgba(77,255,176,.12)}
+.micButton:disabled{opacity:.4;cursor:not-allowed}
+.micOn{border-color:var(--j-bad);color:var(--j-bad);background:rgba(255,122,143,.1);animation:jPulse 1.2s ease-in-out infinite}
+.listening{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;color:var(--j-cyan);font-family:var(--j-mono);font-size:12px;line-height:1.6}
+.listening i{width:9px;height:9px;border-radius:50%;background:var(--j-bad);box-shadow:0 0 10px var(--j-bad)}
+.listening span{color:var(--j-ink);font-family:inherit}
+@media(max-width:640px){.chatForm{grid-template-columns:1fr;grid-template-areas:"prompt" "input" "run"}.runButtons .ask{flex:1}.voiceButton{flex:1 1 auto;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.micOn{animation:none}}
