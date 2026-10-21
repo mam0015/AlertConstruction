@@ -11,6 +11,7 @@ import { suggestForItem } from "./advisor.mjs";
 import { clip, looseSearch } from "./briefing.mjs";
 import { checkDraft } from "./draft-guard.mjs";
 import { melbourneDate, runJarvis } from "./jarvis.mjs";
+import { FA, isolate, persianWhen, wantsPersian } from "./persian.mjs";
 import { boundedInteger, JarvisAccessError, LIMITS } from "./policy.mjs";
 import { proofread } from "./proofread.mjs";
 import { MAX_REPLY_CHARS, readForAsk, sendReply } from "./reply.mjs";
@@ -54,7 +55,7 @@ const dayLabel = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbour
 const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : dayLabel.format(date); };
 
 // "What's the news?" without the AI: what happened, newest first, kept together by area. Only said when the Owner asked.
-export function newsText(items, { perArea = 4 } = {}) {
+export function newsText(items, { perArea = 4, persian = false } = {}) {
   const areas = new Map();
   for (const item of items) {
     if (item.kind === "message_from_owner") continue; // the Owner's own words are not news to the Owner
@@ -62,12 +63,22 @@ export function newsText(items, { perArea = 4 } = {}) {
     if (list.length < perArea) list.push(item);
     areas.set(item.source, list);
   }
+  if (persian) {
+    // Each record is isolated, so English words in a Persian line (and the other way round) cannot reorder the sentence.
+    // The preview goes on its own line, not isolated, so an English preview reads left to right and a Persian one right to left.
+    return [...areas].map(([source, list]) => `${FA.areas[source] ?? source}:\n${list.map((item) => `• ${persianWhen(item.at)} — ${isolate(item.title)}${item.who && !item.title.includes(item.who) ? ` (${isolate(item.who.replace(/<[^>]*>/g, ""))})` : ""}${item.preview ? `\n${clip(item.preview, 140)}` : ""}`).join("\n")}`).join("\n\n");
+  }
   return [...areas].map(([source, list]) => `${SOURCE_HEADING[source] ?? source}:\n${list.map((item) => `• ${whenText(item.at)} — ${item.title}${item.who && !item.title.includes(item.who) ? ` (${item.who.replace(/<[^>]*>/g, "").trim()})` : ""}${item.preview ? `: ${clip(item.preview, 140)}` : ""}`).join("\n")}`).join("\n\n");
 }
 
-export function plansText(plans, max = 12) {
+export function plansText(plans, max = 12, { persian = false } = {}) {
+  if (persian) return plans.slice(0, max).map((plan) => `• ${isolate(plan.title)}${plan.who ? ` — ${isolate(plan.who)}` : ""}${plan.project ? ` [${plan.project}]` : ""}`).join("\n");
   return plans.slice(0, max).map((plan) => `• ${plan.title}${plan.who ? ` — ${plan.who}` : ""}${plan.project ? ` [${plan.project}]` : ""}`).join("\n");
 }
+
+const incompleteNote = (labels, persian) => persian
+  ? FA.incomplete(labels.join(FA.and))
+  : `Note: I could not fully read ${labels.join(" and ")}, so this answer may be incomplete.`;
 
 function suggestionsFor(items, max = 6) {
   const out = [];
@@ -80,36 +91,50 @@ function suggestionsFor(items, max = 6) {
 }
 
 // What Jarvis can do without AI: format the Owner's own words into a reply, or point at the matching records.
-function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false }) {
+function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false, persian = false }) {
   if (preview) {
     return {
-      reply: `${notice ? `${notice} ` : "Basic mode (no AI is connected). "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
+      reply: persian
+        ? `${notice ? `${isolate(notice)} ` : ""}${FA.basicPreview}`
+        : `${notice ? `${notice} ` : "Basic mode (no AI is connected). "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
       suggestions: [],
       draft: { body: templateReply({ fromName: preview.toName || preview.original.from?.name, text: message, ownerName: owner.name, company }), note: "Written from your exact words — nothing was added." },
     };
   }
+  if (failedOpen && persian) {
+    return { reply: `${notice ? `${isolate(notice)} ` : ""}${FA.couldNotRead}`.trim(), suggestions: [], draft: null };
+  }
   if (failedOpen) {
     return { reply: `${notice} I did NOT write your reply, because I could not read that email. Please try again in a moment.`.trim(), suggestions: [], draft: null };
   }
-  const lead = `${notice ? `${notice} ` : "Basic mode (no AI is connected), so I looked through your records. "}`;
+  const lead = persian
+    ? `${notice ? `${isolate(notice)} ` : FA.basicLead}`
+    : `${notice ? `${notice} ` : "Basic mode (no AI is connected), so I looked through your records. "}`;
   if (PLANS_QUESTION.test(message) && !NEWS_QUESTION.test(message)) {
-    return { reply: `${plans.length ? `${lead}This is what is planned, soonest first:\n${plansText(plans)}` : `${lead}Nothing is planned in the next ${LIMITS.planDays} days.`}${incomplete ? `\n\n${incomplete}` : ""}`, suggestions: [], draft: null };
+    const header = persian ? FA.plansHeader : "This is what is planned, soonest first:";
+    const none = persian ? FA.plansNone(LIMITS.planDays) : `Nothing is planned in the next ${LIMITS.planDays} days.`;
+    return { reply: `${plans.length ? `${lead}${header}\n${plansText(plans, 12, { persian })}` : `${lead}${none}`}${incomplete ? `\n\n${incomplete}` : ""}`, suggestions: [], draft: null };
   }
   if (NEWS_QUESTION.test(message)) {
-    const news = newsText(items);
+    const news = newsText(items, { persian });
+    const header = persian ? FA.newsHeader : "Here is what has happened, newest first:";
+    const none = persian ? FA.newsNone : "Nothing new has happened in this period.";
     return {
-      reply: `${news ? `${lead}Here is what has happened, newest first:\n\n${news}` : `${lead}Nothing new has happened in this period.`}${incomplete ? `\n\n${incomplete}` : ""}`,
+      reply: `${news ? `${lead}${header}\n\n${news}` : `${lead}${none}`}${incomplete ? `\n\n${incomplete}` : ""}`,
       suggestions: suggestionsFor(items.filter((item) => item.urgent)),
       draft: null,
     };
   }
   const matches = looseSearch(items, message);
   const chosen = (matches.length ? matches : items.filter((item) => item.urgent)).slice(0, 6);
-  const lines = chosen.map((item) => `• ${item.title}${item.who ? ` — ${item.who.replace(/<[^>]*>/g, "").trim()}` : ""}`);
+  const lines = chosen.map((item) => (persian
+    ? `• ${isolate(item.title)}${item.who ? ` — ${isolate(item.who.replace(/<[^>]*>/g, ""))}` : ""}`
+    : `• ${item.title}${item.who ? ` — ${item.who.replace(/<[^>]*>/g, "").trim()}` : ""}`));
+  const matchHeader = persian ? (matches.length ? FA.matches : FA.attention) : `${matches.length ? "These match" : "These need your attention"}:`;
   return {
     reply: `${chosen.length
-      ? `${lead}${matches.length ? "These match" : "These need your attention"}:\n${lines.join("\n")}`
-      : `${lead}I found nothing matching in this period.`}${incomplete ? `\n\n${incomplete}` : ""}`,
+      ? `${lead}${matchHeader}\n${lines.join("\n")}`
+      : `${lead}${persian ? FA.nothingFound : "I found nothing matching in this period."}`}${incomplete ? `\n\n${incomplete}` : ""}`,
     suggestions: suggestionsFor(chosen),
     draft: null,
   };
@@ -190,12 +215,13 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
       notice = friendlyAiError(error);
     }
   }
+  const persian = wantsPersian(input.message);
   const incomplete = (briefing.briefing.incomplete ?? []).length
-    ? `Note: I could not fully read ${(briefing.briefing.incomplete).map((entry) => entry.label).join(" and ")}, so this answer may be incomplete.` : "";
+    ? incompleteNote(briefing.briefing.incomplete.map((entry) => entry.label), persian) : "";
   // A brain the Owner picked but that is not connected is never swapped for the other one: Jarvis says so and uses basic mode.
   const chosenButOff = !brain.enabled && Boolean(input.brain);
   if (chosenButOff && !notice) notice = notConnectedText(brain);
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem }) };
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   if (replyProblem && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n(I can't draft a reply to this one: ${replyProblem})`.trim();

@@ -1,8 +1,11 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { CalendarDays, DollarSign, FolderKanban, ListChecks, Mail, MessageCircle, MessagesSquare, RefreshCw, Search, Send, ShieldCheck, SpellCheck, Terminal, Users, UserCheck, type LucideIcon } from "lucide-react";
+import { CalendarDays, DollarSign, FolderKanban, ListChecks, Mail, MessageCircle, MessagesSquare, Mic, RefreshCw, Search, Send, ShieldCheck, SpellCheck, Square, Terminal, Users, UserCheck, Volume2, type LucideIcon } from "lucide-react";
 import styles from "./jarvis.module.css";
 import { ActionCard, Composer, PlansList, ProofreadReport, Reactor, when } from "./JarvisParts";
+import VoiceBar from "./VoiceBar";
+import { useVoice, type VoiceApi } from "./useVoice";
+import { joinSpoken, newsScript, plansScript } from "./voice.mjs";
 import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, Draft, Focus, Item, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
 
 const SOURCES: { id: Scope; label: string; icon: LucideIcon }[] = [
@@ -85,6 +88,9 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const sendingRef = useRef(false);
   const runningRef = useRef(new Set<string>());
   const chatRef = useRef<HTMLElement>(null);
+  const voice = useVoice();
+  // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
+  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; text: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -167,6 +173,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId }, useOtherRecords: useOther } : {}),
       });
       setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode, actions: answer.actions, brainName: answer.brain ? `${answer.brain.name} · ${answer.brain.engine}` : "basic mode" }]);
+      // The new answer is turn number turns.length + 1 (the Owner's own line was added just before it).
+      if (latest.current?.voice.prefs.speakAnswers) latest.current.voice.speak(`turn-${turns.length + 1}`, answer.reply);
       setActionStates((current) => ({ ...current, ...Object.fromEntries((answer.actions ?? []).map((action) => [action.id, { phase: "ready" } as ActionState])) }));
       if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); setReport(answer.draft.proofread ?? null); }
     } catch (problem) {
@@ -258,6 +266,19 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
+  useEffect(() => { latest.current = { ask, voice, text }; });
+
+  function talk() {
+    if (voice.listening) { voice.stopListening(); return; }
+    voice.listen((said) => {
+      if (!latest.current) return;
+      const { ask: run, voice: current, text: typed } = latest.current;
+      if (current.prefs.autoRun) void run(joinSpoken(typed, said));
+      else setText((existing) => joinSpoken(existing, said));
+    });
+  }
+  const readAloud = (id: string, script: string) => (voice.speakingId === id ? voice.stopReading() : voice.speak(id, script));
+
   return <section className={styles.jarvis}>
     <header className={styles.hud}>
       <Reactor online={Boolean(data)} />
@@ -297,6 +318,9 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         <h2><Terminal size={15} strokeWidth={1.75} aria-hidden="true" />Command line</h2>
         <button className={styles.ghostText} type="button" aria-expanded={showComposer} onClick={() => setShowComposer((value) => !value)}>{showComposer ? "Hide" : "Prepare by hand"}</button>
       </div>
+      <VoiceBar voice={voice} hasNews={Boolean(data?.items.length)} hasPlans={Boolean(data?.plans.length)}
+        onReadNews={() => readAloud("news", newsScript(data?.items ?? [], { lang: voice.prefs.lang }))}
+        onReadPlans={() => readAloud("plans", plansScript(data?.plans ?? [], { lang: voice.prefs.lang }))} />
       {data && !aiOn && <p className={styles.note}>Basic mode: Jarvis searches your records, lists the news and puts <b>your own words</b> into a tidy reply. Connect Jarvis 1 or Jarvis 2 above and it also understands any language, writes replies and prepares messages, calendar entries and tasks from one sentence.</p>}
       {showComposer && data && <Composer team={data.team ?? []} today={todayInMelbourne()} onPropose={propose} />}
 
@@ -308,7 +332,12 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       <div className={styles.turns} aria-live="polite">
         {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis drafts it, you check it." : "Try “What’s the news?”, “Message Ali: be on site at 7 tomorrow”, or “Put the council inspection in Sue’s calendar on Friday at 1pm”."}</p>}
         {turns.map((turn, index) => <div key={index} className={`${turn.role === "owner" ? styles.turnOwner : styles.turnJarvis} ${index === lastJarvis ? styles.turnLatest : ""}`}>
-          <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
+          <div className={styles.turnHead}>
+            <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
+            {voice.canSpeak && <button className={styles.listenButton} type="button" aria-pressed={voice.speakingId === `turn-${index}`}
+              aria-label={voice.speakingId === `turn-${index}` ? "Stop reading this aloud" : `Read this ${turn.role === "owner" ? "message" : "answer"} aloud`}
+              onClick={() => readAloud(`turn-${index}`, turn.content)}>{voice.speakingId === `turn-${index}` ? <Square size={12} strokeWidth={2} aria-hidden="true" /> : <Volume2 size={13} strokeWidth={1.75} aria-hidden="true" />}</button>}
+          </div>
           <p dir="auto">{turn.content}</p>
           {turn.notice && <small className={styles.turnNotice}>{turn.notice}</small>}
           {turn.suggestions && turn.suggestions.length > 0 && <ul className={styles.advice} aria-label="Suggested next steps">{turn.suggestions.map((entry, position) => <li key={position}><i>{ACTION_TEXT[entry.action] ?? "Do"}</i><span><b>{entry.title}</b>{entry.why ? ` — ${entry.why}` : ""}</span></li>)}</ul>}
@@ -356,6 +385,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       {chatError && <p className={styles.error} role="alert">{chatError}</p>}
 
       {focus && <label className={styles.checkRow}><input type="checkbox" checked={useOther} onChange={(event) => setUseOther(event.target.checked)} /> Let Jarvis also use other records (clients’ comments, staff reports, other emails) for this reply. Off by default, so nothing unrelated can end up in the email.</label>}
+      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.prefs.lang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.heard}</span></p>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
         <label className={styles.prompt} htmlFor="jarvis-input"><span aria-hidden="true">owner@alert:~$</span><span className={styles.srOnly}>Your instruction to Jarvis</span></label>
         <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
@@ -365,7 +395,13 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
             const keyboard = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
             if (event.key === "Enter" && !event.nativeEvent.isComposing && ((keyboard && !event.shiftKey) || event.metaKey || event.ctrlKey)) { event.preventDefault(); void ask(text); }
           }} />
-        <button className={styles.ask} type="submit" disabled={asking || !text.trim()}><Send size={14} strokeWidth={2} aria-hidden="true" />Run</button>
+        <div className={styles.runButtons}>
+          <button className={`${styles.micButton} ${voice.listening ? styles.micOn : ""}`} type="button" onClick={talk} disabled={!voice.canListen || asking} aria-pressed={voice.listening}
+            aria-label={voice.listening ? "Stop listening" : `Talk to Jarvis in ${voice.prefs.lang === "fa" ? "Persian" : "English"}`} title={voice.canListen ? "Talk to Jarvis" : "Voice typing is not available in this browser"}>
+            {voice.listening ? <Square size={15} strokeWidth={2} aria-hidden="true" /> : <Mic size={16} strokeWidth={1.75} aria-hidden="true" />}
+          </button>
+          <button className={styles.ask} type="submit" disabled={asking || !text.trim()}><Send size={14} strokeWidth={2} aria-hidden="true" />Run</button>
+        </div>
       </form>
       {!focus && <div className={styles.quick}>{QUICK.map((entry) => <button key={entry.label} type="button" onClick={() => void ask(entry.prompt)} disabled={asking}>{entry.label}</button>)}</div>}
     </article>
