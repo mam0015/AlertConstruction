@@ -41,7 +41,10 @@ npm run verify      # lint + بررسی نوع‌ها + build + همهٔ تست�
 
 1. در <https://dash.cloudflare.com> ثبت‌نام یا ورود کنید.
 2. منوی چپ → **R2 Object Storage** → یک‌بار **Get started / Enable R2** (ممکن است کارت بخواهد؛ سهمیهٔ رایگان برای یک شرکت کوچک کافی است).
-3. منوی چپ → **Workers & Pages**: عدد **Account ID** (سمت راست) را کپی کنید.
+3. Account ID و دیتابیس D1 و باکت R2 موجود شما از قبل در فایل **`cloudflare.resources.json`** نوشته شده‌اند
+   (فقط شناسه، بدون رمز). deploy از همین‌ها استفاده می‌کند و **هیچ‌وقت دیتابیس یا باکت دوم نمی‌سازد**. اگر دیتابیس پیدا نشود
+   متوقف می‌شود و دلیل را می‌نویسد. برای اتصال به حساب یا دیتابیس دیگر همین فایل را عوض کنید
+   (یا `CLOUDFLARE_ACCOUNT_ID` و `D1_DATABASE_ID` و `R2_BUCKET_NAME` را بگذارید که بر فایل غلبه می‌کنند).
 4. بالا-راست پروفایل → **My Profile → API Tokens → Create Token** → قالب **Edit Cloudflare Workers** و دو دسترسی اضافه کنید:
    `Account · D1 · Edit` و `Account · Workers R2 Storage · Edit`. توکن را بسازید و کپی کنید (فقط یک‌بار نشان داده می‌شود).
 
@@ -63,11 +66,18 @@ node scripts/security-setup.mjs
 | Name | از کجا |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | قدم ۲ |
-| `CLOUDFLARE_ACCOUNT_ID` | قدم ۲ |
+| `CLOUDFLARE_ACCOUNT_ID` | از قبل در `cloudflare.resources.json` هست؛ می‌توانید این secret را نگذارید (اگر بگذارید، همان ارجح است) |
 | `OWNER_EMAIL` | قدم ۳ |
 | `OWNER_PASSWORD_HASH` | قدم ۳ |
 | `OWNER_SESSION_SECRET` | قدم ۳ |
 | `CUSTOMER_CONTACT_HASH_SECRET` | قدم ۳ |
+
+**اپ کاملاً خالی شروع می‌کند.** deploy فقط اپ را به دیتابیس و باکت وصل می‌کند؛ هیچ رکوردی نمی‌نویسد و داده‌ی نمایشی
+در نسخه‌ی واقعی خاموش است (`ATP_DEMO_SEED=false`). جدول‌ها اولین بار که اپ اجرا شود خالی ساخته می‌شوند و بعد از آن فقط افراد خود شرکت داده وارد می‌کنند.
+
+**سقف فایل‌ها:** مجموع فایل‌های شرکت (پیوست چت، عکس و مدارک پروژه، فایل مشتری) حداکثر **۸ گیگابایت** است
+(`filesLimitGb` در `cloudflare.resources.json` یا تنظیم `FILES_LIMIT_GB`). آپلودی که از سقف بگذرد با پیام روشن رد می‌شود و در
+داشبورد Owner بخش **Settings ← File storage** یک نوار حجم دارد که از ۸۰٪ هشدار می‌دهد. دیتابیس (D1) جدا است و سقف خودش را دارد.
 
 **توصیه‌شده:** `OWNER_DISPLAY_NAME` و `TEAM_SESSION_SECRET` (هر دو در قدم ۳ چاپ می‌شوند).
 

@@ -86,3 +86,4 @@ i.legendOutcome,i.legendActual{background:#657384}
 
 /* Audit UI-06: the active section's name must stay readable while the mouse is on it. */
 .sidebarNav button.activeNav:hover{color:var(--ink,#f2f0ea)}
+.storageCard{padding:30px}.storageMeter{height:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:99px;background:#080808}.storageMeter>i{display:block;height:100%;border-radius:99px;background:var(--gold)}.storageNumbers{display:flex;margin-top:14px;align-items:baseline;flex-wrap:wrap;gap:6px 12px}.storageNumbers strong{font:400 28px Georgia,serif}.storageNumbers span{color:#b7b1a6;font-size:11px}.storageCard>small{display:block;margin-top:12px;color:#b7b1a6;font-size:11px;line-height:1.55}.storageCard[data-state="warn"] .storageMeter>i{background:#e3a548}.storageCard[data-state="full"] .storageMeter>i{background:#d96b6b}.storageCard[data-state="full"]>small{color:#efaaaa}@media(max-width:900px){.storageCard{padding:24px}}

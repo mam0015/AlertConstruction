@@ -8,7 +8,15 @@ type Settings = {
   account: { email: string; displayName: string; updatedAt: string };
   teamCode: string;
   teamCodeUpdatedAt: string;
+  storage?: { usedBytes: number; limitBytes: number; freeBytes: number; percent: number; state: "ok" | "warn" | "full"; message: string };
 };
+
+function readableSize(bytes: number) {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
 
 export default function OwnerSettingsPanel({
   ownerEmail,
@@ -147,5 +155,12 @@ export default function OwnerSettingsPanel({
         <button className={styles.primaryButton} disabled={Boolean(busy)}>{busy === "password" ? "Updating…" : "Update password"}</button>
       </form>
     </div>
+
+    {settings?.storage && <article className={`${styles.panel} ${styles.storageCard}`} data-state={settings.storage.state}>
+      <div className={styles.settingsCardHeading}><span>Company files</span><h2>File storage</h2><p>Photos, documents and chat attachments are kept in your private Cloudflare bucket. Uploads stop at the limit below so it can never grow past it.</p></div>
+      <div className={styles.storageMeter} role="progressbar" aria-label="File storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(settings.storage.percent)}><i style={{ width: `${Math.max(settings.storage.usedBytes > 0 ? 1 : 0, settings.storage.percent)}%` }} /></div>
+      <div className={styles.storageNumbers}><strong>{readableSize(settings.storage.usedBytes)}</strong><span>of {readableSize(settings.storage.limitBytes)} · {readableSize(settings.storage.freeBytes)} free</span></div>
+      <small>{settings.storage.state === "ok" ? "Plenty of room." : settings.storage.message}</small>
+    </article>}
   </section>;
 }

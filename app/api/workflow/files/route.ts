@@ -3,6 +3,7 @@ import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-aut
 import { addWorkflowFile, canAccessWorkflowCase, getWorkflowFile, getWorkflowSnapshot, validCustomerFileLink } from "../../../../db/workflow-store";
 import type { WorkflowRole } from "../../../workflow/types";
 import { runtimeBindings } from "../../../../db/runtime";
+import { assertStorageRoom } from "../../../../db/storage-usage";
 import { downloadHeaders } from "../../../file-safety";
 
 async function imageSignatureMatches(file: File) {
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
     if (!item) throw new Error("This project is not available to your role.");
     const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Project photo storage is not configured.");
+    await assertStorageRoom(file.size);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100);
     const prefix = item.projectFolder || `requests/${item.requestCode}`;
     const objectKey = `${prefix}/photos/${category}/${crypto.randomUUID()}-${safeName}`;
