@@ -48,8 +48,8 @@ export function templateReply({ fromName, text, ownerName, company }) {
   return clipText(`Hi${first ? ` ${first}` : ""},\n\n${text.trim()}\n\nKind regards,\n${signature}`, MAX_REPLY_CHARS);
 }
 
-const NEWS_QUESTION = /\b(news|what(?:'s| is| has| have)?\s+(?:new|happened|happening|going on)|anything new|any updates?|updates?|catch me up|brief me|bring me up to speed|khabar)\b|خبر|اخبار/i;
-const PLANS_QUESTION = /\b(plans?|planned|upcoming|coming up|schedule|calendar|agenda|tomorrow|next week|this week|programme|program)\b|برنامه|تقویم/i;
+const NEWS_QUESTION = /\b(news|what(?:'s| is| has| have)?\s+(?:new|happened|happening|going on)|anything new|any updates?|updates?|catch me up|brief me|bring me up to speed|khabar|akhbar)\b|خبر|اخبار|چه شده|اتفاق/i;
+const PLANS_QUESTION = /\b(plans?|planned|upcoming|coming up|schedule|calendar|agenda|tomorrow|next week|this week|programme|program|barname|taghvim)\b|برنامه|تقویم|فردا|پیش رو|آینده|این هفته|هفته بعد/i;
 const SOURCE_HEADING = { company_email: "Email", employee_updates: "Reports", client_comments: "Clients", team_messages: "Team messages", work: "Requests and projects", tasks: "Tasks", finance: "Money", people: "Team" };
 const dayLabel = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : dayLabel.format(date); };
@@ -181,8 +181,9 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   let notice = openProblem || replyProblem;
   // Least privilege: while drafting a reply the AI sees this email plus records about the SAME thread or project - nothing else, unless the
   // Owner ticks "use other records". Unrelated customers' comments, staff reports and the other mailboxes are the exfiltration/injection channel.
-  const isRelated = (item) => !original || item.email?.threadId === original.threadId
-    || Boolean(item.project && original.text.toLowerCase().includes(item.project.toLowerCase()));
+  // Only records of the SAME email thread count as related. (A project code mentioned in the email's own text is not proof: anyone can
+  // write another customer's project code into an email to pull that customer's records into the draft.)
+  const isRelated = (item) => !original || item.email?.threadId === original.threadId;
   const usable = input.useOtherRecords ? items : items.filter(isRelated);
   const withheld = items.length - usable.length;
   const today = melbourneDate(now);
@@ -197,7 +198,8 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
         client: brain.client,
         model: brain.model,
         ownerName: owner.name, company,
-        message: input.message, history: input.history, records, hours: input.hours,
+        // While drafting a reply, earlier Jarvis answers (news about other clients and staff) stay out: only the Owner's own words carry over.
+        message: input.message, history: original ? input.history.filter((turn) => turn.role === "owner") : input.history, records, hours: input.hours,
         focus: original ? { mailbox: account.label, fromName: preview?.toName || original.from?.name || "", subject: original.subject, text: original.text, cut: original.textCut } : null,
         canDraft: Boolean(preview),
         sourceStatus: Object.fromEntries(Object.entries(briefing.sources).map(([name, report]) => [name, report.status])),
@@ -291,6 +293,8 @@ export async function sendOwnerReply({ db, config, fetchImpl, ai, owner, input, 
   const chosen = parseBrain(input.brain);
   if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
   const brain = resolveBrain(config, chosen, { testClient: ai?.client ?? null, fetchImpl });
+  // Three AI calls are about to be made, so this counts against the same question limit as asking does.
+  if (brain.enabled && input.proofread !== false) await noteAsk(db, owner.email, now);
   const report = input.proofread === false ? null : await proofread(typed, { client: brain.enabled ? brain.client : null, model: brain.model, maxChars: MAX_REPLY_CHARS });
   const body = report ? report.text : typed;
 

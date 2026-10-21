@@ -13,8 +13,8 @@ export default function VoiceBar({ voice, onReadNews, onReadPlans, hasNews, hasP
   const reading = voice.speakingId !== "";
   return <section className={styles.voiceBar} aria-label="Voice: listen to Jarvis and talk to Jarvis">
     <div className={styles.voiceRow}>
-      <div className={styles.langPick} role="radiogroup" aria-label="Voice language (listening and reading)">
-        {LANGUAGES.map((language) => <button key={language.id} type="button" role="radio" aria-checked={voice.prefs.lang === language.id}
+      <div className={styles.langPick} role="group" aria-label="Voice language (listening and reading)">
+        {LANGUAGES.map((language) => <button key={language.id} type="button" aria-pressed={voice.prefs.lang === language.id}
           className={voice.prefs.lang === language.id ? styles.langActive : ""} onClick={() => voice.update({ lang: language.id })}>
           <span lang={language.id} dir="auto">{language.label}</span>{language.id === "fa" ? <small>Persian</small> : null}
         </button>)}
@@ -31,7 +31,7 @@ export default function VoiceBar({ voice, onReadNews, onReadPlans, hasNews, hasP
       <label className={styles.checkRow}><input type="checkbox" checked={voice.prefs.speakAnswers} disabled={!voice.canSpeak} onChange={(event) => voice.update({ speakAnswers: event.target.checked })} /> Read Jarvis’s answers aloud</label>
       <label className={styles.checkRow}><input type="checkbox" checked={voice.prefs.autoRun} disabled={!voice.canListen} onChange={(event) => voice.update({ autoRun: event.target.checked })} /> Run my command as soon as I stop talking</label>
     </div>
-    {voice.note && <p className={styles.warnBox} role="status">{voice.note}</p>}
+    <div role="status" aria-live="polite">{voice.note && <p className={styles.warnBox}>{voice.note}</p>}</div>
     {!voice.canSpeak && <p className={styles.noteSoft}>This browser cannot read aloud. Chrome, Edge and Safari can.</p>}
     {!voice.canListen && <p className={styles.noteSoft}>This browser has no voice typing (Chrome, Edge and Safari do). You can still type everything.</p>}
     <p className={styles.voiceNote}>Reading aloud uses the voices installed on this device. Voice typing sends what you say to your browser’s own online speech service (for example Google in Chrome, Apple in Safari) to turn it into text. Persian needs a Persian voice on the device; if there is none, Jarvis says so and shows the text instead.</p>

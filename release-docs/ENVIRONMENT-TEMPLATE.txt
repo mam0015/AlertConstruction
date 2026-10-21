@@ -31,7 +31,7 @@ ATP_DEMO_SEED=false
 # Where the data lives: cloudflare.resources.json names the company's own Cloudflare account, D1 database and R2 bucket.
 # The deploy uses those and never creates a second database or bucket. No value here is needed for that.
 # Total size of all uploaded files (chat attachments, project photos and documents, customer uploads), in GB. Default 8.
-# Uploads that would go over it are refused. cloudflare.resources.json sets it to 8; this overrides the file.
+# Uploads that would go over it are refused. cloudflare.resources.json sets it to 8; when the deploy is run by hand this overrides the file.
 FILES_LIMIT_GB=8
 
 # Optional: Jarvis (the Owner-only assistant). Everything below can be left out: Jarvis then still reads employee updates and

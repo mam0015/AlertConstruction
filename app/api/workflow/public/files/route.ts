@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const target = await getCustomerUploadTarget(caseId, code);
     const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Customer document storage is not configured.");
-    await assertStorageRoom(file.size);
+    await assertStorageRoom(file.size, { publicUpload: true });
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100) || "customer-file";
     const prefix = target.projectFolder || `requests/${target.requestCode}`;
     objectKey = `${prefix}/customer-intake/${crypto.randomUUID()}-${safeName}`;
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       customMetadata: { caseId: String(caseId), uploadedBy: target.customerEmail, originalName: file.name },
     });
     const id = await addCustomerRequestFile(caseId, objectKey, file, target.customerEmail);
+    objectKey = ""; // the record is saved: the file must stay
     return Response.json({ data: { id, fileName: file.name } }, { status: 201 });
   } catch (error) {
     if (objectKey) {

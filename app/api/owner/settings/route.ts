@@ -15,7 +15,8 @@ import {
 } from "../../../owner-auth";
 
 async function settingsPayload() {
-  const [account, team, storage] = await Promise.all([getPrimaryOwnerAccount(), getTeamAccessSettings(), storageSummary()]);
+  // The meter is a convenience: if it cannot be read, the rest of Settings still loads.
+  const [account, team, storage] = await Promise.all([getPrimaryOwnerAccount(), getTeamAccessSettings(), storageSummary().catch(() => undefined)]);
   if (!account || !team) throw new Error("Owner settings are unavailable.");
   return {
     storage,

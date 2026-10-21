@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       file = { key: objectKey, name: attached.name.slice(0, 120), mime: attached.type, size: attached.size };
     }
     await sendChat(me, to, form.get("body"), file);
+    objectKey = ""; // the message is saved: from here a failure must not delete the file it points to
     return Response.json({ data: { messages: await getThread(me, to) } }, { status: 201 });
   } catch (error) {
     if (objectKey) {

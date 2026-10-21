@@ -70,7 +70,7 @@ export async function createPublicRequest(input: PublicRequestInput, files: File
   const db = await database();
   const env = await runtimeBindings();
   if (files.length && !env.BUCKET) throw new Error("File storage is unavailable.");
-  if (files.length) await assertStorageRoom(files.reduce((sum, file) => sum + file.size, 0));
+  if (files.length) await assertStorageRoom(files.reduce((sum, file) => sum + file.size, 0), { publicUpload: true });
 
   const code = await uniqueRequestCode();
   const now = new Date().toISOString();

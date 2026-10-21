@@ -284,12 +284,12 @@
 .voiceBar{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--j-line);background:rgba(61,224,255,.035)}
 .voiceRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
 .langPick{display:inline-flex;border:1px solid var(--j-line2)}
-.langPick button{display:inline-flex;align-items:baseline;gap:6px;min-height:40px;padding:0 14px;border:0;color:var(--j-soft);background:transparent;font:600 14px/1 inherit;font-family:inherit;cursor:pointer}
+.langPick button{display:inline-flex;align-items:baseline;gap:6px;min-height:40px;padding:0 14px;border:0;color:var(--j-soft);background:transparent;font-weight:600;font-size:14px;line-height:1;font-family:inherit;cursor:pointer}
 .langPick button+button{border-left:1px solid var(--j-line2)}
 .langPick button small{color:var(--j-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
 .langPick .langActive{color:#03140c;background:var(--j-neon)}
 .langPick .langActive small{color:#03140c}
-.voiceButton{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 14px;border:1px solid var(--j-line2);border-radius:2px;color:var(--j-ink);background:rgba(77,255,176,.06);font:600 12px/1 inherit;font-family:var(--j-mono);letter-spacing:.04em;cursor:pointer}
+.voiceButton{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 14px;border:1px solid var(--j-line2);border-radius:2px;color:var(--j-ink);background:rgba(77,255,176,.06);font-weight:600;font-size:12px;line-height:1;font-family:var(--j-mono);letter-spacing:.04em;cursor:pointer}
 .voiceButton:hover:not(:disabled){border-color:var(--j-neon);background:rgba(77,255,176,.12)}
 .voiceButton:disabled{opacity:.45;cursor:not-allowed}
 .voiceStop{border-color:rgba(255,122,143,.55);color:var(--j-bad);background:rgba(255,122,143,.07)}

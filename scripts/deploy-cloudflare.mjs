@@ -12,12 +12,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const resources = existsSync("cloudflare.resources.json") ? JSON.parse(readFileSync("cloudflare.resources.json", "utf8")) : {};
+// Found next to this script's folder, wherever the deploy is started from (a missing file would silently turn into "create new resources").
+const RESOURCES_FILE = fileURLToPath(new URL("../cloudflare.resources.json", import.meta.url));
+const resources = existsSync(RESOURCES_FILE) ? JSON.parse(readFileSync(RESOURCES_FILE, "utf8")) : {};
+if (!existsSync(RESOURCES_FILE)) console.log("cloudflare.resources.json was not found: a database and a bucket with the default names will be used or created.");
 const WORKER = process.env.WORKER_NAME || "alert-tradie-pro";
 const DB_NAME = process.env.D1_NAME || "alert-tradie-pro-db";
 const DB_ID = process.env.D1_DATABASE_ID?.trim() || resources.d1DatabaseId || "";
-const BUCKET = process.env.R2_BUCKET_NAME?.trim() || resources.r2Bucket || "alert-tradie-pro-files";
+const NAMED_BUCKET = process.env.R2_BUCKET_NAME?.trim() || resources.r2Bucket || "";
+const BUCKET = NAMED_BUCKET || "alert-tradie-pro-files";
 // The account id is an identifier, not a secret: the GitHub secret of that name still works, and the file fills it in when it is not set.
 if (!process.env.CLOUDFLARE_ACCOUNT_ID?.trim() && resources.accountId) process.env.CLOUDFLARE_ACCOUNT_ID = resources.accountId;
 if (resources.filesLimitGb && !process.env.FILES_LIMIT_GB?.trim()) process.env.FILES_LIMIT_GB = String(resources.filesLimitGb);
@@ -62,7 +67,9 @@ console.log(`Using D1 database ${database.name} (${database.uuid}) and R2 bucket
   const peek = wrangler(["d1", "execute", database.name, "--remote", "--json", "--command",
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name"], { allowFail: true });
   try {
-    const tables = (JSON.parse(peek.stdout)?.[0]?.results ?? []).map((row) => row.name);
+    const rows = peek.status === 0 ? JSON.parse(peek.stdout)?.[0]?.results : null;
+    if (!Array.isArray(rows)) throw new Error("no table list");
+    const tables = rows.map((row) => row.name);
     console.log(tables.length
       ? `Note: this database already has ${tables.length} table(s) (${tables.slice(0, 6).join(", ")}${tables.length > 6 ? ", …" : ""}). Whatever records are in them will show in the app. The deploy changes none of them.`
       : "This database is empty: the app will create its own empty tables the first time it runs.");
@@ -71,11 +78,14 @@ console.log(`Using D1 database ${database.name} (${database.uuid}) and R2 bucket
   }
 }
 
-// 2. Private R2 bucket (already-exists is fine).
-const bucket = wrangler(["r2", "bucket", "create", BUCKET], { allowFail: true });
-if (bucket.status !== 0 && !/already exists/i.test(bucket.stdout + bucket.stderr)) {
-  console.error(bucket.stdout, bucket.stderr);
-  throw new Error("The R2 bucket could not be created. R2 must be enabled once in the Cloudflare dashboard (R2 > Get started).");
+// 2. Private R2 bucket. A bucket named in cloudflare.resources.json already exists and is only bound, never created (a typo in the name
+// stops the deploy below instead of quietly making a second bucket). Without a named bucket, the default one is created once.
+if (!NAMED_BUCKET) {
+  const bucket = wrangler(["r2", "bucket", "create", BUCKET], { allowFail: true });
+  if (bucket.status !== 0 && !/already exists/i.test(bucket.stdout + bucket.stderr)) {
+    console.error(bucket.stdout, bucket.stderr);
+    throw new Error("The R2 bucket could not be created. R2 must be enabled once in the Cloudflare dashboard (R2 > Get started).");
+  }
 }
 
 // 3. Point the generated Worker config at the real resources.

@@ -43,8 +43,9 @@ If this does not finish cleanly, stop and fix that first. `npm run preview:local
 2. Left menu → **R2 Object Storage** → press **Get started / Enable R2** once (it may ask for a card; the free allowance covers a small company).
 3. Your Account ID, the existing D1 database and the existing R2 bucket are already written in **`cloudflare.resources.json`**
    (identifiers only, no passwords). The deploy **uses those** and never creates a second database or bucket. If the database cannot be found
-   it stops and says so. To point the app at a different account or database, edit that file (or set `CLOUDFLARE_ACCOUNT_ID`,
-   `D1_DATABASE_ID`, `R2_BUCKET_NAME`, which win over the file).
+   it stops and says so; the bucket named there is only attached, never created (a wrong name stops the deploy). To point the app at a
+   different account, database or bucket, edit that file and push. (If you run the deploy by hand, the variables `CLOUDFLARE_ACCOUNT_ID`,
+   `D1_DATABASE_ID`, `R2_BUCKET_NAME` and `FILES_LIMIT_GB` win over the file; the GitHub workflow always uses the file.)
 4. Top-right profile → **My Profile → API Tokens → Create Token → "Edit Cloudflare Workers"** template, and add two permissions:
    `Account · D1 · Edit` and `Account · Workers R2 Storage · Edit`. Create the token and copy it (shown once).
 
@@ -77,7 +78,9 @@ in production (`ATP_DEMO_SEED=false`). The tables are created empty the first ti
 
 **File limit:** the company's uploaded files (chat attachments, project photos and documents, customer uploads) are capped at **8 GB** in total
 (`filesLimitGb` in `cloudflare.resources.json`, or the `FILES_LIMIT_GB` setting). Uploads that would go over are refused with a clear message, and
-**Settings → File storage** in the Owner dashboard shows a meter that warns at 80%. The database (D1) is separate and has its own Cloudflare plan limit.
+**Settings → File storage** in the Owner dashboard shows a meter that warns at 80%. Customers (who are not signed in) can use up to 80% of the limit,
+so staff always keep room for site photos and documents. The app has no screen for deleting uploaded files yet, so when the meter is full the way to make
+room is to raise `filesLimitGb` and deploy again. The database (D1) is separate and has its own Cloudflare plan limit.
 
 **Recommended:** `OWNER_DISPLAY_NAME`, `TEAM_SESSION_SECRET` (both printed in Step 3).
 

@@ -6,11 +6,22 @@
 // "isolate" so English words inside a Persian line, and Persian words inside an English line, stay in their own place instead of jumbling
 // the order of the sentence.
 
-const ARABIC_SCRIPT = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+const PERSIAN_LETTER = "؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿";
+const ARABIC_SCRIPT = new RegExp(`[${PERSIAN_LETTER}]`);
+const ARABIC_LETTERS = new RegExp(`[${PERSIAN_LETTER}]`, "g");
+const LATIN_LETTERS = /[A-Za-z]/g;
 const FINGLISH = /\b(khabar|akhbar|barname|taghvim)\b/i;
 
 export const hasPersianLetters = (text) => ARABIC_SCRIPT.test(String(text ?? ""));
-export const wantsPersian = (text) => hasPersianLetters(text) || FINGLISH.test(String(text ?? ""));
+// Persian when about a third or more of the letters are Persian (so an English question with one Persian word stays English), or when a short
+// message is written in Latin letters but uses a well-known Persian word for news or plans ("khabar chie?").
+export function wantsPersian(text) {
+  const value = String(text ?? "");
+  const persian = (value.match(ARABIC_LETTERS) ?? []).length;
+  const latin = (value.match(LATIN_LETTERS) ?? []).length;
+  if (persian && persian * 2 >= latin) return true;
+  return !persian && latin <= 60 && FINGLISH.test(value);
+}
 
 // First-strong isolate: the wrapped text decides its own direction and cannot reorder the text around it.
 export function isolate(text) {

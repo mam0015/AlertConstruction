@@ -59,21 +59,27 @@ export function useVoice() {
   const [speakingId, setSpeakingId] = useState("");
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
+  // The language the microphone was actually started in (the choice may be changed while it listens).
+  const [listenLang, setListenLang] = useState<VoiceLang>("en");
   const [note, setNote] = useState("");
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<Recognition | null>(null);
   const finalRef = useRef("");
   // Identifies the reading that is current, so the "finished" event of an older, cancelled reading cannot clear a newer one.
   const readingRef = useRef(0);
+  // False once the panel is gone: an answer that arrives late must not start reading aloud with nothing on screen to stop it.
+  const aliveRef = useRef(true);
 
   useEffect(() => {
+    aliveRef.current = true;
     const synth = typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis;
-    if (!synth) return;
+    if (!synth) return () => { aliveRef.current = false; };
     // Browsers load their voice list a moment after the page opens, and announce it with this event.
     const refresh = () => { voicesRef.current = synth.getVoices(); };
     refresh();
     synth.addEventListener?.("voiceschanged", refresh);
     return () => {
+      aliveRef.current = false;
       synth.removeEventListener?.("voiceschanged", refresh);
       readingRef.current += 1;
       synth.cancel();
@@ -99,6 +105,7 @@ export function useVoice() {
 
   // Reads the text aloud, piece by piece. Pressing it again for the same thing stops it.
   const speak = useCallback((id: string, text: string) => {
+    if (!aliveRef.current) return;
     if (typeof window.speechSynthesis === "undefined" || typeof SpeechSynthesisUtterance === "undefined") {
       setNote("This browser cannot read aloud. Try Chrome, Edge or Safari.");
       return;
@@ -141,6 +148,7 @@ export function useVoice() {
     recognitionRef.current?.abort();
     const recognition = new Recognition();
     recognition.lang = VOICE_LANGS[prefs.lang];
+    setListenLang(prefs.lang);
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
@@ -176,7 +184,7 @@ export function useVoice() {
     }
   }, [prefs.lang, stopReading]);
 
-  return { prefs, update, canSpeak, canListen, speakingId, listening, heard, note, setNote, speak, stopReading, listen, stopListening };
+  return { prefs, update, canSpeak, canListen, speakingId, listening, listenLang, heard, note, setNote, speak, stopReading, listen, stopListening };
 }
 
 export type VoiceApi = ReturnType<typeof useVoice>;

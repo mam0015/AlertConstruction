@@ -25,6 +25,8 @@ export function speakable(text) {
     .replace(BIDI_MARKS, "")
     .split(/\r?\n/)
     .map((line) => line
+      // Whitespace first, so the patterns below never have long runs of spaces to work through.
+      .replace(/\s+/g, " ")
       .replace(/^\s*(?:[•·▪◦*+\-–—]|#{1,6}|\d{1,3}[.)])\s+/, "")
       .replace(/https?:\/\/\S+/gi, "link")
       .replace(/[*_`~]+/g, "")
@@ -59,7 +61,8 @@ export function chunksFor(text, { prefer = "en", max = 170 } = {}) {
   const chunks = [];
   for (const piece of pieces) {
     const script = scriptOf(piece);
-    const lang = VOICE_LANGS[script === "none" ? fallback : script];
+    // Digits and symbols have no language of their own: they are read in the language of the text before them (or the chosen language at the start).
+    const lang = script === "none" ? (chunks.at(-1)?.lang ?? VOICE_LANGS[fallback]) : VOICE_LANGS[script];
     const last = chunks.at(-1);
     // Short neighbours in the same language are joined, so "1." or "Ali." is not spoken as a separate, choppy phrase.
     if (last && last.lang === lang && last.text.length + piece.length + 1 <= max) last.text = `${last.text} ${piece}`;
@@ -79,9 +82,9 @@ export function pickVoice(voices, lang) {
   const exact = list.filter((voice) => normalise(voice.lang) === want);
   const same = list.filter((voice) => normalise(voice.lang).split("-")[0] === primary);
   const order = primary === "en" ? ["en-gb", "en-us", "en-nz", "en-ie", "en-ca"] : [];
-  const byOrder = order.map((tag) => list.find((voice) => normalise(voice.lang) === tag)).find(Boolean);
   const best = (group) => group.find((voice) => voice.localService) ?? group[0];
-  return (exact.length ? best(exact) : byOrder ?? (same.length ? best(same) : null)) ?? null;
+  const byOrder = order.map((tag) => list.filter((voice) => normalise(voice.lang) === tag)).find((group) => group.length);
+  return (exact.length ? best(exact) : byOrder ? best(byOrder) : same.length ? best(same) : null) ?? null;
 }
 
 export function voiceProblem(chunks, voices) {

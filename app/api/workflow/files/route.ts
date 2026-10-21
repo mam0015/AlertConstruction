@@ -57,7 +57,14 @@ export async function POST(request: Request) {
     const prefix = item.projectFolder || `requests/${item.requestCode}`;
     const objectKey = `${prefix}/photos/${category}/${crypto.randomUUID()}-${safeName}`;
     await env.BUCKET.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { caseId: String(caseId), uploadedBy: identity.email, originalName: file.name } });
-    const id = await addWorkflowFile(caseId, category, objectKey, file, identity.email);
+    let id: number;
+    try {
+      id = await addWorkflowFile(caseId, category, objectKey, file, identity.email);
+    } catch (error) {
+      // No record, so no one could ever open or count this file: do not leave it in the bucket.
+      await env.BUCKET.delete(objectKey).catch(() => undefined);
+      throw error;
+    }
     return Response.json({ data: { id, fileName: file.name, url: `/api/workflow/files?id=${id}` } }, { status: 201 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Photo upload failed." }, { status: 400 });

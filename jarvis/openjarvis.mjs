@@ -65,9 +65,14 @@ function problem(message, status = 503) {
 async function call(target, fetchImpl, path, init = {}) {
   let response;
   try {
-    response = await fetchImpl(`${target.base}${path}`, { ...init, headers: { ...headersFor(target), ...(init.headers ?? {}) }, signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    // Redirects are never followed: the company's records and the access key were sent to THIS address only (and an https address must not
+    // be bounced to plain http or to another host).
+    response = await fetchImpl(`${target.base}${path}`, { ...init, redirect: "manual", headers: { ...headersFor(target), ...(init.headers ?? {}) }, signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   } catch (error) {
     throw problem(error?.name === "TimeoutError" || error?.name === "AbortError" ? "Jarvis 2 took too long to answer." : "Jarvis 2 could not be reached.", 504);
+  }
+  if ((response.status >= 300 && response.status < 400) || response.type === "opaqueredirect") {
+    throw problem("Jarvis 2 answered with a redirect, which Jarvis does not follow. Set JARVIS_OPENJARVIS_URL to its final https address.", 502);
   }
   return response;
 }
@@ -103,6 +108,13 @@ export function extractJson(text) {
     }
   }
   return null;
+}
+
+// Does the object have every key the schema asks for? A half-broken answer that still parses (a nested fragment) must not pass as the answer.
+export function fitsSchema(data, schema) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const required = Array.isArray(schema?.required) ? schema.required : Object.keys(schema?.properties ?? {});
+  return required.every((key) => Object.hasOwn(data, key));
 }
 
 // A tiny example of the answer, built from the schema, so a small model sees the exact shape.
@@ -166,10 +178,12 @@ export function createOpenJarvisClient(config, { fetchImpl = globalThis.fetch } 
           if (result.finish === "length") return respond({ ...result, stop: "max_tokens", text: result.text });
           if (schema) {
             let data = extractJson(result.text);
+            if (data && !fitsSchema(data, schema)) data = null;
             if (!data) {
               // One more try: small models usually fix this when told plainly.
               result = await chat([...messages, { role: "assistant", content: result.text.slice(0, 4000) }, { role: "user", content: "That was not a valid JSON object. Reply again with ONLY the JSON object described in the instructions." }], Number(params.max_tokens) || MAX_TOKENS);
               data = extractJson(result.text);
+              if (data && !fitsSchema(data, schema)) data = null;
             }
             if (!data) throw problem("Jarvis 2 answered in an unexpected format. Try again, or pick a larger model.");
             return respond({ ...result, stop: "end_turn", text: JSON.stringify(data) });

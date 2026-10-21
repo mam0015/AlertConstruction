@@ -90,7 +90,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const chatRef = useRef<HTMLElement>(null);
   const voice = useVoice();
   // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
-  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; text: string } | null>(null);
+  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; asking: boolean } | null>(null);
 
   useEffect(() => {
     try {
@@ -266,14 +266,15 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
-  useEffect(() => { latest.current = { ask, voice, text }; });
+  useEffect(() => { latest.current = { ask, voice, asking }; });
 
   function talk() {
     if (voice.listening) { voice.stopListening(); return; }
     voice.listen((said) => {
       if (!latest.current) return;
-      const { ask: run, voice: current, text: typed } = latest.current;
-      if (current.prefs.autoRun) void run(joinSpoken(typed, said));
+      const { ask: run, voice: current, asking: busy } = latest.current;
+      // "Run as soon as I stop talking" runs exactly what was said. If Jarvis is still busy with an earlier question, the words go into the box instead of being lost.
+      if (current.prefs.autoRun && !busy) void run(said);
       else setText((existing) => joinSpoken(existing, said));
     });
   }
@@ -335,7 +336,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
           <div className={styles.turnHead}>
             <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
             {voice.canSpeak && <button className={styles.listenButton} type="button" aria-pressed={voice.speakingId === `turn-${index}`}
-              aria-label={voice.speakingId === `turn-${index}` ? "Stop reading this aloud" : `Read this ${turn.role === "owner" ? "message" : "answer"} aloud`}
+              aria-label={`Read this ${turn.role === "owner" ? "message" : "answer"} aloud`}
               onClick={() => readAloud(`turn-${index}`, turn.content)}>{voice.speakingId === `turn-${index}` ? <Square size={12} strokeWidth={2} aria-hidden="true" /> : <Volume2 size={13} strokeWidth={1.75} aria-hidden="true" />}</button>}
           </div>
           <p dir="auto">{turn.content}</p>
@@ -385,7 +386,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       {chatError && <p className={styles.error} role="alert">{chatError}</p>}
 
       {focus && <label className={styles.checkRow}><input type="checkbox" checked={useOther} onChange={(event) => setUseOther(event.target.checked)} /> Let Jarvis also use other records (clients’ comments, staff reports, other emails) for this reply. Off by default, so nothing unrelated can end up in the email.</label>}
-      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.prefs.lang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.heard}</span></p>}
+      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.listenLang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.heard}</span></p>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
         <label className={styles.prompt} htmlFor="jarvis-input"><span aria-hidden="true">owner@alert:~$</span><span className={styles.srOnly}>Your instruction to Jarvis</span></label>
         <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
@@ -396,8 +397,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
             if (event.key === "Enter" && !event.nativeEvent.isComposing && ((keyboard && !event.shiftKey) || event.metaKey || event.ctrlKey)) { event.preventDefault(); void ask(text); }
           }} />
         <div className={styles.runButtons}>
-          <button className={`${styles.micButton} ${voice.listening ? styles.micOn : ""}`} type="button" onClick={talk} disabled={!voice.canListen || asking} aria-pressed={voice.listening}
-            aria-label={voice.listening ? "Stop listening" : `Talk to Jarvis in ${voice.prefs.lang === "fa" ? "Persian" : "English"}`} title={voice.canListen ? "Talk to Jarvis" : "Voice typing is not available in this browser"}>
+          <button className={`${styles.micButton} ${voice.listening ? styles.micOn : ""}`} type="button" onClick={talk} disabled={!voice.canListen || (asking && !voice.listening)} aria-pressed={voice.listening}
+            aria-label="Talk to Jarvis" title={voice.canListen ? `Talk to Jarvis in ${voice.prefs.lang === "fa" ? "Persian" : "English"}. Press again to stop.` : "Voice typing is not available in this browser"}>
             {voice.listening ? <Square size={15} strokeWidth={2} aria-hidden="true" /> : <Mic size={16} strokeWidth={1.75} aria-hidden="true" />}
           </button>
           <button className={styles.ask} type="submit" disabled={asking || !text.trim()}><Send size={14} strokeWidth={2} aria-hidden="true" />Run</button>

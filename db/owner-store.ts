@@ -39,9 +39,9 @@ async function removeLegacyDemoRecords() {
       AND project_code='ATP-2026-00124'`),
     db.prepare(`DELETE FROM eod_reports
       WHERE person IN ('Site Supervisor 01','Admin 01','Worker 01')
-      AND submitted_at LIKE '2026-08-09%'`),
+      AND submitted_at LIKE '2026-08-09T12:00:%'`),
     db.prepare(`DELETE FROM team_messages
-      WHERE sent_at LIKE '2026-08-09%'`),
+      WHERE sent_at LIKE '2026-08-09T12:00:%'`),
     db.prepare(`DELETE FROM job_requests
       WHERE (code='REQ-2026-0148' AND customer_name='Customer 148')
          OR (code='JOB-2026-0221' AND customer_name='Customer 221' AND contact='customer221@example.com')

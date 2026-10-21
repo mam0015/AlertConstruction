@@ -48,7 +48,8 @@ function matchCase(original, replacement) {
 }
 
 // Looks like a URL, an email address or a file name: never touched by the spacing and capital-letter rules.
-const PROTECTED = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b[\w-]+\.(?:com|net|org|au|pdf|docx?|xlsx?|jpe?g|png)\b/gi;
+// (web addresses with or without http, sub-domains such as vba.vic.gov.au, and file names such as floorplan.dwg).
+const PROTECTED = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|gov|edu|io|au|nz|uk|info|biz|pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|heic|dwg|dxf|zip|rtf|txt|csv|mp4|mov)\b(?:\/[\w\-./?=&%#]*)?/gi;
 
 function protect(text) {
   const stash = [];
@@ -61,7 +62,9 @@ function spellingPass(text) {
   const { masked, restore } = protect(text);
   const fixed = masked
     .replace(/\b[A-Za-z]+(?:'[a-z]+)?\b/g, (word) => {
-      const target = MISSPELLINGS[word.toLowerCase()];
+      // Own properties only: a plain lookup would also "find" words like constructor, toString and valueOf on the object itself.
+      const key = word.toLowerCase();
+      const target = Object.hasOwn(MISSPELLINGS, key) ? MISSPELLINGS[key] : "";
       if (!target || target === word) return word;
       // "im" and "ive" are only treated as slips when written in lower case ("I'm" is already right).
       if (/^(?:im|ive)$/i.test(word) && word !== word.toLowerCase()) return word;
@@ -122,6 +125,8 @@ const CONTRACTED_NOT = /\b(?:do|does|did|is|was|were|are|has|have|had|ca|can|cou
 const negationCount = (text) => (String(text).replace(CONTRACTED_NOT, " not ").match(/\b(?:not|no|never|none|cannot|without)\b/gi) ?? []).length;
 const LINKS = /(?:https?:\/\/|www\.)[^\s)>\]]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gi;
 const NUMBERS = /\d[\d,.:/-]*/g;
+// Days, months and am/pm: swapping one for another ("Friday" for "Thursday", "9am" for "9pm") changes the meaning, so they must come back the same.
+const WATCHED = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december)\b|(?<=\d)\s?[ap]\.?m\b/gi;
 const wordsOf = (text) => String(text).toLowerCase().match(/[\p{L}\p{N}'’]+/gu) ?? [];
 const sortedKey = (list) => [...list].map((entry) => entry.toLowerCase().replace(/[.,;:]+$/g, "")).sort().join("|");
 
@@ -141,13 +146,17 @@ function changedWords(before, after) {
 }
 
 // Returns "" when the corrected text only differs by corrections, or a short reason when it does not.
-export function driftProblem(before, after) {
+// exactRules: the change was made by the built-in rules alone (a fixed list of spellings), so only the meaning checks apply, not the
+// "too many words changed" limits that exist to catch an AI rewriting the text.
+export function driftProblem(before, after, { exactRules = false } = {}) {
   if (!after || !String(after).trim()) return "the corrected text was empty";
   if (sortedKey(before.match(NUMBERS) ?? []) !== sortedKey(after.match(NUMBERS) ?? [])) return "a number or date would have changed";
+  if (sortedKey((before.match(WATCHED) ?? []).map((entry) => entry.replace(/\s/g, ""))) !== sortedKey((after.match(WATCHED) ?? []).map((entry) => entry.replace(/\s/g, "")))) return "a day, month or am/pm would have changed";
   if (sortedKey(before.match(LINKS) ?? []) !== sortedKey(after.match(LINKS) ?? [])) return "a link or address would have changed";
   if (negationCount(before) !== negationCount(after)) return "a “not/no” would have changed";
   const paragraphs = (value) => String(value).split(/\n\s*\n/).filter((part) => part.trim()).length;
   if (paragraphs(before) !== paragraphs(after)) return "the paragraphs would have changed";
+  if (exactRules) return "";
   const ratio = after.length / Math.max(1, before.length);
   if (before.length > 40 && (ratio < 0.8 || ratio > 1.25)) return "the length would have changed too much";
   const total = Math.max(wordsOf(before).length, wordsOf(after).length, 1);
@@ -229,11 +238,12 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
     // The rules always run as well: they are exact, and the AI's pass is judged only on what it changes.
     const candidate = ruleCheck(result ? result.text : text, pass);
     let chosen = { text: candidate.text, fixes: [...(result?.fixes ?? []), ...candidate.fixes] };
-    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text);
+    // Without the AI's text the change is exactly what the fixed rules produced.
+    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text, { exactRules: !result });
     if (problem && result) {
       // The AI went too far; the exact rules on the untouched text may still be fine.
       const rulesOnly = ruleCheck(text, pass);
-      const rulesProblem = rulesOnly.text === text ? "" : driftProblem(text, rulesOnly.text);
+      const rulesProblem = rulesOnly.text === text ? "" : driftProblem(text, rulesOnly.text, { exactRules: true });
       entry.note = `The AI's suggestion was left out because ${problem}.`;
       chosen = rulesProblem ? null : rulesOnly;
       problem = rulesProblem;
@@ -249,12 +259,14 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
     passes.push(entry);
   }
   // However the passes went, what comes back must still be the Owner's text, only corrected.
-  const finalProblem = text === original ? "" : driftProblem(original, text);
+  const aiUsed = passes.some((entry) => entry.method === "ai");
+  const finalProblem = text === original ? "" : driftProblem(original, text, { exactRules: !aiUsed });
   if (finalProblem) return { text: original, original, passes: passes.map((entry) => ({ ...entry, changed: false })), totalFixes: 0, clean: false, method: client ? "ai" : "rules", note: `Nothing was changed because ${finalProblem}.` };
   const totalFixes = passes.reduce((sum, entry) => sum + (entry.changed ? entry.fixes.length || 1 : 0), 0);
   return {
     text, original, passes, totalFixes,
-    clean: !passes[2].changed,
+    // "Clean" means the last pass found nothing AND no correction was held back.
+    clean: !passes[2].changed && !passes.some((entry) => /left out/.test(entry.note)),
     method: passes.every((entry) => entry.method === "ai") ? "ai" : passes.some((entry) => entry.method === "ai") ? "mixed" : "rules",
     note: "",
   };
