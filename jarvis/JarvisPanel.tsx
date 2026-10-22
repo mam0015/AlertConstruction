@@ -88,6 +88,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const sendingRef = useRef(false);
   const runningRef = useRef(new Set<string>());
   const chatRef = useRef<HTMLElement>(null);
+  const focusKey = useRef("");
   const voice = useVoice();
   // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
   const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; asking: boolean } | null>(null);
@@ -149,6 +150,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   function replyWith(item: Item) {
     if (!item.email) return;
     setFocus({ mailbox: item.email.mailbox, messageId: item.email.messageId, title: item.title, who: item.who.replace(/<[^>]*>/g, "").trim() });
+    setUseOther(false); // "use other records" is off for every new email, as the screen says
     setDraft(null);
     setConfirming(false);
     setSentNotice("");
@@ -162,6 +164,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setAsking(true);
     setChatError("");
     setSentNotice("");
+    // Which email (if any) this question is about: an answer that arrives after the Owner moved on to another email must not land on that one.
+    const askedAbout = focus ? `${focus.mailbox}:${focus.messageId}` : "";
     const history = turns.slice(-6).map((turn) => ({ role: turn.role, content: turn.content }));
     setTurns((current) => [...current, { role: "owner", content: instruction }]);
     setText("");
@@ -176,7 +180,9 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       // The new answer is turn number turns.length + 1 (the Owner's own line was added just before it).
       if (latest.current?.voice.prefs.speakAnswers) latest.current.voice.speak(`turn-${turns.length + 1}`, answer.reply);
       setActionStates((current) => ({ ...current, ...Object.fromEntries((answer.actions ?? []).map((action) => [action.id, { phase: "ready" } as ActionState])) }));
-      if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); setReport(answer.draft.proofread ?? null); }
+      const stale = focusKey.current !== askedAbout;
+      if (answer.draft && stale) setChatError("A reply was drafted for a different email than the one open now, so it was not shown. Open the email again and ask again.");
+      else if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); setReport(answer.draft.proofread ?? null); }
     } catch (problem) {
       // Nothing is lost when the call fails (session ended, too many questions…): the instruction goes back into the box.
       setTurns((current) => current.slice(0, -1));
@@ -242,6 +248,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       setDraft(null);
       setConfirming(false);
       setFocus(null);
+      setUseOther(false);
       update({});
     } catch (problem) {
       setChatError(problem instanceof Error ? problem.message : "Jarvis could not send that reply. Nothing was sent.");
@@ -266,7 +273,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
-  useEffect(() => { latest.current = { ask, voice, asking }; });
+  useEffect(() => { latest.current = { ask, voice, asking }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
 
   function talk() {
     if (voice.listening) { voice.stopListening(); return; }
@@ -327,7 +334,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
 
       {focus && <div className={styles.focusChip}>
         <span>Replying to <b>{focus.title}</b>{focus.who ? ` — ${focus.who}` : ""}</span>
-        <button type="button" onClick={() => { setFocus(null); setDraft(null); }} aria-label="Stop replying to this email">×</button>
+        <button type="button" onClick={() => { setFocus(null); setDraft(null); setUseOther(false); }} aria-label="Stop replying to this email">×</button>
       </div>}
 
       <div className={styles.turns} aria-live="polite">
@@ -389,7 +396,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.listenLang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.heard}</span></p>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
         <label className={styles.prompt} htmlFor="jarvis-input"><span aria-hidden="true">owner@alert:~$</span><span className={styles.srOnly}>Your instruction to Jarvis</span></label>
-        <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
+        <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} readOnly={asking} aria-busy={asking}
           placeholder={focus ? "What should the reply say? e.g. “We’ll come Thursday 9am, sorry for the delay”" : "Tell Jarvis what you need…"}
           onKeyDown={(event) => {
             // On a computer Enter runs the command (Shift+Enter adds a line). On a phone Enter is a new line, so long instructions are easy to write; Run sends.

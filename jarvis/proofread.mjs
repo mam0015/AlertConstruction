@@ -31,14 +31,15 @@ const MISSPELLINGS = Object.freeze({
   maintainance: "maintenance", priviledge: "privilege", recomend: "recommend", reccomend: "recommend", unforseen: "unforeseen", sincerly: "sincerely",
   apolgy: "apology", appologies: "apologies", appologise: "apologise", availble: "available", avaliable: "available",
   schedual: "schedule", scedule: "schedule", quoute: "quote", invoce: "invoice", inovice: "invoice", paymant: "payment", materal: "material",
-  materails: "materials", inspction: "inspection", renovaton: "renovation", bathoom: "bathroom", kitchan: "kitchen", plummer: "plumber", elecrician: "electrician",
+  materails: "materials", inspction: "inspection", renovaton: "renovation", bathoom: "bathroom", kitchan: "kitchen", elecrician: "electrician",
   electican: "electrician", carpentar: "carpenter", contractar: "contractor", completition: "completion", delievery: "delivery", delivary: "delivery",
   dont: "don't", cant: "can't", wont: "won't", didnt: "didn't", doesnt: "doesn't", isnt: "isn't", wasnt: "wasn't", couldnt: "couldn't", wouldnt: "wouldn't",
   shouldnt: "shouldn't", hasnt: "hasn't", havent: "haven't", arent: "aren't", werent: "weren't", im: "I'm", ive: "I've", youre: "you're", thankyou: "thank you",
 });
 
 // Words that really are written twice ("that that", "had had").
-const DOUBLE_OK = new Set(["had", "that", "is", "do", "can", "no", "so", "bye", "very", "ha"]);
+// (and Australian place names that are really written twice: Wagga Wagga, Woy Woy, Mia Mia, Bong Bong.)
+const DOUBLE_OK = new Set(["had", "that", "is", "do", "can", "no", "so", "bye", "very", "ha", "wagga", "woy", "mia", "bong"]);
 const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|no|approx|mr|mrs|ms|dr|st|rd|ave|pty|ltd|inc|co|dept|est|ref|tel)\.$/i;
 
 function matchCase(original, replacement) {
@@ -124,7 +125,8 @@ export function ruleCheck(text, pass) {
 const CONTRACTED_NOT = /\b(?:do|does|did|is|was|were|are|has|have|had|ca|can|could|would|should|wo|won|must|need)n?['’]?t\b|\b(?:don|doesn|didn|isn|wasn|weren|aren|hasn|haven|hadn|couldn|wouldn|shouldn|mustn|needn)['’]t\b/gi;
 const negationCount = (text) => (String(text).replace(CONTRACTED_NOT, " not ").match(/\b(?:not|no|never|none|cannot|without)\b/gi) ?? []).length;
 const LINKS = /(?:https?:\/\/|www\.)[^\s)>\]]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gi;
-const NUMBERS = /\d[\d,.:/-]*/g;
+// Any script's digits (Persian and Arabic-Indic included), so a changed number is caught in Persian text too.
+const NUMBERS = /\p{Nd}[\p{Nd},.:/٫٬-]*/gu;
 // Days, months and am/pm: swapping one for another ("Friday" for "Thursday", "9am" for "9pm") changes the meaning, so they must come back the same.
 const WATCHED = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december)\b|(?<=\d)\s?[ap]\.?m\b/gi;
 const wordsOf = (text) => String(text).toLowerCase().match(/[\p{L}\p{N}'’]+/gu) ?? [];

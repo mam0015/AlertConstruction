@@ -7,6 +7,9 @@ import { TestD1 } from "./helpers/test-d1.mjs";
 import { startWorker } from "./helpers/worker-harness.mjs";
 import { AiError } from "../jarvis/ai.mjs";
 import { askJarvis, parseAskInput, sendOwnerReply } from "../jarvis/assistant.mjs";
+import { runJarvis } from "../jarvis/jarvis.mjs";
+import { htmlToText } from "../jarvis/reply.mjs";
+import { redact } from "../jarvis/text.mjs";
 import { chunksFor, pickVoice, speakable } from "../jarvis/voice.mjs";
 import { checkOpenJarvis, createOpenJarvisClient, fitsSchema } from "../jarvis/openjarvis.mjs";
 import { wantsPersian } from "../jarvis/persian.mjs";
@@ -263,4 +266,61 @@ test("legacy demo cleanup only touches rows from the old seed's own minute, neve
   assert.equal((await app.request("/api/owner/data", { headers: { cookie: owner3 } })).status, 200);
   const left = app.d1.sqlite.prepare("SELECT body FROM team_messages ORDER BY id").all().map((row) => row.body);
   assert.deepEqual(left, ["REAL message in the morning", "REAL message in the evening"]);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Second round of review findings
+test("earlier Jarvis answers that listed records as they were (addresses, phones) are redacted before they are replayed to an AI", async () => {
+  const ai = fakeAi(() => aiReply({ reply: "ok", suggestions: [] }));
+  const history = [{ role: "owner", content: "what is the news" }, { role: "jarvis", content: "Sam: ring me on 0412 345 678 or sam.work@bigco.com.au. Staff: tiler@alert.test said the tiles are late. ۰۴۱۲ ۳۴۵ ۶۷۸" }];
+  await askJarvis({ db: freshDb(), config: baseConfig({ apiKey: "sk-ant-test" }), fetchImpl: googleMock().fetchImpl, ai: { client: ai.client }, owner, input: parseAskInput({ message: "try again", history }) });
+  const sent = JSON.stringify(ai.calls[0]);
+  for (const secret of ["0412 345 678", "sam.work@bigco.com.au", "tiler@alert.test", "۰۴۱۲"]) assert.ok(!sent.includes(secret), `${secret} must not reach the AI`);
+  assert.ok(sent.includes("[phone]") && sent.includes("[email]"));
+});
+
+test("a customer's own email address (recorded as the actor of their events) is never read by Jarvis", async () => {
+  const db = freshDb();
+  db.sqlite.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) VALUES (1,'Customer','sam.private@example.com','estimate_accepted','Customer accepted the estimate','Looks good','internal',?)").run(new Date(Date.now() - 3_600_000).toISOString());
+  const out = await runJarvis({ db, config: baseConfig(), fetchImpl: googleMock().fetchImpl, params: { hours: "72", limit: "100" } });
+  const event = out.items.find((item) => item.title.startsWith("Customer accepted the estimate"));
+  assert.ok(event, "the event is still there");
+  assert.equal(event.who, "Sam Customer");
+  assert.ok(!JSON.stringify(out).includes("sam.private@example.com"));
+});
+
+test("redaction also catches phone numbers written in Persian or Arabic-Indic digits, and addresses hidden behind numeric entities", () => {
+  for (const text of ["call ۰۴۱۲ ۳۴۵ ۶۷۸ now", "call ٠٤١٢٣٤٥٦٧٨ now", "call 0412 345 678 now"]) assert.equal(redact(text), "call [phone] now", text);
+  assert.equal(htmlToText("<p>write to sam&#64;example&#x2E;com&nbsp;please</p>").trim(), "write to sam@example.com please");
+  assert.equal(redact(htmlToText("sam&#64;example&#x2E;com")), "[email]");
+  assert.equal(htmlToText("a&#0;b&#1114112;c&#55357;d"), "a b c d".replace(/ /g, " "), "impossible code points are dropped, never thrown on");
+});
+
+test("proofread: numbers written in Persian digits are protected like any other number, and real place and family names are left alone", async () => {
+  assert.match(driftProblem("قیمت ۲۴۰۰ دلار است.", "قیمت ۲۵۰۰ دلار است."), /number or date/);
+  assert.equal(driftProblem("قیمت ۲۴۰۰ دلار است.", "قیمت ۲۴۰۰ دلار است!"), "");
+  for (const text of ["We drove to Wagga Wagga and Woy Woy.", "Mrs Plummer will call on Monday."]) assert.equal((await proofread(text)).text, text, text);
+});
+
+test("test connection: an address that merely answers 200 is not accepted as OpenJarvis, and a missing settings page is flagged", async () => {
+  const route = (handlers) => async (url) => { const path = new URL(url).pathname; const make = handlers[path]; return make ? make() : new Response("{}", { status: 404 }); };
+  const json = (body) => () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  const config = { openJarvis: { url: "https://jarvis.example.com", model: "m1" } };
+  const web = await checkOpenJarvis(config, { fetchImpl: route({ "/health": json({}), "/v1/models": () => new Response("<html>Sign in</html>", { status: 200 }) }) });
+  assert.equal(web.ok, false);
+  assert.match(web.message, /does not look like an OpenJarvis server/);
+  const noInfo = await checkOpenJarvis(config, { fetchImpl: route({ "/health": json({}), "/v1/models": json({ data: [{ id: "m1" }] }) }) });
+  assert.equal(noInfo.ok, true);
+  assert.ok(noInfo.warnings.some((warning) => /\/v1\/info/.test(warning)), "the skipped safety check is said out loud");
+});
+
+test("jarvis screen: the other-records tick resets for every email, a late draft is not shown on another email, the plans list survives a bad date, and the box stays focusable", () => {
+  const panel = read("jarvis/JarvisPanel.tsx");
+  const parts = read("jarvis/JarvisParts.tsx");
+  assert.ok((panel.match(/setUseOther\(false\)/g) ?? []).length >= 3, "reset on a new email, on send and on stop");
+  assert.match(panel, /askedAbout/);
+  assert.match(panel, /readOnly=\{asking\}/);
+  assert.ok(!/id="jarvis-input"[^>]*disabled=\{asking\}/.test(panel), "a disabled box would drop keyboard focus after every run");
+  assert.match(parts, /Number\.isNaN\(date\.getTime\(\)\) \? day/);
+  assert.ok(!/dayStamp\.format\(new Date\(`\$\{day\}T12:00:00`\)\)/.test(parts), "no unguarded date formatting");
 });

@@ -29,7 +29,8 @@ const queries = [
     params: sinceAndLimit,
     item: (row) => makeItem({
       id: `event:${row.id}`, source: SOURCE, kind: "case_event", at: row.at,
-      title: `${row.title}${row.customerName ? ` — ${row.customerName}` : ""}`, who: row.actorEmail || row.actorRole, project: row.projectCode || row.requestCode,
+      // A customer's own email address (the app records it as the actor) is never read: the customer is shown by name.
+      title: `${row.title}${row.customerName ? ` — ${row.customerName}` : ""}`, who: /^customer$/i.test(String(row.actorRole)) ? row.customerName || "Customer" : row.actorEmail || row.actorRole, project: row.projectCode || row.requestCode,
       body: `${row.actorRole}: ${label(row.eventType)}. ${row.detail}`,
     }),
   },

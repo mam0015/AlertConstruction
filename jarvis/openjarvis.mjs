@@ -220,11 +220,14 @@ export async function checkOpenJarvis(config, { fetchImpl = globalThis.fetch } =
     if (models.status === 401 || models.status === 403) return { ok: false, message: "Jarvis 2 refused the key. Check JARVIS_OPENJARVIS_API_KEY (it must equal OPENJARVIS_API_KEY on that server).", warnings };
     if (models.ok) {
       const list = await models.json().catch(() => null);
-      const ids = (list?.data ?? []).map((entry) => String(entry?.id ?? "")).filter(Boolean);
+      // A login page, a web app or the wrong host also answers 200: only an OpenAI-style model list counts as an OpenJarvis server.
+      if (!Array.isArray(list?.data)) return { ok: false, message: "That address answered, but it does not look like an OpenJarvis server (no model list). Check JARVIS_OPENJARVIS_URL.", warnings };
+      const ids = list.data.map((entry) => String(entry?.id ?? "")).filter(Boolean);
       if (!model) model = ids[0] ?? "";
       else if (ids.length && !ids.includes(model)) warnings.push(`The model “${model}” is not in the list that server offers (${ids.slice(0, 4).join(", ")}). Check JARVIS_OPENJARVIS_MODEL.`);
     }
     const info = await call(target, fetchImpl, "/v1/info", { method: "GET", signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    if (!info?.ok) warnings.push("Could not read that server's settings (/v1/info), so it was not checked that its agent is set to \"simple\" (no tools). Make sure agent = \"simple\" under [server] in its config.");
     if (info?.ok) {
       const details = await info.json().catch(() => null);
       agent = String(details?.agent ?? "");

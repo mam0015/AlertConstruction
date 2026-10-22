@@ -6,6 +6,7 @@ import type { ActionState, Item, ProofreadSummary, ProposedAction, TeamMember } 
 
 export const stamp = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 export const dayStamp = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "long", day: "numeric", month: "long" });
+const dayLabel = (day: string) => { const date = new Date(`${day}T12:00:00`); return Number.isNaN(date.getTime()) ? day : dayStamp.format(date); };
 export const when = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : stamp.format(date); };
 
 // The glowing ring in the header. Pure CSS; stops turning for people who asked their device for less motion.
@@ -62,7 +63,7 @@ export function PlansList({ plans, range }: { plans: Item[]; range: { from: stri
   }
   return <div className={styles.plans}>
     {[...days].map(([day, list]) => <section key={day}>
-      <h4>{dayStamp.format(new Date(`${day}T12:00:00`))}</h4>
+      <h4>{dayLabel(day)}</h4>
       <ul>{list.map((plan) => <li key={plan.id}><time>{plan.title.match(/\d{2}:\d{2}/)?.[0] ?? "all day"}</time><span dir="auto"><b>{plan.title.replace(/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})? — /, "")}</b>{plan.who ? ` · ${plan.who}` : ""}{plan.project ? ` · ${plan.project}` : ""}</span></li>)}</ul>
     </section>)}
   </div>;
