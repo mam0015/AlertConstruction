@@ -17,7 +17,7 @@ export function Reactor({ online }: { online: boolean }) {
 export function ProofreadReport({ report, label = "Proofread 3×" }: { report: ProofreadSummary; label?: string }) {
   const kind = report.method === "ai" ? "by the AI" : report.method === "mixed" ? "by the AI and the basic checker" : "by the basic checker (no AI)";
   return <div className={styles.proof} role="group" aria-label={label}>
-    <p className={styles.proofHead}><SpellCheck size={14} strokeWidth={1.75} aria-hidden="true" /><b>{label}</b><span>{report.clean ? "clean" : "fixed on the last pass"} · {report.totalFixes} {report.totalFixes === 1 ? "fix" : "fixes"} · {kind}</span></p>
+    <p className={styles.proofHead}><SpellCheck size={14} strokeWidth={1.75} aria-hidden="true" /><b>{label}</b><span>{report.clean ? "clean" : report.totalFixes > 0 ? "fixed on the last pass" : "some corrections were held back"} · {report.totalFixes} {report.totalFixes === 1 ? "fix" : "fixes"} · {kind}</span></p>
     <ol>
       {report.passes.map((pass) => <li key={pass.n}>
         <span className={styles.proofName}><Check size={12} strokeWidth={2.5} aria-hidden="true" />Pass {pass.n} · {pass.name}</span>

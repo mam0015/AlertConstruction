@@ -74,7 +74,8 @@ function spellingPass(text) {
       return result;
     })
     .replace(/\bi(?=['’](?:m|ll|ve|d)\b)/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; })
-    .replace(/(?<![\w'’(])i(?![\w'’)])/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; });
+    // (not the "i" of "i.e." or "e.g.-style" dotted abbreviations)
+    .replace(/(?<![\w'’(.])i(?![\w'’)]|\.\w)/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; });
   return { text: restore(fixed), fixes };
 }
 
@@ -85,13 +86,16 @@ function grammarPass(text) {
   let value = masked;
   value = value.replace(/[ \t]{2,}/g, (match, offset) => (offset === 0 || value[offset - 1] === "\n" ? match : (note("double space", "single space"), " ")));
   value = value.replace(/ +([,.;:!?])(?!\d)/g, (_, mark) => { note(` ${mark}`, mark); return mark; });
-  value = value.replace(/\b(\w+)[ \t]+\1\b/gi, (match, word) => {
-    if (DOUBLE_OK.has(word.toLowerCase()) || /^\d+$/.test(word)) return match;
+  value = value.replace(/\b(\w+)[ \t]+(\1)\b/gi, (match, word, second) => {
+    // Only a repeated lower-case word is a slip ("the the"). A repeated capitalised word is a name (Wagga Wagga, Nar Nar Goon, Bli Bli).
+    if (second !== second.toLowerCase() || DOUBLE_OK.has(word.toLowerCase()) || /^\d+$/.test(word)) return match;
     note(match, word);
     return word;
   });
   value = value.replace(/([a-z]{2,})([,;:!?])(?=[A-Za-z])/g, (_, word, mark) => { note(`${word}${mark}`, `${word}${mark} `); return `${word}${mark} `; });
-  value = value.replace(/([a-z]{3,})\.(?=[a-z]{2,}\b)(?!(?:com|net|org|au|gov|edu|io|co|html?|pdf|docx?|xlsx?|jpe?g|png|txt|js|ts)\b)/g, (_, word) => { note(`${word}.`, `${word}. `); return `${word}. `; });
+  // A missing space after a full stop, when the next word is lower case: only before a common sentence-starting word, so addresses, file names
+  // and dotted names (john.smith, logo.svg, mysite.app) are never split.
+  value = value.replace(/([a-z]{3,})\.(?=(?:we|i|the|thanks|thank|please|this|that|there|they|he|she|our|your|you|can|could|would|will|also|then|now|hi|hello|dear|let|just|not|all|any|did|does|have|has|had|are|was|were|with|when|what|where|who|why|how)\b)/g, (_, word) => { note(`${word}.`, `${word}. `); return `${word}. `; });
   value = value.replace(/([a-z]{3,})\.(?=[A-Z][a-z])/g, (match, word) => {
     if (ABBREVIATIONS.test(match)) return match;
     note(`${word}.`, `${word}. `);
@@ -128,7 +132,7 @@ const LINKS = /(?:https?:\/\/|www\.)[^\s)>\]]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gi;
 // Any script's digits (Persian and Arabic-Indic included), so a changed number is caught in Persian text too.
 const NUMBERS = /\p{Nd}[\p{Nd},.:/٫٬-]*/gu;
 // Days, months and am/pm: swapping one for another ("Friday" for "Thursday", "9am" for "9pm") changes the meaning, so they must come back the same.
-const WATCHED = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december)\b|(?<=\d)\s?[ap]\.?m\b/gi;
+const WATCHED = /\b(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\b|(?<=\d)\s?[ap]\.?m\b/gi;
 const wordsOf = (text) => String(text).toLowerCase().match(/[\p{L}\p{N}'’]+/gu) ?? [];
 const sortedKey = (list) => [...list].map((entry) => entry.toLowerCase().replace(/[.,;:]+$/g, "")).sort().join("|");
 
@@ -225,6 +229,7 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
   const original = clipText(input, maxChars);
   let text = original;
   const passes = [];
+  let aiApplied = false; // true once any of the AI's own wording is part of the result
   for (let pass = 1; pass <= 3; pass += 1) {
     const entry = { n: pass, name: PASS_NAMES[pass - 1], method: client ? "ai" : "rules", fixes: [], changed: false, note: "" };
     let result = null;
@@ -241,7 +246,9 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
     const candidate = ruleCheck(result ? result.text : text, pass);
     let chosen = { text: candidate.text, fixes: [...(result?.fixes ?? []), ...candidate.fixes] };
     // Without the AI's text the change is exactly what the fixed rules produced.
-    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text, { exactRules: !result });
+    // The strict word limits only matter when the AI's own words are in the result.
+    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text, { exactRules: !result || result.text === text });
+    let aiWords = Boolean(result) && result.text !== text;
     if (problem && result) {
       // The AI went too far; the exact rules on the untouched text may still be fine.
       const rulesOnly = ruleCheck(text, pass);
@@ -249,6 +256,7 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
       entry.note = `The AI's suggestion was left out because ${problem}.`;
       chosen = rulesProblem ? null : rulesOnly;
       problem = rulesProblem;
+      aiWords = false;
     } else if (problem) {
       entry.note = `A change was left out because ${problem}.`;
       chosen = null;
@@ -258,11 +266,11 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
       entry.changed = chosen.text !== text;
       text = chosen.text;
     }
+    if (chosen && aiWords) aiApplied = true;
     passes.push(entry);
   }
   // However the passes went, what comes back must still be the Owner's text, only corrected.
-  const aiUsed = passes.some((entry) => entry.method === "ai");
-  const finalProblem = text === original ? "" : driftProblem(original, text, { exactRules: !aiUsed });
+  const finalProblem = text === original ? "" : driftProblem(original, text, { exactRules: !aiApplied });
   if (finalProblem) return { text: original, original, passes: passes.map((entry) => ({ ...entry, changed: false })), totalFixes: 0, clean: false, method: client ? "ai" : "rules", note: `Nothing was changed because ${finalProblem}.` };
   const totalFixes = passes.reduce((sum, entry) => sum + (entry.changed ? entry.fixes.length || 1 : 0), 0);
   return {

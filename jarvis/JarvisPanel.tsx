@@ -359,7 +359,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         <h3>Draft reply — check it, change anything, then send</h3>
         <dl><dt>To</dt><dd dir="auto">{draft.toName ? `${draft.toName} <${draft.to}>` : draft.to}</dd><dt>From</dt><dd>{draft.mailbox}</dd><dt>Subject</dt><dd dir="auto">{draft.subject}</dd></dl>
         {draft.note && <p className={styles.noteSoft}>Jarvis says: {draft.note}</p>}
-        {typeof draft.otherRecordsWithheld === "number" && draft.otherRecordsWithheld > 0 && <p className={styles.noteSoft}>Jarvis kept {draft.otherRecordsWithheld} unrelated record{draft.otherRecordsWithheld === 1 ? "" : "s"} (other clients, staff reports, other emails) out of this draft.</p>}
+        {typeof draft.otherRecordsWithheld === "number" && draft.otherRecordsWithheld > 0 && <p className={styles.noteSoft}>Jarvis kept {draft.otherRecordsWithheld} other record{draft.otherRecordsWithheld === 1 ? "" : "s"} (other clients, staff reports, other emails) out of this draft.</p>}
         {needsReplyTo && <div className={styles.warnBox} role="group" aria-label="Reply address differs from the sender">
           <p><b>Not the sender’s address.</b> This email came from <b>{draft.from}</b>{draft.auth === "fail" ? " (its sender check FAILED, so the From address may be forged)" : ""}, but asks for replies to <b>{draft.replyTo}</b>. This draft goes to <b>{draft.to}</b>.</p>
           <label><input type="checkbox" checked={confirmReplyTo} onChange={(event) => setConfirmReplyTo(event.target.checked)} /> I know — send it to {draft.replyTo}</label>

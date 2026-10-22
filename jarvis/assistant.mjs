@@ -95,7 +95,7 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
   if (preview) {
     return {
       reply: persian
-        ? `${notice ? `${isolate(notice)} ` : ""}${FA.basicPreview}`
+        ? `${notice ? `${isolate(notice)} ` : FA.basicPrefix}${FA.basicPreviewTail}`
         : `${notice ? `${notice} ` : "Basic mode (no AI is connected). "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
       suggestions: [],
       draft: { body: templateReply({ fromName: preview.toName || preview.original.from?.name, text: message, ownerName: owner.name, company }), note: "Written from your exact words — nothing was added." },
@@ -179,7 +179,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
 
   let outcome = null;
   let notice = openProblem || replyProblem;
-  // Least privilege: while drafting a reply the AI sees this email plus records about the SAME thread or project - nothing else, unless the
+  // Least privilege: while drafting a reply the AI sees this email plus records of the SAME email thread - nothing else, unless the
   // Owner ticks "use other records". Unrelated customers' comments, staff reports and the other mailboxes are the exfiltration/injection channel.
   // Only records of the SAME email thread count as related. (A project code mentioned in the email's own text is not proof: anyone can
   // write another customer's project code into an email to pull that customer's records into the draft.)
@@ -203,7 +203,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
         focus: original ? { mailbox: account.label, fromName: preview?.toName || original.from?.name || "", subject: original.subject, text: original.text, cut: original.textCut } : null,
         canDraft: Boolean(preview),
         sourceStatus: Object.fromEntries(Object.entries(briefing.sources).map(([name, report]) => [name, report.status])),
-        totalRecords: usable.length,
+        totalRecords: items.length,
         currentDraft: preview ? input.currentDraft : "",
         plans, people, today, ownerEmail: owner.email,
         itemIds: new Set([...records.map((item) => item.id), ...(focusId ? [focusId] : [])]),
@@ -226,6 +226,10 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
+  // While an email is open, records outside its thread are kept from the AI. Say so, so "nothing else is new" is not taken to mean "nothing happened".
+  if (original && !input.useOtherRecords && withheld > 0 && outcome.mode === "ai" && !outcome.draft) {
+    outcome.reply = `${outcome.reply}\n\n(${withheld} other record${withheld === 1 ? " is" : "s are"} kept out while this email is open. Close the email, or tick “use other records”, to include ${withheld === 1 ? "it" : "them"}.)`.trim();
+  }
   if (replyProblem && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n(I can't draft a reply to this one: ${replyProblem})`.trim();
   if (outcome.draftDropped && !replyProblem) {
     outcome.reply = `${outcome.reply}\n\n(To draft a reply, open the email in Jarvis and press "Reply with Jarvis" first.)`.trim();

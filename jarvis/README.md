@@ -121,7 +121,7 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
   minutes and tell you to check the Sent folder instead of inviting a second send.
 * **Unusual recipients need a tick.** A `Reply-To` on another domain than the sender ("this email asks for replies to X, not the sender") and
   automatic/mailing-list mail ("this may not be a person") are shown in a warning box and need a checkbox before Send.
-* **Least privilege while drafting.** With an email open, the AI sees that email plus records about the same thread or project and nothing
+* **Least privilege while drafting.** With an email open, the AI sees that email plus records of the same email thread and nothing
   else — other clients' comments, staff reports and other mailboxes stay out, unless you tick "Let Jarvis also use other records".
 * **Drafts are checked.** Dates, times, prices, links and numbers in a draft that neither you nor the email mentioned are listed in a warning
   box, and Send needs a tick after you checked them. Placeholders like `[date]` are flagged too.

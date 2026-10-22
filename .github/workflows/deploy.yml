@@ -1,4 +1,5 @@
-# Publishes Alert Tradie Pro to Cloudflare Workers (with a D1 database and a private R2 bucket) every time `main` changes.
+# Publishes Alert Tradie Pro to Cloudflare Workers every time `main` changes. It uses the D1 database and R2 bucket named in cloudflare.resources.json
+# (it checks that they exist and never creates or empties them).
 # Setup, once: docs/GO-LIVE.md (English) or docs/GO-LIVE-FA.md (Persian). Add the secrets below under
 # GitHub > Settings > Secrets and variables > Actions. Six are required (the REQUIRED list in scripts/deploy-cloudflare.mjs);
 # any other secret you leave out is simply not set.

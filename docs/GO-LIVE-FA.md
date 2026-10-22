@@ -45,7 +45,8 @@ npm run verify      # lint + بررسی نوع‌ها + build + همهٔ تست�
    (فقط شناسه، بدون رمز). deploy از همین‌ها استفاده می‌کند و **هیچ‌وقت دیتابیس یا باکت دوم نمی‌سازد**. اگر دیتابیس پیدا نشود
    متوقف می‌شود و دلیل را می‌نویسد. برای اتصال به حساب یا دیتابیس دیگر همین فایل را عوض کنید
    و دوباره push کنید. باکت نام‌برده‌شده فقط وصل می‌شود و هرگز ساخته نمی‌شود (اگر اسمش غلط باشد deploy متوقف می‌شود).
-   (اگر deploy را دستی اجرا کنید، متغیرهای `CLOUDFLARE_ACCOUNT_ID` و `D1_DATABASE_ID` و `R2_BUCKET_NAME` و `FILES_LIMIT_GB` بر فایل غلبه می‌کنند؛ GitHub workflow همیشه از فایل استفاده می‌کند.)
+   حساب نوشته‌شده در فایل همان است که استفاده می‌شود (اگر secret به اسم `CLOUDFLARE_ACCOUNT_ID` حساب دیگری را نشان بدهد نادیده گرفته می‌شود و deploy این را می‌گوید).
+   اگر deploy را دستی اجرا کنید، متغیرهای `D1_DATABASE_ID` و `R2_BUCKET_NAME` و `FILES_LIMIT_GB` بر فایل غلبه می‌کنند؛ GitHub workflow از فایل استفاده می‌کند.
 4. بالا-راست پروفایل → **My Profile → API Tokens → Create Token** → قالب **Edit Cloudflare Workers** و دو دسترسی اضافه کنید:
    `Account · D1 · Edit` و `Account · Workers R2 Storage · Edit`. توکن را بسازید و کپی کنید (فقط یک‌بار نشان داده می‌شود).
 
@@ -107,7 +108,7 @@ deploy خودکار همان فایل **`.github/workflows/deploy.yml`** است.
 ## قدم ۶ — Deploy
 
 ریپو → **Actions → «Deploy Alert Tradie Pro» → Run workflow** (هر بار که `main` عوض شود هم خودکار اجرا می‌شود).
-نصب می‌کند، می‌سازد، **همهٔ تست‌ها را اجرا می‌کند (اگر یکی خراب باشد چیزی منتشر نمی‌شود)**، بار اول دیتابیس و فضای خصوصی فایل را می‌سازد،
+نصب می‌کند، می‌سازد، **همهٔ تست‌ها را اجرا می‌کند (اگر یکی خراب باشد چیزی منتشر نمی‌شود)**، وجود دیتابیس و باکت شما (که در `cloudflare.resources.json` نوشته شده) را بررسی می‌کند و هرگز آن‌ها را نمی‌سازد، جایگزین نمی‌کند یا خالی نمی‌کند،
 منتشر می‌کند و رمزهای شما را به‌صورت secret در Worker می‌گذارد. بعد از ۳ تا ۵ دقیقه آخر لاگ می‌نویسد
 `Live at https://alert-tradie-pro.<نام-شما>.workers.dev`.
 
@@ -163,12 +164,13 @@ Jarvis فقط داخل بخش Owner و فقط برای Owner واردشده کا
 
 * **دیتابیس، هر وقت خواستید** (در ترمینال `CLOUDFLARE_API_TOKEN` و `CLOUDFLARE_ACCOUNT_ID` لازم است یا `npx wrangler login`):
   ```bash
-  npx wrangler d1 export alert-tradie-pro-db --remote --output=backup-2026-10-20.sql
+  npx wrangler d1 export <database-name> --remote --output=backup-2026-10-20.sql
   ```
   هفته‌ای یک‌بار (بهتر است روزانه). فایل شامل اطلاعات مشتری است: جای خصوصی نگه دارید و **هرگز** در GitHub نگذارید.
-* **برگشت کوتاه‌مدت:** D1 تاریخچهٔ اخیر را نگه می‌دارد و می‌شود به عقب برگشت: `npx wrangler d1 time-travel info alert-tradie-pro-db`
+* **برگشت کوتاه‌مدت:** D1 تاریخچهٔ اخیر را نگه می‌دارد و می‌شود به عقب برگشت: `npx wrangler d1 time-travel info <database-name>`
   (چقدر به عقب، به پلن شما بستگی دارد).
-* **فایل‌ها:** از باکت R2 با نام `alert-tradie-pro-files` می‌شود با **R2 → Manage API tokens** و ابزاری مثل `rclone` کپی گرفت.
+* `<database-name>` اسم دیتابیس D1 شماست (داشبورد Cloudflare ← Storage & databases ← D1؛ لاگ deploy هم خطی مثل `Using D1 database <name>` چاپ می‌کند).
+* **فایل‌ها:** از باکتی که در `cloudflare.resources.json` نوشته شده (`test-at`) می‌شود با **R2 → Manage API tokens** و ابزاری مثل `rclone` کپی گرفت.
 * **به‌روزرسانی بد؟** تغییر را در `main` revert کنید (خودش دوباره منتشر می‌شود) یا در Cloudflare
   **Workers & Pages → alert-tradie-pro → Deployments → Rollback**.
 

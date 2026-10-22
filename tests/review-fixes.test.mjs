@@ -254,12 +254,14 @@ test("deploy script: finds its resources file from any folder, never creates a n
 
 test("legacy demo cleanup only touches rows from the old seed's own minute, never a whole day of real messages", async () => {
   const source = read("db/owner-store.ts");
-  assert.ok(!/LIKE '2026-08-09%'/.test(source), "no day-wide delete");
+  assert.ok(!/DELETE FROM team_messages\s+WHERE sent_at LIKE '2026-08-09%'\s*`\)/.test(source), "no day-wide delete: the old seed's own people are named too");
+  assert.match(source, /sender IN \('Site Supervisor 01'/);
   const app = await startWorker("legacy");
   // The tables exist before the migration runs; plant one old seed row and two real rows from the same day.
   app.d1.sqlite.exec("CREATE TABLE IF NOT EXISTS team_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL, recipient TEXT NOT NULL, body TEXT NOT NULL, sent_at TEXT NOT NULL)");
   const put = app.d1.sqlite.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)");
   put.run("Admin 01", "Site Supervisor 01", "old demo seed", "2026-08-09T12:00:36.421Z");
+  put.run("Site Supervisor 01", "Owner", "old demo seed (original timestamp style)", "2026-08-09T10:36:00+10:00");
   put.run("Ali Worker", "Owner", "REAL message in the morning", "2026-08-09T09:15:00.000Z");
   put.run("Sue Supervisor", "Owner", "REAL message in the evening", "2026-08-09T18:40:00.000Z");
   const owner3 = await app.ownerCookie();
@@ -323,4 +325,73 @@ test("jarvis screen: the other-records tick resets for every email, a late draft
   assert.ok(!/id="jarvis-input"[^>]*disabled=\{asking\}/.test(panel), "a disabled box would drop keyboard focus after every run");
   assert.match(parts, /Number\.isNaN\(date\.getTime\(\)\) \? day/);
   assert.ok(!/dayStamp\.format\(new Date\(`\$\{day\}T12:00:00`\)\)/.test(parts), "no unguarded date formatting");
+});
+
+test("proofread: repeated capitalised words (names), dotted abbreviations, addresses and file names are left alone; real slips are still fixed", async () => {
+  for (const text of ["We start at Nar Nar Goon on Monday.", "Bli Bli and Gin Gin are close.", "Use the flat roof i.e. the porch.", "Send logo.svg and house.skp and site.mp3 to john.smith, see mysite.app or portal.dev."]) {
+    assert.equal((await proofread(text)).text, text, text);
+  }
+  assert.equal((await proofread("Please see the the plan, and we will call. thanks for your email.we will come")).text, "Please see the plan, and we will call. Thanks for your email. We will come");
+});
+
+test("proofread: abbreviated days and months are watched too, and a short text still gets its rule corrections when an AI is connected but changed nothing", async () => {
+  assert.match(driftProblem("See you Fri at 9.", "See you Thu at 9."), /day, month or am\/pm/);
+  assert.match(driftProblem("Start 15 Mar.", "Start 15 May."), /day, month or am\/pm/);
+  assert.match(driftProblem("Back in Sept.", "Back in Oct."), /day, month or am\/pm/);
+  const echo = fakeAi((params) => aiReply({ text: params.messages[0].content.match(/<text_to_check>\n([\s\S]*)\n<\/text_to_check>/)[1], fixes: [] }));
+  const report = await proofread("dont recieve thier seperate calender", { client: echo.client, model: "m" });
+  assert.equal(report.text, "Don't receive their separate calendar", "the exact rules still apply with an AI that only echoed the text");
+  assert.equal(report.clean, true);
+});
+
+test("reply mode: the AI is told how many records exist, and the Owner is told when some are kept out", async () => {
+  const ai = fakeAi(() => aiReply({ reply: "Nothing else is new.", suggestions: [] }));
+  const out = await askJarvis({ db: freshDb(), config: baseConfig({ apiKey: "sk-ant-test" }), fetchImpl: googleMock().fetchImpl, ai: { client: ai.client }, owner, input: parseAskInput({ message: "what's the news?", focus: ROOF }) });
+  const header = ai.calls[0].messages.at(-1).content.match(/<records[^>]*>/)[0];
+  const shown = Number(header.match(/shown="(\d+)"/)[1]);
+  const total = Number(header.match(/total_found="(\d+)"/)[1]);
+  assert.ok(total > shown, `total_found (${total}) counts every record, shown (${shown}) only the open email's thread`);
+  assert.match(out.reply, /other records? (is|are) kept out while this email is open/);
+});
+
+test("persian: when an AI notice is shown, the reply does not also claim that no AI is connected", async () => {
+  const failing = fakeAi(() => { const error = new Error("busy"); error.status = 529; throw error; });
+  const out = await askJarvis({ db: freshDb(), config: baseConfig({ apiKey: "sk-ant-test" }), fetchImpl: googleMock().fetchImpl, ai: { client: failing.client }, owner, input: parseAskInput({ message: "جواب بده: پنجشنبه می‌آییم", focus: ROOF }) });
+  assert.equal(out.mode, "rules");
+  assert.ok(!out.reply.includes("هوش مصنوعی وصل نیست"), out.reply);
+});
+
+test("deploy: wrangler may not provision anything, the account in the file is the one used, and the docs name the real resources", () => {
+  const deploy = read("scripts/deploy-cloudflare.mjs");
+  assert.match(deploy, /"--experimental-provision=false", "--experimental-auto-create=false"/);
+  assert.match(deploy, /\["r2", "bucket", "list"\]/);
+  assert.match(deploy, /process\.env\.CLOUDFLARE_ACCOUNT_ID = resources\.accountId/);
+  for (const file of ["docs/GO-LIVE.md", "docs/GO-LIVE-FA.md"]) {
+    const text = read(file);
+    assert.ok(!text.includes("alert-tradie-pro-db") && !text.includes("alert-tradie-pro-files"), `${file} must not name resources that are not the company's`);
+    assert.ok(text.includes("<database-name>") && text.includes("test-at"));
+  }
+  assert.equal(read(".github/workflows/deploy.yml"), read("docs/deploy-workflow.yml"));
+});
+
+test("a file record whose event cannot be written is removed again, so no record is left without its file", async () => {
+  const app = await startWorker("rollback");
+  const owner4 = await app.ownerCookie();
+  // A project (case) to attach a document to.
+  const created = await app.request("/api/workflow/public", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.99" }, body: JSON.stringify({ name: "Customer Rollback", email: "rollback@customer.test", phone: "0400111222", service: "Bathroom renovation", location: "Parramatta NSW 2150", details: "Full bathroom renovation, approximately six square metres.", timeframe: "Next month", budget: "$20k", termsAccepted: "on" }) });
+  assert.equal(created.status, 201, await created.clone().text());
+  const cases = (await (await app.request("/api/workflow", { headers: { cookie: owner4 } })).json()).data.cases;
+  assert.ok(cases.length >= 1);
+  const realPrepare = app.env.DB.prepare.bind(app.env.DB);
+  app.env.DB.prepare = (sql) => (/INSERT INTO workflow_events/.test(sql) ? { bind: () => ({ run: async () => { throw new Error("D1_ERROR: events unavailable"); } }) } : realPrepare(sql));
+  const form = new FormData();
+  form.set("caseId", String(cases[0].id));
+  form.set("category", "document");
+  form.set("file", new File([`%PDF-1.4\n${"x".repeat(300)}\n`], "plan.pdf", { type: "application/pdf" }));
+  const objectsBefore = app.env.BUCKET.objects.size;
+  const response = await app.request("/api/workflow/files", { method: "POST", headers: { cookie: owner4 }, body: form });
+  app.env.DB.prepare = realPrepare;
+  assert.equal(response.status, 400);
+  assert.equal(app.env.BUCKET.objects.size, objectsBefore, "the stored file was removed");
+  assert.equal(app.d1.sqlite.prepare("SELECT COUNT(*) AS n FROM workflow_files").get().n, 0, "and so was its record");
 });

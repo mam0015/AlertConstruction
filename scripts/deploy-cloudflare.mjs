@@ -23,8 +23,13 @@ const DB_NAME = process.env.D1_NAME || "alert-tradie-pro-db";
 const DB_ID = process.env.D1_DATABASE_ID?.trim() || resources.d1DatabaseId || "";
 const NAMED_BUCKET = process.env.R2_BUCKET_NAME?.trim() || resources.r2Bucket || "";
 const BUCKET = NAMED_BUCKET || "alert-tradie-pro-files";
-// The account id is an identifier, not a secret: the GitHub secret of that name still works, and the file fills it in when it is not set.
-if (!process.env.CLOUDFLARE_ACCOUNT_ID?.trim() && resources.accountId) process.env.CLOUDFLARE_ACCOUNT_ID = resources.accountId;
+// The account id is an identifier, not a secret. The account named in the file is the one the database and bucket belong to, so it is the one
+// used; a secret naming another account would only make the database "not found".
+if (resources.accountId) {
+  const given = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  if (given && given !== resources.accountId) console.log("Note: the CLOUDFLARE_ACCOUNT_ID secret differs from cloudflare.resources.json. The account in the file is used.");
+  process.env.CLOUDFLARE_ACCOUNT_ID = resources.accountId;
+}
 if (resources.filesLimitGb && !process.env.FILES_LIMIT_GB?.trim()) process.env.FILES_LIMIT_GB = String(resources.filesLimitGb);
 const CONFIG = "dist/server/wrangler.json";
 const REQUIRED = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "OWNER_EMAIL", "OWNER_PASSWORD_HASH", "OWNER_SESSION_SECRET", "CUSTOMER_CONTACT_HASH_SECRET"];
@@ -86,6 +91,14 @@ if (!NAMED_BUCKET) {
     console.error(bucket.stdout, bucket.stderr);
     throw new Error("The R2 bucket could not be created. R2 must be enabled once in the Cloudflare dashboard (R2 > Get started).");
   }
+} else {
+  // Look for the named bucket before anything is deployed. (wrangler's own deploy can quietly create a bucket that does not exist; that is switched off below too.)
+  const listed = wrangler(["r2", "bucket", "list"], { allowFail: true });
+  const mention = new RegExp(`(^|[^A-Za-z0-9_.-])${BUCKET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^A-Za-z0-9_.-])`, "m");
+  if (listed.status === 0 && !mention.test(listed.stdout)) {
+    throw new Error(`The R2 bucket "${BUCKET}" was not found in Cloudflare account ${process.env.CLOUDFLARE_ACCOUNT_ID}. Check r2Bucket in cloudflare.resources.json. Nothing was created or deployed.`);
+  }
+  if (listed.status !== 0) console.log(`Could not list the R2 buckets to check that "${BUCKET}" exists (the API token may lack R2 read access). Continuing without creating anything.`);
 }
 
 // 3. Point the generated Worker config at the real resources.
@@ -98,7 +111,8 @@ await writeFile(CONFIG, JSON.stringify(config, null, 2));
 
 // 4. Deploy, then store the private values as Worker secrets.
 console.log(`Deploying ${WORKER}…`);
-const deployed = wrangler(["deploy", "--config", CONFIG]);
+// Automatic provisioning is off: wrangler may only attach the database and bucket named above, never create one.
+const deployed = wrangler(["deploy", "--config", CONFIG, "--experimental-provision=false", "--experimental-auto-create=false"]);
 console.log(deployed.stdout);
 
 const dir = await mkdtemp(join(tmpdir(), "atp-secrets-"));
