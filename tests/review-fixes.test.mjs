@@ -10,7 +10,7 @@ import { askJarvis, parseAskInput, sendOwnerReply } from "../jarvis/assistant.mj
 import { runJarvis } from "../jarvis/jarvis.mjs";
 import { htmlToText } from "../jarvis/reply.mjs";
 import { redact } from "../jarvis/text.mjs";
-import { chunksFor, pickVoice, speakable } from "../jarvis/voice.mjs";
+import { chunksFor, pickVoice, plansScript, speakable, voiceProblem } from "../jarvis/voice.mjs";
 import { checkOpenJarvis, createOpenJarvisClient, fitsSchema } from "../jarvis/openjarvis.mjs";
 import { wantsPersian } from "../jarvis/persian.mjs";
 import { driftProblem, proofread, ruleCheck } from "../jarvis/proofread.mjs";
@@ -18,6 +18,8 @@ import { driftProblem, proofread, ruleCheck } from "../jarvis/proofread.mjs";
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const owner = { email: "owner@alert.test", name: "Alex Owner" };
 const GB = 1024 ** 3;
+// Tests that change the file limit or patch the database restore both, whatever happens.
+test.afterEach(() => { delete process.env.FILES_LIMIT_GB; });
 
 function freshDb() {
   const d1 = new TestD1();
@@ -196,7 +198,7 @@ test("voice screen: toggles use aria-pressed with fixed names, a mounted-only re
   assert.ok(!/role="radio"/.test(bar) && /aria-pressed=\{voice\.prefs\.lang/.test(bar));
   assert.match(bar, /role="status" aria-live="polite"/);
   assert.ok(!/aria-label=\{voice\.listening/.test(panel), "the microphone keeps one name; its state is aria-pressed");
-  assert.ok(!/font:[^;}]*\binherit\b/.test(css.split("/* generated */")[0].slice(css.indexOf(".voiceBar"))), "no font shorthand with the invalid 'inherit' family");
+  assert.deepEqual(css.match(/font:[^;}]*\binherit\b/g)?.filter((declaration) => declaration !== "font:inherit") ?? [], [], "no font shorthand with the invalid 'inherit' family anywhere in the file");
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -264,10 +266,15 @@ test("legacy demo cleanup only touches rows from the old seed's own minute, neve
   put.run("Site Supervisor 01", "Owner", "old demo seed (original timestamp style)", "2026-08-09T10:36:00+10:00");
   put.run("Ali Worker", "Owner", "REAL message in the morning", "2026-08-09T09:15:00.000Z");
   put.run("Sue Supervisor", "Owner", "REAL message in the evening", "2026-08-09T18:40:00.000Z");
+  app.d1.sqlite.exec("CREATE TABLE IF NOT EXISTS eod_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, person TEXT NOT NULL, role TEXT NOT NULL, project_code TEXT NOT NULL, summary TEXT NOT NULL, submitted_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Pending', owner_note TEXT NOT NULL DEFAULT '')");
+  const report = app.d1.sqlite.prepare("INSERT INTO eod_reports (person,role,project_code,summary,submitted_at) VALUES (?,?,?,?,?)");
+  report.run("Site Supervisor 01", "Site Supervisor", "ATP-2026-00124", "old demo seed report", "2026-08-09T16:42:00+10:00");
+  report.run("Ali Worker", "Worker", "ATP-2026-00124", "REAL report from the same day", "2026-08-09T16:50:00+10:00");
   const owner3 = await app.ownerCookie();
   assert.equal((await app.request("/api/owner/data", { headers: { cookie: owner3 } })).status, 200);
   const left = app.d1.sqlite.prepare("SELECT body FROM team_messages ORDER BY id").all().map((row) => row.body);
   assert.deepEqual(left, ["REAL message in the morning", "REAL message in the evening"]);
+  assert.deepEqual(app.d1.sqlite.prepare("SELECT summary FROM eod_reports").all().map((row) => row.summary), ["REAL report from the same day"]);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -322,7 +329,8 @@ test("jarvis screen: the other-records tick resets for every email, a late draft
   assert.ok((panel.match(/setUseOther\(false\)/g) ?? []).length >= 3, "reset on a new email, on send and on stop");
   assert.match(panel, /askedAbout/);
   assert.match(panel, /readOnly=\{asking\}/);
-  assert.ok(!/id="jarvis-input"[^>]*disabled=\{asking\}/.test(panel), "a disabled box would drop keyboard focus after every run");
+  const textarea = panel.match(/<textarea id="jarvis-input"[\s\S]*?\/>/)[0];
+  assert.ok(!/disabled=\{asking\}/.test(textarea) && /readOnly=\{asking\}/.test(textarea), "a disabled box would drop keyboard focus after every run");
   assert.match(parts, /Number\.isNaN\(date\.getTime\(\)\) \? day/);
   assert.ok(!/dayStamp\.format\(new Date\(`\$\{day\}T12:00:00`\)\)/.test(parts), "no unguarded date formatting");
 });
@@ -394,4 +402,32 @@ test("a file record whose event cannot be written is removed again, so no record
   assert.equal(response.status, 400);
   assert.equal(app.env.BUCKET.objects.size, objectsBefore, "the stored file was removed");
   assert.equal(app.d1.sqlite.prepare("SELECT COUNT(*) AS n FROM workflow_files").get().n, 0, "and so was its record");
+});
+
+test("voice: a Persian ending glued to a Latin word goes to the Persian voice, device voices beat online ones, online voices are flagged, plans are spoken as days", () => {
+  const glued = chunksFor("فایل PDF\u200cها را ببینید. Check ATP\u200cها now.", { prefer: "en" });
+  assert.ok(!glued.some((chunk) => chunk.lang === "en-AU" && /[\u0600-\u06FF]/.test(chunk.text)), JSON.stringify(glued));
+  assert.equal(chunksFor("Check the supplier. Next.").map((chunk) => chunk.text).join(" "), "Check the supplier. Next.", "punctuation stays attached to its word");
+
+  const online = { name: "Google UK English Female", lang: "en-GB", localService: false };
+  const local = { name: "Microsoft David", lang: "en-US", localService: true };
+  assert.equal(pickVoice([online, local], "en-AU").name, "Microsoft David", "a voice on the device wins over an online one of a closer language variant");
+  assert.equal(pickVoice([online], "en-AU").name, "Google UK English Female", "with nothing else, the online voice is used");
+  assert.match(voiceProblem(chunksFor("Hello there"), [online]), /online voice.*sent to the company/);
+  assert.equal(voiceProblem(chunksFor("Hello there"), [online, local]), "");
+
+  const script = plansScript([{ title: "2026-10-21 09:00 — Council inspection", who: "Sue", project: "ATP-2026-00124" }, { title: "2026-10-22 — Site meeting", who: "", project: "" }]);
+  assert.match(script, /Wednesday 21 October\. 09:00\. Council inspection\. Sue\. ATP-2026-00124/);
+  assert.match(script, /Thursday 22 October\. Site meeting/);
+  assert.ok(!script.includes("2026-10-21"), "no ISO date is read out");
+  assert.match(plansScript(Array.from({ length: 25 }, (_, n) => ({ title: `Plan ${n}` }))), /5 more are not read aloud\./);
+});
+
+test("the microphone is allowed on the Owner app only, so Jarvis's voice typing can work there and nowhere else", async () => {
+  const app = await startWorker("mic");
+  const policy = async (path) => (await app.request(path)).headers.get("permissions-policy");
+  assert.match(await policy("/owner"), /microphone=\(self\)/);
+  assert.match(await policy("/owner/"), /microphone=\(self\)/);
+  for (const path of ["/", "/request-a-job", "/api/owner/data", "/admin", "/owner-login-help"]) assert.match(await policy(path), /microphone=\(\)/, path);
+  assert.match(await policy("/owner"), /camera=\(\)/, "everything else stays off");
 });

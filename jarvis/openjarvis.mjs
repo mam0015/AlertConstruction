@@ -218,7 +218,8 @@ export async function checkOpenJarvis(config, { fetchImpl = globalThis.fetch } =
     let agent = "";
     const models = await call(target, fetchImpl, "/v1/models", { method: "GET", signal: AbortSignal.timeout(10_000) });
     if (models.status === 401 || models.status === 403) return { ok: false, message: "Jarvis 2 refused the key. Check JARVIS_OPENJARVIS_API_KEY (it must equal OPENJARVIS_API_KEY on that server).", warnings };
-    if (models.ok) {
+    if (!models.ok) return { ok: false, message: `That address answered /health, but its model list (/v1/models) gave an error (${models.status}), so it does not look like an OpenJarvis server. Check JARVIS_OPENJARVIS_URL.`, warnings };
+    {
       const list = await models.json().catch(() => null);
       // A login page, a web app or the wrong host also answers 200: only an OpenAI-style model list counts as an OpenJarvis server.
       if (!Array.isArray(list?.data)) return { ok: false, message: "That address answered, but it does not look like an OpenJarvis server (no model list). Check JARVIS_OPENJARVIS_URL.", warnings };

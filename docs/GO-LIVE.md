@@ -68,7 +68,7 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | Name | Where it comes from |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Step 2 |
-| `CLOUDFLARE_ACCOUNT_ID` | Already in `cloudflare.resources.json`, so you can skip this secret (a secret of the same name wins if you add one) |
+| `CLOUDFLARE_ACCOUNT_ID` | Already in `cloudflare.resources.json`, so you can skip this secret (if you add it anyway it must be the same account: the account in the file is the one used) |
 | `OWNER_EMAIL` | Step 3 |
 | `OWNER_PASSWORD_HASH` | Step 3 |
 | `OWNER_SESSION_SECRET` | Step 3 |

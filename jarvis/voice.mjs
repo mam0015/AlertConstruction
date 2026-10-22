@@ -74,12 +74,16 @@ export function chunksFor(text, { prefer = "en", max = 170 } = {}) {
       if (current) push(current.text, current.lang ?? chunks.at(-1)?.lang ?? VOICE_LANGS[fallback]);
       current = null;
     };
-    for (const word of piece.split(" ")) {
-      const script = scriptOf(word);
+    // Words are cut where the script changes (PDF‌ها is "PDF" in English and "ها" in Persian), so no Persian letter is ever handed to an English voice.
+    // The pieces of one word are glued back together without a space when they stay in the same chunk.
+    const words = piece.split(" ").flatMap((word) => (word.match(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\u200C]+|[A-Za-z]+|[^A-Za-z\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\u200C]+/g) ?? []).map((part, index) => ({ part, glue: index > 0 })));
+    for (const { part, glue } of words) {
+      const script = scriptOf(part);
       const lang = script === "none" ? null : VOICE_LANGS[script];
-      if (!current) current = { text: word, lang };
-      else if (lang === null || current.lang === null || lang === current.lang) { current.text = `${current.text} ${word}`; current.lang ??= lang; }
-      else { flush(); current = { text: word, lang }; }
+      const joiner = glue ? "" : " ";
+      if (!current) current = { text: part, lang };
+      else if (lang === null || current.lang === null || lang === current.lang) { current.text = `${current.text}${joiner}${part}`; current.lang ??= lang; }
+      else { flush(); current = { text: part, lang }; }
     }
     flush();
   }
@@ -94,24 +98,32 @@ export function pickVoice(voices, lang) {
   const list = (voices ?? []).filter((voice) => voice && voice.lang);
   const want = normalise(lang);
   const primary = want.split("-")[0];
-  const exact = list.filter((voice) => normalise(voice.lang) === want);
-  const same = list.filter((voice) => normalise(voice.lang).split("-")[0] === primary);
   const order = primary === "en" ? ["en-gb", "en-us", "en-nz", "en-ie", "en-ca"] : [];
-  const best = (group) => group.find((voice) => voice.localService) ?? group[0];
-  const byOrder = order.map((tag) => list.filter((voice) => normalise(voice.lang) === tag)).find((group) => group.length);
-  return (exact.length ? best(exact) : byOrder ? best(byOrder) : same.length ? best(same) : null) ?? null;
+  const groups = (voicesOfKind) => [
+    voicesOfKind.filter((voice) => normalise(voice.lang) === want),
+    ...order.map((tag) => voicesOfKind.filter((voice) => normalise(voice.lang) === tag)),
+    voicesOfKind.filter((voice) => normalise(voice.lang).split("-")[0] === primary),
+  ];
+  // Voices on the device come first, in every variant of the language (so text stays on the device); an online voice is used only when there is no other.
+  for (const group of [...groups(list.filter((voice) => voice.localService)), ...groups(list.filter((voice) => !voice.localService))]) {
+    if (group.length) return group[0];
+  }
+  return null;
 }
 
 export function voiceProblem(chunks, voices) {
   if (!(voices ?? []).length) return "This browser has no voices to read with. Try Chrome, Edge or Safari.";
   const needsPersian = chunks.some((chunk) => chunk.lang === VOICE_LANGS.fa);
   if (needsPersian && !pickVoice(voices, VOICE_LANGS.fa)) return "No Persian voice is installed on this device, so the Persian parts are not read aloud. Add one in your device's language or speech settings, or read them on screen.";
+  // An online voice sends the text it reads to the voice provider (for example Google or Microsoft). The Owner is told.
+  const online = [...new Set(chunks.map((chunk) => chunk.lang))].map((lang) => pickVoice(voices, lang)).filter((voice) => voice && voice.localService === false);
+  if (online.length) return "This device only has an online voice for this language, so the text that is read aloud is sent to the company that provides the voice (for example Google or Microsoft). Choose a voice installed on the device in its speech settings to keep it private.";
   return "";
 }
 
 const INTRO = {
-  en: { news: "Here is the news, newest first.", plans: "Here is what is coming up, soonest first.", none: "There is nothing new in this period.", nonePlans: "Nothing is planned in this period.", end: "That is everything.", more: (n) => `${n} more are on the screen.` },
-  fa: { news: "این اخبار است، از تازه‌ترین.", plans: "این برنامه‌های پیش رو است، از نزدیک‌ترین.", none: "در این بازه چیز تازه‌ای نیست.", nonePlans: "در این بازه برنامه‌ای ثبت نشده است.", end: "اخبار تمام شد.", more: (n) => `${n} مورد دیگر روی صفحه است.` },
+  en: { news: "Here is the news, newest first.", plans: "Here is what is coming up, soonest first.", none: "There is nothing new in this period.", nonePlans: "Nothing is planned in this period.", end: "That is everything.", more: (n) => `${n} more are not read aloud.` },
+  fa: { news: "این اخبار است، از تازه‌ترین.", plans: "این برنامه‌های پیش رو است، از نزدیک‌ترین.", none: "در این بازه چیز تازه‌ای نیست.", nonePlans: "در این بازه برنامه‌ای ثبت نشده است.", end: "اخبار تمام شد.", more: (n) => `${n} مورد دیگر خوانده نمی‌شود.` },
 };
 
 // What "Read the news" says: every record from the screen, newest first (the Owner's own messages are not news to the Owner).
@@ -128,11 +140,22 @@ export function newsScript(items, { lang = "en", max = 100 } = {}) {
   return [words.news, ...lines, more > 0 ? words.more(more) : "", words.end].filter(Boolean).join("\n");
 }
 
-export function plansScript(plans, { lang = "en", max = 30 } = {}) {
+const dayWords = {
+  en: new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }),
+  fa: new Intl.DateTimeFormat("fa-u-ca-gregory-nu-latn", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }),
+};
+
+// Each plan is read with its day and time spoken as words ("Wednesday 21 October. 09:00. Council inspection."), not as an ISO code.
+export function plansScript(plans, { lang = "en", max = 20 } = {}) {
   const words = INTRO[lang === "fa" ? "fa" : "en"];
   const list = plans ?? [];
   if (!list.length) return words.nonePlans;
-  const lines = list.slice(0, max).map((plan) => [plan.title, plan.who, plan.project].filter(Boolean).join(". "));
+  const lines = list.slice(0, max).map((plan) => {
+    const match = String(plan.title ?? "").match(/^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))? — /);
+    const day = match && !Number.isNaN(Date.parse(`${match[1]}T12:00:00Z`)) ? dayWords[lang === "fa" ? "fa" : "en"].format(new Date(`${match[1]}T12:00:00Z`)) : "";
+    const title = String(plan.title ?? "").replace(/^\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})? — /, "");
+    return [day, match?.[2] ?? "", title, plan.who, plan.project].filter(Boolean).join(". ");
+  });
   const more = list.length - Math.min(list.length, max);
   return [words.plans, ...lines, more > 0 ? words.more(more) : "", words.end].filter(Boolean).join("\n");
 }

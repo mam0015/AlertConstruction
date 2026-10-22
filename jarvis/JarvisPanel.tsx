@@ -91,7 +91,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const focusKey = useRef("");
   const voice = useVoice();
   // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
-  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; asking: boolean } | null>(null);
+  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; asking: boolean; text: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -273,15 +273,16 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
-  useEffect(() => { latest.current = { ask, voice, asking }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
+  useEffect(() => { latest.current = { ask, voice, asking, text }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
 
   function talk() {
     if (voice.listening) { voice.stopListening(); return; }
     voice.listen((said) => {
       if (!latest.current) return;
-      const { ask: run, voice: current, asking: busy } = latest.current;
-      // "Run as soon as I stop talking" runs exactly what was said. If Jarvis is still busy with an earlier question, the words go into the box instead of being lost.
-      if (current.prefs.autoRun && !busy) void run(said);
+      const { ask: run, voice: current, asking: busy, text: typed } = latest.current;
+      // "Run as soon as I stop talking" runs what the box would hold (what is already typed, then what was said), exactly as the screen shows it.
+      // If Jarvis is still busy with an earlier question, the words go into the box instead of being lost.
+      if (current.prefs.autoRun && !busy) void run(joinSpoken(typed, said));
       else setText((existing) => joinSpoken(existing, said));
     });
   }
@@ -352,7 +353,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
           {turn.actions && turn.actions.length > 0 && <div className={styles.actions}>{turn.actions.map((action) => <ActionCard key={action.id} action={action} state={actionStates[action.id] ?? { phase: "ready" }}
             onRun={() => void runAction(action)} onDismiss={() => setActionStates((current) => ({ ...current, [action.id]: { phase: "dismissed" } }))} />)}</div>}
         </div>)}
-        {asking && <div className={styles.turnJarvis}><b>jarvis</b><p className={styles.thinking}>working<span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></p></div>}
+        {asking && <div className={styles.turnJarvis}><div className={styles.turnHead}><b>jarvis</b></div><p className={styles.thinking}>working<span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></p></div>}
       </div>
 
       {draft && <div className={styles.draft}>
@@ -393,7 +394,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       {chatError && <p className={styles.error} role="alert">{chatError}</p>}
 
       {focus && <label className={styles.checkRow}><input type="checkbox" checked={useOther} onChange={(event) => setUseOther(event.target.checked)} /> Let Jarvis also use other records (clients’ comments, staff reports, other emails) for this reply. Off by default, so nothing unrelated can end up in the email.</label>}
-      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.listenLang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.heard}</span></p>}
+      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.listenLang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.prefs.autoRun && text ? `${text} ` : ""}{voice.heard}</span></p>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
         <label className={styles.prompt} htmlFor="jarvis-input"><span aria-hidden="true">owner@alert:~$</span><span className={styles.srOnly}>Your instruction to Jarvis</span></label>
         <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} readOnly={asking} aria-busy={asking}

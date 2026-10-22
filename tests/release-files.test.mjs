@@ -59,7 +59,8 @@ test("the company's own Cloudflare database and bucket are named in one file, an
   assert.match(resources.accountId, /^[0-9a-f]{32}$/, "Cloudflare account id");
   assert.match(resources.d1DatabaseId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, "D1 database id");
   assert.match(resources.r2Bucket, /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, "R2 bucket name");
-  assert.equal(resources.filesLimitGb, 8);
+  // The documented way to make room is to raise this number, so the test only checks that it is a sensible positive number (8 to start with).
+  assert.ok(Number.isFinite(resources.filesLimitGb) && resources.filesLimitGb > 0 && resources.filesLimitGb <= 100_000);
   // Only identifiers live in this file: no keys, passwords or tokens.
   assert.ok(!/token|secret|password|key["']?\s*:/i.test(Object.keys(resources).filter((key) => !key.startsWith("_")).join(" ")));
   assert.ok(!/[A-Za-z0-9_-]{40,}/.test(JSON.stringify(Object.entries(resources).filter(([key]) => !key.startsWith("_")))), "no long secret-looking value");

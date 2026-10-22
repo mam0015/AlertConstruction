@@ -11,6 +11,8 @@ const pdf = (name, size) => new File([`%PDF-1.4\n${"x".repeat(size - 10)}\n`], n
 const limitFor = (bytes) => String(bytes / GB);
 
 const app = await startWorker("store");
+// A failing test must not leave a tiny limit behind for the tests after it.
+test.afterEach(() => { delete process.env.FILES_LIMIT_GB; });
 const owner = await app.ownerCookie();
 const tiler = await app.staffCookie("tiler.store@alert.test", "Worker");
 
@@ -85,6 +87,10 @@ test("uploads are counted, the meter warns at 80% and refuses what does not fit"
 });
 
 test("a customer request with attachments is refused politely, saves nothing, and never shows storage numbers", async () => {
+  // 1000-byte limit and an attachment of 900 bytes: over the customers' 80% share (800) even when nothing else is stored.
+  for (const table of ["team_chat", "request_files", "workflow_files"]) {
+    try { app.d1.sqlite.exec(`DELETE FROM ${table}`); } catch { /* table not created yet: nothing stored */ }
+  }
   process.env.FILES_LIMIT_GB = limitFor(1000);
   const before = app.d1.sqlite.prepare("SELECT COUNT(*) AS n FROM job_requests").get().n;
   const form = new FormData();
@@ -92,7 +98,7 @@ test("a customer request with attachments is refused politely, saves nothing, an
     service: "Kitchen Renovations", name: "Full Store", phone: "0400 111 222", email: "full.store@example.com", location: "Kew",
     timeframe: "Within 1–3 months", budget: "$25,000–$75,000", material: "Premium", details: "Checking that a full file store is handled politely for customers.",
   })) form.set(key, value);
-  form.append("files", new File(["%PDF-1.4 plan"], "plan.pdf", { type: "application/pdf" }));
+  form.append("files", new File([`%PDF-1.4\n${"x".repeat(890)}\n`], "plan.pdf", { type: "application/pdf" }));
   const objectsBefore = app.env.BUCKET.objects.size;
   const response = await app.request("/api/requests", { method: "POST", body: form, headers: { "x-forwarded-for": "198.51.100.77" } });
   assert.equal(response.status, 507);

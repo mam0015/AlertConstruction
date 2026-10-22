@@ -19,13 +19,14 @@ export default function VoiceBar({ voice, onReadNews, onReadPlans, hasNews, hasP
           <span lang={language.id} dir="auto">{language.label}</span>{language.id === "fa" ? <small>Persian</small> : null}
         </button>)}
       </div>
-      <button className={styles.voiceButton} type="button" onClick={onReadNews} disabled={!voice.canSpeak || !hasNews} title="Reads aloud everything listed below, newest first">
+      <button className={styles.voiceButton} type="button" onClick={onReadNews} disabled={!voice.canSpeak || !hasNews} aria-pressed={voice.speakingId === "news"} title="Reads aloud everything listed below, newest first. Press again to stop.">
         <Newspaper size={14} strokeWidth={1.75} aria-hidden="true" />Read the news
       </button>
-      <button className={styles.voiceButton} type="button" onClick={onReadPlans} disabled={!voice.canSpeak || !hasPlans} title="Reads aloud what is planned, soonest first">
+      <button className={styles.voiceButton} type="button" onClick={onReadPlans} disabled={!voice.canSpeak || !hasPlans} aria-pressed={voice.speakingId === "plans"} title="Reads aloud what is planned, soonest first. Press again to stop.">
         <CalendarClock size={14} strokeWidth={1.75} aria-hidden="true" />Read what’s coming up
       </button>
-      {reading && <button className={`${styles.voiceButton} ${styles.voiceStop}`} type="button" onClick={voice.stopReading}><Square size={13} strokeWidth={2} aria-hidden="true" />Stop reading</button>}
+      {/* Always on screen (dimmed when nothing is being read), so pressing it with the keyboard does not make the focus disappear. */}
+      <button className={`${styles.voiceButton} ${reading ? styles.voiceStop : ""}`} type="button" aria-disabled={!reading} onClick={() => { if (reading) voice.stopReading(); }}><Square size={13} strokeWidth={2} aria-hidden="true" />Stop reading</button>
     </div>
     <div className={styles.voiceRow}>
       <label className={styles.checkRow}><input type="checkbox" checked={voice.prefs.speakAnswers} disabled={!voice.canSpeak} onChange={(event) => voice.update({ speakAnswers: event.target.checked })} /> Read Jarvis’s answers aloud</label>

@@ -88,7 +88,7 @@ test("voice: 'read the news' reads every record newest first, never the Owner's 
   assert.equal(newsScript([], { lang: "en" }), "There is nothing new in this period.");
   assert.equal(newsScript([{ kind: "message_from_owner", title: "x" }], { lang: "fa" }), "در این بازه چیز تازه‌ای نیست.");
   const many = newsScript(Array.from({ length: 5 }, (_, n) => ({ kind: "x", title: `T${n}` })), { max: 3 });
-  assert.match(many, /2 more are on the screen\./);
+  assert.match(many, /2 more are not read aloud\./);
   assert.match(plansScript([{ title: "Council inspection", who: "Sue", project: "ATP-2026-00124" }]), /Council inspection\. Sue\. ATP-2026-00124/);
   assert.equal(plansScript([], { lang: "fa" }), "در این بازه برنامه‌ای ثبت نشده است.");
 });
@@ -118,5 +118,6 @@ test("voice: the screen offers reading and listening in both languages, honestly
   // Nothing is stored on the server and nothing leaves the device except through the browser's own speech service.
   assert.ok(!/fetch\(/.test(hook), "the voice code never calls the network itself");
   // Choices are remembered on this device only, and safely when storage is unavailable.
-  assert.match(hook, /localStorage[\s\S]*catch/);
+  assert.match(hook, /try \{ raw = window\.localStorage\.getItem\(KEY\); \} catch/, "reading the saved choices is guarded");
+  assert.match(hook, /try \{ window\.localStorage\.setItem\(KEY, JSON\.stringify\(next\)\); \} catch/, "saving the choices is guarded");
 });

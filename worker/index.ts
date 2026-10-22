@@ -26,7 +26,8 @@ function securityHeaders(response: Response, url: URL) {
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  // The microphone is off everywhere except the Owner app, where Jarvis's voice typing needs it (same origin only; never for embedded frames).
+  headers.set("Permissions-Policy", `camera=(), microphone=(${/^\/owner(?:\/|$)/.test(url.pathname) ? "self" : ""}), geolocation=(), payment=(), usb=()`);
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   if (url.protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
