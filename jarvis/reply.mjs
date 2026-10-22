@@ -43,7 +43,12 @@ export function htmlToText(html) {
     .replace(/<!--[\s\S]{0,5000}?-->/g, " ")
     .replace(/<(style|script|head)\b[^>]{0,500}>[\s\S]{0,20000}?<\/\1\s*>/gi, " ")
     .replace(/<[^<>]{0,2000}>/g, (tag) => (/^<\s*(?:br|\/\s*(?:p|div|li|tr|h[1-6]))\b/i.test(tag) ? "\n" : " "))
-    .replace(/&nbsp;/gi, " ").replace(/&#39;|&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+    // Numeric entities (&#64; or &#x40;, which can hide an @ or digits from address and phone detection) and the common spaces.
+    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (_, hex, dec) => {
+      const code = hex ? Number.parseInt(hex, 16) : Number(dec);
+      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : " ";
+    })
+    .replace(/&(?:nbsp|thinsp|ensp|emsp|zwnj|zwj);/gi, " ").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
     .replace(/[ \t]{2,}/g, " ");
 }
 

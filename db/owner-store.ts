@@ -41,7 +41,8 @@ async function removeLegacyDemoRecords() {
       WHERE person IN ('Site Supervisor 01','Admin 01','Worker 01')
       AND submitted_at LIKE '2026-08-09%'`),
     db.prepare(`DELETE FROM team_messages
-      WHERE sent_at LIKE '2026-08-09%'`),
+      WHERE sent_at LIKE '2026-08-09%'
+      AND (sender IN ('Site Supervisor 01','Admin 01','Worker 01') OR recipient IN ('Site Supervisor 01','Admin 01','Worker 01'))`),
     db.prepare(`DELETE FROM job_requests
       WHERE (code='REQ-2026-0148' AND customer_name='Customer 148')
          OR (code='JOB-2026-0221' AND customer_name='Customer 221' AND contact='customer221@example.com')

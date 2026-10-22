@@ -31,14 +31,15 @@ const MISSPELLINGS = Object.freeze({
   maintainance: "maintenance", priviledge: "privilege", recomend: "recommend", reccomend: "recommend", unforseen: "unforeseen", sincerly: "sincerely",
   apolgy: "apology", appologies: "apologies", appologise: "apologise", availble: "available", avaliable: "available",
   schedual: "schedule", scedule: "schedule", quoute: "quote", invoce: "invoice", inovice: "invoice", paymant: "payment", materal: "material",
-  materails: "materials", inspction: "inspection", renovaton: "renovation", bathoom: "bathroom", kitchan: "kitchen", plummer: "plumber", elecrician: "electrician",
+  materails: "materials", inspction: "inspection", renovaton: "renovation", bathoom: "bathroom", kitchan: "kitchen", elecrician: "electrician",
   electican: "electrician", carpentar: "carpenter", contractar: "contractor", completition: "completion", delievery: "delivery", delivary: "delivery",
   dont: "don't", cant: "can't", wont: "won't", didnt: "didn't", doesnt: "doesn't", isnt: "isn't", wasnt: "wasn't", couldnt: "couldn't", wouldnt: "wouldn't",
   shouldnt: "shouldn't", hasnt: "hasn't", havent: "haven't", arent: "aren't", werent: "weren't", im: "I'm", ive: "I've", youre: "you're", thankyou: "thank you",
 });
 
 // Words that really are written twice ("that that", "had had").
-const DOUBLE_OK = new Set(["had", "that", "is", "do", "can", "no", "so", "bye", "very", "ha"]);
+// (and Australian place names that are really written twice: Wagga Wagga, Woy Woy, Mia Mia, Bong Bong.)
+const DOUBLE_OK = new Set(["had", "that", "is", "do", "can", "no", "so", "bye", "very", "ha", "wagga", "woy", "mia", "bong"]);
 const ABBREVIATIONS = /\b(?:e\.g|i\.e|etc|vs|no|approx|mr|mrs|ms|dr|st|rd|ave|pty|ltd|inc|co|dept|est|ref|tel)\.$/i;
 
 function matchCase(original, replacement) {
@@ -48,7 +49,8 @@ function matchCase(original, replacement) {
 }
 
 // Looks like a URL, an email address or a file name: never touched by the spacing and capital-letter rules.
-const PROTECTED = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b[\w-]+\.(?:com|net|org|au|pdf|docx?|xlsx?|jpe?g|png)\b/gi;
+// (web addresses with or without http, sub-domains such as vba.vic.gov.au, and file names such as floorplan.dwg).
+const PROTECTED = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|gov|edu|io|au|nz|uk|info|biz|pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|heic|dwg|dxf|zip|rtf|txt|csv|mp4|mov)\b(?:\/[\w\-./?=&%#]*)?/gi;
 
 function protect(text) {
   const stash = [];
@@ -61,7 +63,9 @@ function spellingPass(text) {
   const { masked, restore } = protect(text);
   const fixed = masked
     .replace(/\b[A-Za-z]+(?:'[a-z]+)?\b/g, (word) => {
-      const target = MISSPELLINGS[word.toLowerCase()];
+      // Own properties only: a plain lookup would also "find" words like constructor, toString and valueOf on the object itself.
+      const key = word.toLowerCase();
+      const target = Object.hasOwn(MISSPELLINGS, key) ? MISSPELLINGS[key] : "";
       if (!target || target === word) return word;
       // "im" and "ive" are only treated as slips when written in lower case ("I'm" is already right).
       if (/^(?:im|ive)$/i.test(word) && word !== word.toLowerCase()) return word;
@@ -70,7 +74,8 @@ function spellingPass(text) {
       return result;
     })
     .replace(/\bi(?=['’](?:m|ll|ve|d)\b)/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; })
-    .replace(/(?<![\w'’(])i(?![\w'’)])/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; });
+    // (not the "i" of "i.e." or "e.g.-style" dotted abbreviations)
+    .replace(/(?<![\w'’(.])i(?![\w'’)]|\.\w)/g, () => { fixes.push({ was: "i", now: "I" }); return "I"; });
   return { text: restore(fixed), fixes };
 }
 
@@ -81,13 +86,16 @@ function grammarPass(text) {
   let value = masked;
   value = value.replace(/[ \t]{2,}/g, (match, offset) => (offset === 0 || value[offset - 1] === "\n" ? match : (note("double space", "single space"), " ")));
   value = value.replace(/ +([,.;:!?])(?!\d)/g, (_, mark) => { note(` ${mark}`, mark); return mark; });
-  value = value.replace(/\b(\w+)[ \t]+\1\b/gi, (match, word) => {
-    if (DOUBLE_OK.has(word.toLowerCase()) || /^\d+$/.test(word)) return match;
+  value = value.replace(/\b(\w+)[ \t]+(\1)\b/gi, (match, word, second) => {
+    // Only a repeated lower-case word is a slip ("the the"). A repeated capitalised word is a name (Wagga Wagga, Nar Nar Goon, Bli Bli).
+    if (second !== second.toLowerCase() || DOUBLE_OK.has(word.toLowerCase()) || /^\d+$/.test(word)) return match;
     note(match, word);
     return word;
   });
   value = value.replace(/([a-z]{2,})([,;:!?])(?=[A-Za-z])/g, (_, word, mark) => { note(`${word}${mark}`, `${word}${mark} `); return `${word}${mark} `; });
-  value = value.replace(/([a-z]{3,})\.(?=[a-z]{2,}\b)(?!(?:com|net|org|au|gov|edu|io|co|html?|pdf|docx?|xlsx?|jpe?g|png|txt|js|ts)\b)/g, (_, word) => { note(`${word}.`, `${word}. `); return `${word}. `; });
+  // A missing space after a full stop, when the next word is lower case: only before a common sentence-starting word, so addresses, file names
+  // and dotted names (john.smith, logo.svg, mysite.app) are never split.
+  value = value.replace(/([a-z]{3,})\.(?=(?:we|i|the|thanks|thank|please|this|that|there|they|he|she|our|your|you|can|could|would|will|also|then|now|hi|hello|dear|let|just|not|all|any|did|does|have|has|had|are|was|were|with|when|what|where|who|why|how)\b)/g, (_, word) => { note(`${word}.`, `${word}. `); return `${word}. `; });
   value = value.replace(/([a-z]{3,})\.(?=[A-Z][a-z])/g, (match, word) => {
     if (ABBREVIATIONS.test(match)) return match;
     note(`${word}.`, `${word}. `);
@@ -121,7 +129,10 @@ export function ruleCheck(text, pass) {
 const CONTRACTED_NOT = /\b(?:do|does|did|is|was|were|are|has|have|had|ca|can|could|would|should|wo|won|must|need)n?['’]?t\b|\b(?:don|doesn|didn|isn|wasn|weren|aren|hasn|haven|hadn|couldn|wouldn|shouldn|mustn|needn)['’]t\b/gi;
 const negationCount = (text) => (String(text).replace(CONTRACTED_NOT, " not ").match(/\b(?:not|no|never|none|cannot|without)\b/gi) ?? []).length;
 const LINKS = /(?:https?:\/\/|www\.)[^\s)>\]]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gi;
-const NUMBERS = /\d[\d,.:/-]*/g;
+// Any script's digits (Persian and Arabic-Indic included), so a changed number is caught in Persian text too.
+const NUMBERS = /\p{Nd}[\p{Nd},.:/٫٬-]*/gu;
+// Days, months and am/pm: swapping one for another ("Friday" for "Thursday", "9am" for "9pm") changes the meaning, so they must come back the same.
+const WATCHED = /\b(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\b|(?<=\d)\s?[ap]\.?m\b/gi;
 const wordsOf = (text) => String(text).toLowerCase().match(/[\p{L}\p{N}'’]+/gu) ?? [];
 const sortedKey = (list) => [...list].map((entry) => entry.toLowerCase().replace(/[.,;:]+$/g, "")).sort().join("|");
 
@@ -141,13 +152,17 @@ function changedWords(before, after) {
 }
 
 // Returns "" when the corrected text only differs by corrections, or a short reason when it does not.
-export function driftProblem(before, after) {
+// exactRules: the change was made by the built-in rules alone (a fixed list of spellings), so only the meaning checks apply, not the
+// "too many words changed" limits that exist to catch an AI rewriting the text.
+export function driftProblem(before, after, { exactRules = false } = {}) {
   if (!after || !String(after).trim()) return "the corrected text was empty";
   if (sortedKey(before.match(NUMBERS) ?? []) !== sortedKey(after.match(NUMBERS) ?? [])) return "a number or date would have changed";
+  if (sortedKey((before.match(WATCHED) ?? []).map((entry) => entry.replace(/\s/g, ""))) !== sortedKey((after.match(WATCHED) ?? []).map((entry) => entry.replace(/\s/g, "")))) return "a day, month or am/pm would have changed";
   if (sortedKey(before.match(LINKS) ?? []) !== sortedKey(after.match(LINKS) ?? [])) return "a link or address would have changed";
   if (negationCount(before) !== negationCount(after)) return "a “not/no” would have changed";
   const paragraphs = (value) => String(value).split(/\n\s*\n/).filter((part) => part.trim()).length;
   if (paragraphs(before) !== paragraphs(after)) return "the paragraphs would have changed";
+  if (exactRules) return "";
   const ratio = after.length / Math.max(1, before.length);
   if (before.length > 40 && (ratio < 0.8 || ratio > 1.25)) return "the length would have changed too much";
   const total = Math.max(wordsOf(before).length, wordsOf(after).length, 1);
@@ -214,6 +229,7 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
   const original = clipText(input, maxChars);
   let text = original;
   const passes = [];
+  let aiApplied = false; // true once any of the AI's own wording is part of the result
   for (let pass = 1; pass <= 3; pass += 1) {
     const entry = { n: pass, name: PASS_NAMES[pass - 1], method: client ? "ai" : "rules", fixes: [], changed: false, note: "" };
     let result = null;
@@ -229,14 +245,18 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
     // The rules always run as well: they are exact, and the AI's pass is judged only on what it changes.
     const candidate = ruleCheck(result ? result.text : text, pass);
     let chosen = { text: candidate.text, fixes: [...(result?.fixes ?? []), ...candidate.fixes] };
-    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text);
+    // Without the AI's text the change is exactly what the fixed rules produced.
+    // The strict word limits only matter when the AI's own words are in the result.
+    let problem = chosen.text === text ? "" : driftProblem(text, chosen.text, { exactRules: !result || result.text === text });
+    let aiWords = Boolean(result) && result.text !== text;
     if (problem && result) {
       // The AI went too far; the exact rules on the untouched text may still be fine.
       const rulesOnly = ruleCheck(text, pass);
-      const rulesProblem = rulesOnly.text === text ? "" : driftProblem(text, rulesOnly.text);
+      const rulesProblem = rulesOnly.text === text ? "" : driftProblem(text, rulesOnly.text, { exactRules: true });
       entry.note = `The AI's suggestion was left out because ${problem}.`;
       chosen = rulesProblem ? null : rulesOnly;
       problem = rulesProblem;
+      aiWords = false;
     } else if (problem) {
       entry.note = `A change was left out because ${problem}.`;
       chosen = null;
@@ -246,15 +266,17 @@ export async function proofread(input, { client = null, model = "", maxChars = 5
       entry.changed = chosen.text !== text;
       text = chosen.text;
     }
+    if (chosen && aiWords) aiApplied = true;
     passes.push(entry);
   }
   // However the passes went, what comes back must still be the Owner's text, only corrected.
-  const finalProblem = text === original ? "" : driftProblem(original, text);
+  const finalProblem = text === original ? "" : driftProblem(original, text, { exactRules: !aiApplied });
   if (finalProblem) return { text: original, original, passes: passes.map((entry) => ({ ...entry, changed: false })), totalFixes: 0, clean: false, method: client ? "ai" : "rules", note: `Nothing was changed because ${finalProblem}.` };
   const totalFixes = passes.reduce((sum, entry) => sum + (entry.changed ? entry.fixes.length || 1 : 0), 0);
   return {
     text, original, passes, totalFixes,
-    clean: !passes[2].changed,
+    // "Clean" means the last pass found nothing AND no correction was held back.
+    clean: !passes[2].changed && !passes.some((entry) => /left out/.test(entry.note)),
     method: passes.every((entry) => entry.method === "ai") ? "ai" : passes.some((entry) => entry.method === "ai") ? "mixed" : "rules",
     note: "",
   };

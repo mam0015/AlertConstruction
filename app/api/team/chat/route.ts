@@ -2,6 +2,7 @@ import { requestIsSameOrigin } from "../../../owner-auth";
 import { teamIdentityFromRequest } from "../../../team-identity";
 import { getThread, getUnread, sendChat } from "../../../../db/team-store";
 import { runtimeBindings } from "../../../../db/runtime";
+import { assertStorageRoom } from "../../../../db/storage-usage";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -38,12 +39,14 @@ export async function POST(request: Request) {
       if (!await signatureMatches(attached)) throw new Error("The file content does not match its type.");
       const env = await runtimeBindings();
       if (!env.BUCKET) throw new Error("File storage is not configured.");
+      await assertStorageRoom(attached.size);
       const safeName = attached.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100) || "file";
       objectKey = `team-chat/${crypto.randomUUID()}-${safeName}`;
       await env.BUCKET.put(objectKey, attached.stream(), { httpMetadata: { contentType: attached.type }, customMetadata: { sender: me.email, originalName: attached.name } });
       file = { key: objectKey, name: attached.name.slice(0, 120), mime: attached.type, size: attached.size };
     }
     await sendChat(me, to, form.get("body"), file);
+    objectKey = ""; // the message is saved: from here a failure must not delete the file it points to
     return Response.json({ data: { messages: await getThread(me, to) } }, { status: 201 });
   } catch (error) {
     if (objectKey) {

@@ -33,7 +33,7 @@ node scripts/security-setup.mjs
 | Name | از کجا |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | مرحلهٔ ۱ |
-| `CLOUDFLARE_ACCOUNT_ID` | مرحلهٔ ۱ |
+| `CLOUDFLARE_ACCOUNT_ID` | اختیاری: از قبل در `cloudflare.resources.json` نوشته شده (همراه با شناسهٔ D1 و نام باکت R2) |
 | `OWNER_EMAIL` | خروجی مرحلهٔ ۲ |
 | `OWNER_PASSWORD_HASH` | خروجی مرحلهٔ ۲ |
 | `OWNER_DISPLAY_NAME` | خروجی مرحلهٔ ۲ |

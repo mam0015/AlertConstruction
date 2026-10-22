@@ -3,6 +3,7 @@ import { ownerSessionFromRequest, requestIsSameOrigin } from "../../../owner-aut
 import { addWorkflowFile, canAccessWorkflowCase, getWorkflowFile, getWorkflowSnapshot, validCustomerFileLink } from "../../../../db/workflow-store";
 import type { WorkflowRole } from "../../../workflow/types";
 import { runtimeBindings } from "../../../../db/runtime";
+import { assertStorageRoom } from "../../../../db/storage-usage";
 import { downloadHeaders } from "../../../file-safety";
 
 async function imageSignatureMatches(file: File) {
@@ -51,11 +52,19 @@ export async function POST(request: Request) {
     if (!item) throw new Error("This project is not available to your role.");
     const env = await runtimeBindings();
     if (!env.BUCKET) throw new Error("Project photo storage is not configured.");
+    await assertStorageRoom(file.size);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100);
     const prefix = item.projectFolder || `requests/${item.requestCode}`;
     const objectKey = `${prefix}/photos/${category}/${crypto.randomUUID()}-${safeName}`;
     await env.BUCKET.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { caseId: String(caseId), uploadedBy: identity.email, originalName: file.name } });
-    const id = await addWorkflowFile(caseId, category, objectKey, file, identity.email);
+    let id: number;
+    try {
+      id = await addWorkflowFile(caseId, category, objectKey, file, identity.email);
+    } catch (error) {
+      // No record, so no one could ever open or count this file: do not leave it in the bucket.
+      await env.BUCKET.delete(objectKey).catch(() => undefined);
+      throw error;
+    }
     return Response.json({ data: { id, fileName: file.name, url: `/api/workflow/files?id=${id}` } }, { status: 201 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Photo upload failed." }, { status: 400 });

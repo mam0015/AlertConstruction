@@ -1,8 +1,11 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { CalendarDays, DollarSign, FolderKanban, ListChecks, Mail, MessageCircle, MessagesSquare, RefreshCw, Search, Send, ShieldCheck, SpellCheck, Terminal, Users, UserCheck, type LucideIcon } from "lucide-react";
+import { CalendarDays, DollarSign, FolderKanban, ListChecks, Mail, MessageCircle, MessagesSquare, Mic, RefreshCw, Search, Send, ShieldCheck, SpellCheck, Square, Terminal, Users, UserCheck, Volume2, type LucideIcon } from "lucide-react";
 import styles from "./jarvis.module.css";
 import { ActionCard, Composer, PlansList, ProofreadReport, Reactor, when } from "./JarvisParts";
+import VoiceBar from "./VoiceBar";
+import { useVoice, type VoiceApi } from "./useVoice";
+import { joinSpoken, newsScript, plansScript } from "./voice.mjs";
 import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, Draft, Focus, Item, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
 
 const SOURCES: { id: Scope; label: string; icon: LucideIcon }[] = [
@@ -85,6 +88,10 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const sendingRef = useRef(false);
   const runningRef = useRef(new Set<string>());
   const chatRef = useRef<HTMLElement>(null);
+  const focusKey = useRef("");
+  const voice = useVoice();
+  // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
+  const latest = useRef<{ ask: (message: string) => Promise<void>; voice: VoiceApi; asking: boolean; text: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -143,6 +150,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   function replyWith(item: Item) {
     if (!item.email) return;
     setFocus({ mailbox: item.email.mailbox, messageId: item.email.messageId, title: item.title, who: item.who.replace(/<[^>]*>/g, "").trim() });
+    setUseOther(false); // "use other records" is off for every new email, as the screen says
     setDraft(null);
     setConfirming(false);
     setSentNotice("");
@@ -156,6 +164,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setAsking(true);
     setChatError("");
     setSentNotice("");
+    // Which email (if any) this question is about: an answer that arrives after the Owner moved on to another email must not land on that one.
+    const askedAbout = focus ? `${focus.mailbox}:${focus.messageId}` : "";
     const history = turns.slice(-6).map((turn) => ({ role: turn.role, content: turn.content }));
     setTurns((current) => [...current, { role: "owner", content: instruction }]);
     setText("");
@@ -167,8 +177,12 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId }, useOtherRecords: useOther } : {}),
       });
       setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode, actions: answer.actions, brainName: answer.brain ? `${answer.brain.name} · ${answer.brain.engine}` : "basic mode" }]);
+      // The new answer is turn number turns.length + 1 (the Owner's own line was added just before it).
+      if (latest.current?.voice.prefs.speakAnswers) latest.current.voice.speak(`turn-${turns.length + 1}`, answer.reply);
       setActionStates((current) => ({ ...current, ...Object.fromEntries((answer.actions ?? []).map((action) => [action.id, { phase: "ready" } as ActionState])) }));
-      if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); setReport(answer.draft.proofread ?? null); }
+      const stale = focusKey.current !== askedAbout;
+      if (answer.draft && stale) setChatError("A reply was drafted for a different email than the one open now, so it was not shown. Open the email again and ask again.");
+      else if (answer.draft) { setDraft(answer.draft); setDraftBody(answer.draft.body); setConfirming(false); setConfirmReplyTo(false); setConfirmAutomated(false); setConfirmChecked(false); setReport(answer.draft.proofread ?? null); }
     } catch (problem) {
       // Nothing is lost when the call fails (session ended, too many questions…): the instruction goes back into the box.
       setTurns((current) => current.slice(0, -1));
@@ -234,6 +248,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       setDraft(null);
       setConfirming(false);
       setFocus(null);
+      setUseOther(false);
       update({});
     } catch (problem) {
       setChatError(problem instanceof Error ? problem.message : "Jarvis could not send that reply. Nothing was sent.");
@@ -257,6 +272,21 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const online = Object.values(data?.sources ?? {}).filter((entry) => entry?.status === "ok").length;
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
+
+  useEffect(() => { latest.current = { ask, voice, asking, text }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
+
+  function talk() {
+    if (voice.listening) { voice.stopListening(); return; }
+    voice.listen((said) => {
+      if (!latest.current) return;
+      const { ask: run, voice: current, asking: busy, text: typed } = latest.current;
+      // "Run as soon as I stop talking" runs what the box would hold (what is already typed, then what was said), exactly as the screen shows it.
+      // If Jarvis is still busy with an earlier question, the words go into the box instead of being lost.
+      if (current.prefs.autoRun && !busy) void run(joinSpoken(typed, said));
+      else setText((existing) => joinSpoken(existing, said));
+    });
+  }
+  const readAloud = (id: string, script: string) => (voice.speakingId === id ? voice.stopReading() : voice.speak(id, script));
 
   return <section className={styles.jarvis}>
     <header className={styles.hud}>
@@ -297,32 +327,40 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         <h2><Terminal size={15} strokeWidth={1.75} aria-hidden="true" />Command line</h2>
         <button className={styles.ghostText} type="button" aria-expanded={showComposer} onClick={() => setShowComposer((value) => !value)}>{showComposer ? "Hide" : "Prepare by hand"}</button>
       </div>
+      <VoiceBar voice={voice} hasNews={Boolean(data?.items.length)} hasPlans={Boolean(data?.plans.length)}
+        onReadNews={() => readAloud("news", newsScript(data?.items ?? [], { lang: voice.prefs.lang }))}
+        onReadPlans={() => readAloud("plans", plansScript(data?.plans ?? [], { lang: voice.prefs.lang }))} />
       {data && !aiOn && <p className={styles.note}>Basic mode: Jarvis searches your records, lists the news and puts <b>your own words</b> into a tidy reply. Connect Jarvis 1 or Jarvis 2 above and it also understands any language, writes replies and prepares messages, calendar entries and tasks from one sentence.</p>}
       {showComposer && data && <Composer team={data.team ?? []} today={todayInMelbourne()} onPropose={propose} />}
 
       {focus && <div className={styles.focusChip}>
         <span>Replying to <b>{focus.title}</b>{focus.who ? ` — ${focus.who}` : ""}</span>
-        <button type="button" onClick={() => { setFocus(null); setDraft(null); }} aria-label="Stop replying to this email">×</button>
+        <button type="button" onClick={() => { setFocus(null); setDraft(null); setUseOther(false); }} aria-label="Stop replying to this email">×</button>
       </div>}
 
       <div className={styles.turns} aria-live="polite">
         {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis drafts it, you check it." : "Try “What’s the news?”, “Message Ali: be on site at 7 tomorrow”, or “Put the council inspection in Sue’s calendar on Friday at 1pm”."}</p>}
         {turns.map((turn, index) => <div key={index} className={`${turn.role === "owner" ? styles.turnOwner : styles.turnJarvis} ${index === lastJarvis ? styles.turnLatest : ""}`}>
-          <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
+          <div className={styles.turnHead}>
+            <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
+            {voice.canSpeak && <button className={styles.listenButton} type="button" aria-pressed={voice.speakingId === `turn-${index}`}
+              aria-label={`Read this ${turn.role === "owner" ? "message" : "answer"} aloud`}
+              onClick={() => readAloud(`turn-${index}`, turn.content)}>{voice.speakingId === `turn-${index}` ? <Square size={12} strokeWidth={2} aria-hidden="true" /> : <Volume2 size={13} strokeWidth={1.75} aria-hidden="true" />}</button>}
+          </div>
           <p dir="auto">{turn.content}</p>
           {turn.notice && <small className={styles.turnNotice}>{turn.notice}</small>}
           {turn.suggestions && turn.suggestions.length > 0 && <ul className={styles.advice} aria-label="Suggested next steps">{turn.suggestions.map((entry, position) => <li key={position}><i>{ACTION_TEXT[entry.action] ?? "Do"}</i><span><b>{entry.title}</b>{entry.why ? ` — ${entry.why}` : ""}</span></li>)}</ul>}
           {turn.actions && turn.actions.length > 0 && <div className={styles.actions}>{turn.actions.map((action) => <ActionCard key={action.id} action={action} state={actionStates[action.id] ?? { phase: "ready" }}
             onRun={() => void runAction(action)} onDismiss={() => setActionStates((current) => ({ ...current, [action.id]: { phase: "dismissed" } }))} />)}</div>}
         </div>)}
-        {asking && <div className={styles.turnJarvis}><b>jarvis</b><p className={styles.thinking}>working<span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></p></div>}
+        {asking && <div className={styles.turnJarvis}><div className={styles.turnHead}><b>jarvis</b></div><p className={styles.thinking}>working<span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></p></div>}
       </div>
 
       {draft && <div className={styles.draft}>
         <h3>Draft reply — check it, change anything, then send</h3>
         <dl><dt>To</dt><dd dir="auto">{draft.toName ? `${draft.toName} <${draft.to}>` : draft.to}</dd><dt>From</dt><dd>{draft.mailbox}</dd><dt>Subject</dt><dd dir="auto">{draft.subject}</dd></dl>
         {draft.note && <p className={styles.noteSoft}>Jarvis says: {draft.note}</p>}
-        {typeof draft.otherRecordsWithheld === "number" && draft.otherRecordsWithheld > 0 && <p className={styles.noteSoft}>Jarvis kept {draft.otherRecordsWithheld} unrelated record{draft.otherRecordsWithheld === 1 ? "" : "s"} (other clients, staff reports, other emails) out of this draft.</p>}
+        {typeof draft.otherRecordsWithheld === "number" && draft.otherRecordsWithheld > 0 && <p className={styles.noteSoft}>Jarvis kept {draft.otherRecordsWithheld} other record{draft.otherRecordsWithheld === 1 ? "" : "s"} (other clients, staff reports, other emails) out of this draft.</p>}
         {needsReplyTo && <div className={styles.warnBox} role="group" aria-label="Reply address differs from the sender">
           <p><b>Not the sender’s address.</b> This email came from <b>{draft.from}</b>{draft.auth === "fail" ? " (its sender check FAILED, so the From address may be forged)" : ""}, but asks for replies to <b>{draft.replyTo}</b>. This draft goes to <b>{draft.to}</b>.</p>
           <label><input type="checkbox" checked={confirmReplyTo} onChange={(event) => setConfirmReplyTo(event.target.checked)} /> I know — send it to {draft.replyTo}</label>
@@ -356,16 +394,23 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       {chatError && <p className={styles.error} role="alert">{chatError}</p>}
 
       {focus && <label className={styles.checkRow}><input type="checkbox" checked={useOther} onChange={(event) => setUseOther(event.target.checked)} /> Let Jarvis also use other records (clients’ comments, staff reports, other emails) for this reply. Off by default, so nothing unrelated can end up in the email.</label>}
+      {voice.listening && <p className={styles.listening} role="status"><i aria-hidden="true" />Listening in {voice.listenLang === "fa" ? "Persian" : "English"}… <span dir="auto">{voice.prefs.autoRun && text ? `${text} ` : ""}{voice.heard}</span></p>}
       <form className={styles.chatForm} onSubmit={(event) => { event.preventDefault(); void ask(text); }}>
         <label className={styles.prompt} htmlFor="jarvis-input"><span aria-hidden="true">owner@alert:~$</span><span className={styles.srOnly}>Your instruction to Jarvis</span></label>
-        <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} disabled={asking}
+        <textarea id="jarvis-input" dir="auto" value={text} onChange={(event) => setText(event.target.value)} rows={2} maxLength={2000} readOnly={asking} aria-busy={asking}
           placeholder={focus ? "What should the reply say? e.g. “We’ll come Thursday 9am, sorry for the delay”" : "Tell Jarvis what you need…"}
           onKeyDown={(event) => {
             // On a computer Enter runs the command (Shift+Enter adds a line). On a phone Enter is a new line, so long instructions are easy to write; Run sends.
             const keyboard = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
             if (event.key === "Enter" && !event.nativeEvent.isComposing && ((keyboard && !event.shiftKey) || event.metaKey || event.ctrlKey)) { event.preventDefault(); void ask(text); }
           }} />
-        <button className={styles.ask} type="submit" disabled={asking || !text.trim()}><Send size={14} strokeWidth={2} aria-hidden="true" />Run</button>
+        <div className={styles.runButtons}>
+          <button className={`${styles.micButton} ${voice.listening ? styles.micOn : ""}`} type="button" onClick={talk} disabled={!voice.canListen || (asking && !voice.listening)} aria-pressed={voice.listening}
+            aria-label="Talk to Jarvis" title={voice.canListen ? `Talk to Jarvis in ${voice.prefs.lang === "fa" ? "Persian" : "English"}. Press again to stop.` : "Voice typing is not available in this browser"}>
+            {voice.listening ? <Square size={15} strokeWidth={2} aria-hidden="true" /> : <Mic size={16} strokeWidth={1.75} aria-hidden="true" />}
+          </button>
+          <button className={styles.ask} type="submit" disabled={asking || !text.trim()}><Send size={14} strokeWidth={2} aria-hidden="true" />Run</button>
+        </div>
       </form>
       {!focus && <div className={styles.quick}>{QUICK.map((entry) => <button key={entry.label} type="button" onClick={() => void ask(entry.prompt)} disabled={asking}>{entry.label}</button>)}</div>}
     </article>

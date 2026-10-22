@@ -41,7 +41,12 @@ If this does not finish cleanly, stop and fix that first. `npm run preview:local
 
 1. Sign up / log in at <https://dash.cloudflare.com>.
 2. Left menu → **R2 Object Storage** → press **Get started / Enable R2** once (it may ask for a card; the free allowance covers a small company).
-3. Left menu → **Workers & Pages**: copy your **Account ID** (right-hand side).
+3. Your Account ID, the existing D1 database and the existing R2 bucket are already written in **`cloudflare.resources.json`**
+   (identifiers only, no passwords). The deploy **uses those** and never creates a second database or bucket. If the database cannot be found
+   it stops and says so; the bucket named there is only attached, never created (a wrong name stops the deploy). To point the app at a
+   different account, database or bucket, edit that file and push. The account in the file is the one used (a `CLOUDFLARE_ACCOUNT_ID` secret that
+   names a different account is ignored, and the deploy says so). If you run the deploy by hand, the variables `D1_DATABASE_ID`, `R2_BUCKET_NAME` and
+   `FILES_LIMIT_GB` win over the file; the GitHub workflow uses the file.
 4. Top-right profile → **My Profile → API Tokens → Create Token → "Edit Cloudflare Workers"** template, and add two permissions:
    `Account · D1 · Edit` and `Account · Workers R2 Storage · Edit`. Create the token and copy it (shown once).
 
@@ -63,11 +68,20 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | Name | Where it comes from |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Step 2 |
-| `CLOUDFLARE_ACCOUNT_ID` | Step 2 |
+| `CLOUDFLARE_ACCOUNT_ID` | Already in `cloudflare.resources.json`, so you can skip this secret (if you add it anyway it must be the same account: the account in the file is the one used) |
 | `OWNER_EMAIL` | Step 3 |
 | `OWNER_PASSWORD_HASH` | Step 3 |
 | `OWNER_SESSION_SECRET` | Step 3 |
 | `CUSTOMER_CONTACT_HASH_SECRET` | Step 3 |
+
+**The app starts completely empty.** The deploy only connects the app to the database and bucket; it writes no records, and demo data is switched off
+in production (`ATP_DEMO_SEED=false`). The tables are created empty the first time the app runs, and only the company's own people add data after that.
+
+**File limit:** the company's uploaded files (chat attachments, project photos and documents, customer uploads) are capped at **8 GB** in total
+(`filesLimitGb` in `cloudflare.resources.json`, or the `FILES_LIMIT_GB` setting). Uploads that would go over are refused with a clear message, and
+**Settings → File storage** in the Owner dashboard shows a meter that warns at 80%. Customers (who are not signed in) can use up to 80% of the limit,
+so staff always keep room for site photos and documents. The app has no screen for deleting uploaded files yet, so when the meter is full the way to make
+room is to raise `filesLimitGb` and deploy again. The database (D1) is separate and has its own Cloudflare plan limit.
 
 **Recommended:** `OWNER_DISPLAY_NAME`, `TEAM_SESSION_SECRET` (both printed in Step 3).
 
@@ -94,8 +108,8 @@ Then bring this work onto the `main` branch (the deploy runs when `main` changes
 ## Step 6 — Deploy
 
 Repository → **Actions → "Deploy Alert Tradie Pro" → Run workflow** (it also runs by itself whenever `main` changes).
-It installs, builds, **runs every test (nothing is deployed if one fails)**, creates the database and the private file bucket
-the first time, deploys, and stores your settings as Worker secrets. After 3–5 minutes the log ends with
+It installs, builds, **runs every test (nothing is deployed if one fails)**, checks that your database and file bucket (named in
+`cloudflare.resources.json`) exist, deploys, and stores your settings as Worker secrets. It never creates, replaces or empties them. After 3–5 minutes the log ends with
 `Live at https://alert-tradie-pro.<your-name>.workers.dev`.
 
 Prefer to deploy from your own computer without GitHub Actions? Set the same names as environment variables, then:
@@ -150,12 +164,13 @@ Your data lives only in Cloudflare, so back it up.
 
 * **Database, any time** (needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in your terminal, or `npx wrangler login`):
   ```bash
-  npx wrangler d1 export alert-tradie-pro-db --remote --output=backup-$(date +%F).sql
+  npx wrangler d1 export <database-name> --remote --output=backup-$(date +%F).sql
   ```
   Do this weekly (daily is better). The file contains customer details: keep it somewhere private, **never** in GitHub.
-* **Short-term undo:** D1 keeps a recent history you can rewind to: `npx wrangler d1 time-travel info alert-tradie-pro-db`
+* **Short-term undo:** D1 keeps a recent history you can rewind to: `npx wrangler d1 time-travel info <database-name>`
   (how far back depends on your plan).
-* **Files:** the R2 bucket `alert-tradie-pro-files` can be copied with Cloudflare's **R2 → Manage API tokens** plus a tool such as `rclone`.
+* `<database-name>` is the name of your D1 database (Cloudflare dashboard → Storage & databases → D1; the deploy log also prints `Using D1 database <name>`).
+* **Files:** the R2 bucket named in `cloudflare.resources.json` (`test-at`) can be copied with Cloudflare's **R2 → Manage API tokens** plus a tool such as `rclone`.
 * **Bad update?** Fix forward by reverting the change on `main` (it redeploys by itself), or in Cloudflare
   **Workers & Pages → alert-tradie-pro → Deployments → Rollback**.
 

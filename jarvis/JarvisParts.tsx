@@ -6,6 +6,7 @@ import type { ActionState, Item, ProofreadSummary, ProposedAction, TeamMember } 
 
 export const stamp = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 export const dayStamp = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "long", day: "numeric", month: "long" });
+const dayLabel = (day: string) => { const date = new Date(`${day}T12:00:00`); return Number.isNaN(date.getTime()) ? day : dayStamp.format(date); };
 export const when = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : stamp.format(date); };
 
 // The glowing ring in the header. Pure CSS; stops turning for people who asked their device for less motion.
@@ -16,7 +17,7 @@ export function Reactor({ online }: { online: boolean }) {
 export function ProofreadReport({ report, label = "Proofread 3×" }: { report: ProofreadSummary; label?: string }) {
   const kind = report.method === "ai" ? "by the AI" : report.method === "mixed" ? "by the AI and the basic checker" : "by the basic checker (no AI)";
   return <div className={styles.proof} role="group" aria-label={label}>
-    <p className={styles.proofHead}><SpellCheck size={14} strokeWidth={1.75} aria-hidden="true" /><b>{label}</b><span>{report.clean ? "clean" : "fixed on the last pass"} · {report.totalFixes} {report.totalFixes === 1 ? "fix" : "fixes"} · {kind}</span></p>
+    <p className={styles.proofHead}><SpellCheck size={14} strokeWidth={1.75} aria-hidden="true" /><b>{label}</b><span>{report.clean ? "clean" : report.totalFixes > 0 ? "fixed on the last pass" : "some corrections were held back"} · {report.totalFixes} {report.totalFixes === 1 ? "fix" : "fixes"} · {kind}</span></p>
     <ol>
       {report.passes.map((pass) => <li key={pass.n}>
         <span className={styles.proofName}><Check size={12} strokeWidth={2.5} aria-hidden="true" />Pass {pass.n} · {pass.name}</span>
@@ -62,7 +63,7 @@ export function PlansList({ plans, range }: { plans: Item[]; range: { from: stri
   }
   return <div className={styles.plans}>
     {[...days].map(([day, list]) => <section key={day}>
-      <h4>{dayStamp.format(new Date(`${day}T12:00:00`))}</h4>
+      <h4>{dayLabel(day)}</h4>
       <ul>{list.map((plan) => <li key={plan.id}><time>{plan.title.match(/\d{2}:\d{2}/)?.[0] ?? "all day"}</time><span dir="auto"><b>{plan.title.replace(/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})? — /, "")}</b>{plan.who ? ` · ${plan.who}` : ""}{plan.project ? ` · ${plan.project}` : ""}</span></li>)}</ul>
     </section>)}
   </div>;

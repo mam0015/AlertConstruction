@@ -6,6 +6,7 @@ import {
   updateOwnerProfile,
   verifyStoredOwnerPassword,
 } from "../../../../db/access-settings-store";
+import { storageSummary } from "../../../../db/storage-usage";
 import {
   createOwnerSession,
   ownerSessionCookie,
@@ -14,9 +15,11 @@ import {
 } from "../../../owner-auth";
 
 async function settingsPayload() {
-  const [account, team] = await Promise.all([getPrimaryOwnerAccount(), getTeamAccessSettings()]);
+  // The meter is a convenience: if it cannot be read, the rest of Settings still loads.
+  const [account, team, storage] = await Promise.all([getPrimaryOwnerAccount(), getTeamAccessSettings(), storageSummary().catch(() => undefined)]);
   if (!account || !team) throw new Error("Owner settings are unavailable.");
   return {
+    storage,
     account: { email: account.email, displayName: account.displayName, updatedAt: account.updatedAt },
     teamCode: team.teamCode,
     teamCodeUpdatedAt: team.updatedAt,

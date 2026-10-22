@@ -8,7 +8,7 @@
 //
 // The people, the date rules and the way each action is carried out are passed in, so this file stays free of database code.
 
-import { abandonAction, beginAction, finishAction } from "./audit.mjs";
+import { abandonAction, beginAction, finishAction, noteAsk } from "./audit.mjs";
 import { proofread } from "./proofread.mjs";
 import { JarvisAccessError } from "./policy.mjs";
 import { clipText, oneLine, sha256Hex } from "./text.mjs";
@@ -111,6 +111,8 @@ export async function performAction({ db, owner, input, people, today, executors
   // Messages are people-facing writing, so they get the same three proofreading passes as an email.
   let report = null;
   if (action.type === "send_message") {
+    // Three AI calls when a brain is connected: they count against the question limit.
+    if (proofreadWith.client) await noteAsk(db, owner.email, now);
     report = await proofread(action.text, { ...proofreadWith, maxChars: MESSAGE_CHARS });
     action.text = report.text;
   }

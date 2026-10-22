@@ -563,8 +563,15 @@ export async function addCustomerRequestFile(caseId: number, objectKey: string, 
   const db = await database();
   const created = await db.prepare("INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at) VALUES (?,'customer_request',?,?,?,?,?,'internal',?)")
     .bind(caseId, objectKey, file.name, file.type, file.size, customerEmail, new Date().toISOString()).run();
-  await event(db, caseId, "Customer", customerEmail, "customer_file_uploaded", "Customer supplied an intake document", file.name);
-  return Number(created.meta.last_row_id);
+  const id = Number(created.meta.last_row_id);
+  try {
+    await event(db, caseId, "Customer", customerEmail, "customer_file_uploaded", "Customer supplied an intake document", file.name);
+  } catch (error) {
+    // Both halves or neither: the caller removes the stored file when this throws, so the record must go too (a record without a file is listed, counted and cannot be opened).
+    await db.prepare("DELETE FROM workflow_files WHERE id=?").bind(id).run().catch(() => undefined);
+    throw error;
+  }
+  return id;
 }
 
 export async function getPublicWorkflow(code: string) {
@@ -645,8 +652,15 @@ export async function addWorkflowFile(caseId: number, category: string, objectKe
     .bind(caseId, category, objectKey, file.name, file.type, file.size, uploadedBy, new Date().toISOString()).run();
   const label = category === "site_visit" ? "Site visit" : category === "quality" ? "Quality inspection" : category === "document" ? "Project folder" : "Progress";
   const verb = category === "document" ? "file added" : "photo uploaded";
-  await event(db, caseId, uploadedBy.includes("@") ? "Site Supervisor" : "Team", uploadedBy, "photo_uploaded", `${label} ${verb}`, file.name);
-  return Number(created.meta.last_row_id);
+  const id = Number(created.meta.last_row_id);
+  try {
+    await event(db, caseId, uploadedBy.includes("@") ? "Site Supervisor" : "Team", uploadedBy, "photo_uploaded", `${label} ${verb}`, file.name);
+  } catch (error) {
+    // Both halves or neither (the route removes the stored file when this throws).
+    await db.prepare("DELETE FROM workflow_files WHERE id=?").bind(id).run().catch(() => undefined);
+    throw error;
+  }
+  return id;
 }
 
 export async function getWorkflowFile(id: number, publicOnly: boolean) {

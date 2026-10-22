@@ -103,6 +103,14 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
 * **Reply:** on an email press **Reply with Jarvis**, type what the reply should say, check the draft (To / From / Subject
   are shown), edit the text if you like, press **Send reply**, then confirm **Yes, send it**. The reply stays in the same Gmail
   conversation, and appears under **Replies Jarvis has sent for you**.
+* **Voice (English and Persian):** under the command line, pick **English** or **فارسی**.
+  **Read the news** reads every record on screen aloud, newest first; **Read what's coming up** reads the plans; the speaker button on any line
+  reads that line; **Read Jarvis's answers aloud** reads each answer as it arrives. The microphone next to **Run** listens in the chosen language and
+  puts what you said into the command box (turn on **Run my command as soon as I stop talking** to skip pressing Run). Typing works exactly as before,
+  in either language. If you write Persian, basic mode answers in Persian too (with an AI connected it already answers in the language you wrote).
+  Reading uses the voices installed on your device. Voice typing uses your browser's own online speech service (for example Google in Chrome, Apple in Safari),
+  so audio leaves the device for that service, not for Jarvis or this app. Persian needs a Persian voice on the device; without one Jarvis says so
+  and shows the text instead (it never reads Persian with an English voice). Your choices are remembered on that device only.
 * **Read-only mailboxes** still get drafts, but Send is disabled — copy the text into your mail app, or reconnect the mailbox
   with `--allow-replies`.
 
@@ -113,7 +121,7 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
   minutes and tell you to check the Sent folder instead of inviting a second send.
 * **Unusual recipients need a tick.** A `Reply-To` on another domain than the sender ("this email asks for replies to X, not the sender") and
   automatic/mailing-list mail ("this may not be a person") are shown in a warning box and need a checkbox before Send.
-* **Least privilege while drafting.** With an email open, the AI sees that email plus records about the same thread or project and nothing
+* **Least privilege while drafting.** With an email open, the AI sees that email plus records of the same email thread and nothing
   else — other clients' comments, staff reports and other mailboxes stay out, unless you tick "Let Jarvis also use other records".
 * **Drafts are checked.** Dates, times, prices, links and numbers in a draft that neither you nor the email mentioned are listed in a warning
   box, and Send needs a tick after you checked them. Placeholders like `[date]` are flagged too.
@@ -154,10 +162,12 @@ jarvis/
   executors.ts          carries an action out through the app's own functions, as the Owner
   reply.mjs             reading an email to answer it, and the one place mail is sent
   audit.mjs             send and action log, once-only claims, rate limits
+  persian.mjs           basic-mode sentences in Persian (used when the Owner writes Persian)
+  voice.mjs             what to read aloud, in which language, with which voice (pure, tested)
   text.mjs              small helpers (redaction, escaping, header safety)
   server.ts             shared route plumbing (Owner gate, size limits, secrets)
   sources/              email, employee-updates, client-comments, team-messages, work, tasks, schedule, finance, people
-  JarvisPanel.tsx, JarvisParts.tsx, jarvis.module.css   the console inside the Owner app
+  JarvisPanel.tsx, JarvisParts.tsx, VoiceBar.tsx, useVoice.ts, jarvis.module.css   the console inside the Owner app (VoiceBar/useVoice: reading aloud and the microphone)
   scripts/gmail-authorize.mjs           one-time mailbox connection
 app/api/owner/jarvis/   route.ts (briefing), ask, send, act, proofread, brain (test connection)
 ```
@@ -174,6 +184,12 @@ app/api/owner/jarvis/   route.ts (briefing), ask, send, act, proofread, brain (t
 - دستور شما را اجرا می‌کند: جواب ایمیل، پیام داخل برنامه به یک نفر، کار در تقویم، دادن یک کار (task). اگر فکر کند راه بهتری هست، یک بار و در یک خط می‌گوید و بعد همان کاری را که شما گفتید انجام می‌دهد.
 - هر متنی که برای ایمیل یا پیام می‌رود **سه بار بازخوانی** می‌شود (املا، دستور زبان و نقطه‌گذاری، مرور نهایی). فقط غلط‌ها اصلاح می‌شود؛ عدد، تاریخ، لینک و «نه/نیست» هرگز عوض نمی‌شود.
 - **دو مغز:** «جارویس ۱» (Claude، هوش مصنوعی ابری) و «جارویس ۲» (OpenJarvis روی کامپیوتر یا سرور خودتان). بالای صفحهٔ جارویس یکی را انتخاب می‌کنید. هر دو دقیقاً یک کار را می‌توانند انجام دهند.
+
+**صدا (فارسی و انگلیسی)**
+- زیر خط فرمان زبان **English** یا **فارسی** را انتخاب کنید. «Read the news» همهٔ خبرهای روی صفحه را با صدا می‌خواند (جدیدترین اول) و دکمهٔ بلندگو کنار هر پاسخ همان پاسخ را می‌خواند.
+- میکروفون کنار دکمهٔ Run حرف شما را به زبان انتخاب‌شده گوش می‌دهد و در کادر دستور می‌نویسد. تایپ کردن هم مثل قبل (فارسی یا انگلیسی) برای Jarvis می‌رود.
+- اگر فارسی بنویسید، حالت ساده هم فارسی جواب می‌دهد.
+- خواندن با صدای نصب‌شده روی دستگاه انجام می‌شود. تبدیل صدا به متن را سرویس صدای خود مرورگر انجام می‌دهد (مثلاً Google در Chrome یا Apple در Safari). فارسی به صدای فارسی روی دستگاه نیاز دارد؛ اگر نباشد Jarvis می‌گوید و متن را نشان می‌دهد.
 
 **قواعدی که نمی‌تواند بشکند**
 ۱. فقط از **شما** دستور می‌گیرد. هر چیزی که مشتری، کارمند یا غریبه بنویسد فقط «داده» است، نه دستور.

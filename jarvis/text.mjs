@@ -50,6 +50,8 @@ const PHONE = /(?<![\w$.,-])(?:\+61|\(?0)[\d\s().-]{7,15}\d(?!\w)/g;
 // needs them, so they are replaced before the text leaves the system.
 export function redact(value) {
   return forAi(value)
+    // Persian and Arabic-Indic digits are read as ordinary digits, so a number written that way is still recognised as a phone number.
+    .replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (digit) => String.fromCharCode(48 + (digit.charCodeAt(0) & 15)))
     .replace(EMAIL, "[email]")
     .replace(EMAIL_OBFUSCATED, "[email]")
     .replace(PHONE, (match) => {

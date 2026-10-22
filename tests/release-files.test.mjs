@@ -53,3 +53,25 @@ test("the guides exist in English and Persian and name the real commands and fil
   const scripts = JSON.parse(read("package.json")).scripts;
   for (const name of ["verify", "typecheck", "lint", "test", "build", "preview:local", "setup:credentials"]) assert.ok(scripts[name], `npm run ${name} exists`);
 });
+
+test("the company's own Cloudflare database and bucket are named in one file, and a deploy never creates a second one", () => {
+  const resources = JSON.parse(read("cloudflare.resources.json"));
+  assert.match(resources.accountId, /^[0-9a-f]{32}$/, "Cloudflare account id");
+  assert.match(resources.d1DatabaseId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, "D1 database id");
+  assert.match(resources.r2Bucket, /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, "R2 bucket name");
+  // The documented way to make room is to raise this number, so the test only checks that it is a sensible positive number (8 to start with).
+  assert.ok(Number.isFinite(resources.filesLimitGb) && resources.filesLimitGb > 0 && resources.filesLimitGb <= 100_000);
+  // Only identifiers live in this file: no keys, passwords or tokens.
+  assert.ok(!/token|secret|password|key["']?\s*:/i.test(Object.keys(resources).filter((key) => !key.startsWith("_")).join(" ")));
+  assert.ok(!/[A-Za-z0-9_-]{40,}/.test(JSON.stringify(Object.entries(resources).filter(([key]) => !key.startsWith("_")))), "no long secret-looking value");
+  // The account id is filled in from the file, so the GitHub secret of that name is optional.
+  assert.match(deployScript, /resources\.accountId/);
+  assert.match(deployScript, /resources\.d1DatabaseId/);
+  assert.match(deployScript, /resources\.r2Bucket/);
+  assert.match(deployScript, /db\.uuid === DB_ID/, "an existing database is matched by its id");
+  assert.match(deployScript, /was not found in Cloudflare account/, "a missing database stops the deploy instead of creating another");
+  assert.ok(deployScript.indexOf("was not found in Cloudflare account") < deployScript.indexOf('"d1", "create"'));
+  // A new company starts empty: demo data stays off in production.
+  assert.match(deployScript, /values\.ATP_DEMO_SEED = "false"/);
+  assert.match(deployScript, /FILES_LIMIT_GB/);
+});
