@@ -135,6 +135,17 @@ npm test && node scripts/deploy-cloudflare.mjs
 Add the domain to Cloudflare (**Websites → Add a site**, then change the name servers at your registrar), then
 **Workers & Pages → alert-tradie-pro → Settings → Domains & Routes → Add → Custom domain**. HTTPS is automatic.
 
+## Use it like an app on a phone or computer
+
+The live address (for example `https://alert-tradie-pro.<your-name>.workers.dev`) is the server. There is nothing else to connect: open it in the browser and sign in.
+To get an app icon:
+
+* **iPhone / iPad (Safari):** Share → **Add to Home Screen**.
+* **Android (Chrome):** menu → **Install app** (or **Add to Home screen**).
+* **Computer (Chrome or Edge):** the install icon at the right end of the address bar.
+
+It opens without the browser bars, signs in the same way, and always shows the live data. Nothing is stored on the device except the sign-in.
+
 ## Step 7 — Turn on Jarvis (optional, can be done later)
 
 Full instructions: [`jarvis/README.md`](../jarvis/README.md). In short:

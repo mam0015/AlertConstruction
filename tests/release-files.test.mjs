@@ -172,3 +172,21 @@ test("the workers.dev name is registered only when the account has none, and an 
   const resources = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("../cloudflare.resources.json", import.meta.url), "utf8"));
   assert.match(resources.workersSubdomain, /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, "the name in the file is allowed");
 });
+
+test("the site can be installed as an app: manifest, icons and layout links are all there", async () => {
+  const { readFile, stat } = await import("node:fs/promises");
+  const root = new URL("../", import.meta.url);
+  const manifest = JSON.parse(await readFile(new URL("public/manifest.webmanifest", root), "utf8"));
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.start_url, "/");
+  assert.ok(manifest.name && manifest.short_name);
+  assert.match(manifest.background_color, /^#[0-9a-f]{6}$/i);
+  const sizes = manifest.icons.map((icon) => `${icon.sizes}:${icon.purpose}`);
+  assert.ok(sizes.includes("192x192:any") && sizes.includes("512x512:any") && sizes.includes("512x512:maskable"), "the icon sizes a phone asks for");
+  for (const icon of manifest.icons) assert.ok((await stat(new URL(`public${icon.src}`, root))).size > 500, `${icon.src} exists`);
+  assert.ok((await stat(new URL("public/icons/apple-touch-icon.png", root))).size > 500, "the iPhone home-screen icon exists");
+  const layout = await readFile(new URL("app/layout.tsx", root), "utf8");
+  assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
+  assert.match(layout, /apple: "\/icons\/apple-touch-icon\.png"/);
+});
+

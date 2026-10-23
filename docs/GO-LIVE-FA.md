@@ -135,6 +135,17 @@ npm test && node scripts/deploy-cloudflare.mjs
 دامنه را به Cloudflare اضافه کنید (**Websites → Add a site** و تغییر name serverها نزد ثبت‌کنندهٔ دامنه)، بعد
 **Workers & Pages → alert-tradie-pro → Settings → Domains & Routes → Add → Custom domain**. HTTPS خودکار است.
 
+## استفاده مثل یک اپ روی گوشی یا کامپیوتر
+
+آدرس زنده (مثلاً `https://alert-tradie-pro.<نام-شما>.workers.dev`) همان سرور است. چیز دیگری برای وصل کردن نیست: آدرس را باز کنید و وارد شوید.
+برای داشتن آیکون اپ:
+
+* **آیفون و آیپد (Safari):** دکمهٔ Share ← **Add to Home Screen**.
+* **اندروید (Chrome):** منو ← **Install app** (یا **Add to Home screen**).
+* **کامپیوتر (Chrome یا Edge):** آیکون نصب در انتهای راست نوار آدرس.
+
+بدون نوار مرورگر باز می‌شود، ورودش همان است و همیشه داده‌های زنده را نشان می‌دهد. چیزی جز ورود روی دستگاه ذخیره نمی‌شود.
+
 ## قدم ۷ — فعال کردن Jarvis (اختیاری، می‌شود بعداً هم کرد)
 
 راهنمای کامل: [`jarvis/README.md`](../jarvis/README.md). خلاصه:
