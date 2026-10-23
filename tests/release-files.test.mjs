@@ -92,3 +92,38 @@ test("a Cloudflare token pasted with extra lines or spaces is cleaned instead of
   assert.match(run(`${token}\nextra line`).stdout, /contains more than the token/);
   assert.match(run("").stderr + run("").stdout, /Missing GitHub secrets[^\n]*CLOUDFLARE_API_TOKEN/, "an empty token is still reported as missing");
 });
+
+test("the Cloudflare token is picked out of a messy secret by asking Cloudflare which piece works", async () => {
+  const { tokenCandidates, pickWorkingToken } = await import("../scripts/cloudflare-token.mjs");
+  const account = "0543287a79f9b297abe68d1d353c0a2d";
+  const token = "abcDEF1234567890abcDEF1234567890abcDEF12";
+  const modern = "cfut_abcDEF1234567890abcDEF1234567890abcDEF1234567890abcDEF123";
+  // The account id is never a token, even when it comes first; new-style tokens are tried before the old 40-character form.
+  assert.deepEqual(tokenCandidates(`${account}\n${token}`, account), [token]);
+  assert.deepEqual(tokenCandidates(`${account}\n${token}`, ""), [token], "a 32-character hex string is not a token");
+  assert.deepEqual(tokenCandidates(`curl "https://api.cloudflare.com/client/v4/user/tokens/verify" \\\n -H "Authorization: Bearer ${token}"`, account), [token]);
+  assert.deepEqual(tokenCandidates(`${token}\n${modern}`, account), [modern, token]);
+  assert.deepEqual(tokenCandidates("", account), []);
+
+  const asked = [];
+  const fake = (good) => async (url, init) => {
+    const sent = init.headers.Authorization.replace("Bearer ", "");
+    asked.push(sent);
+    const ok = sent === good;
+    return { ok, status: ok ? 200 : 401, json: async () => ({ success: ok }) };
+  };
+  const picked = await pickWorkingToken(`${token}\n${modern}`, account, fake(token));
+  assert.equal(picked.token, token);
+  assert.equal(picked.verified, true);
+  assert.ok(asked.includes(modern) && asked.includes(token), "every piece was tried");
+
+  const refused = await pickWorkingToken(`${token}\n`, account, fake("something else"));
+  assert.equal(refused.verified, false, "Cloudflare refused every piece");
+
+  const offline = await pickWorkingToken(`${token}\n`, account, async () => { throw new Error("no network"); });
+  assert.equal(offline.verified, null, "no answer from Cloudflare is not treated as a refusal");
+  assert.equal(offline.token, token);
+
+  const down = await pickWorkingToken(token, account, async () => ({ ok: false, status: 503, json: async () => ({}) }));
+  assert.equal(down.verified, null, "a Cloudflare outage (5xx) is not treated as a refusal either");
+});
