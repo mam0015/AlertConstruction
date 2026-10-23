@@ -13,6 +13,7 @@ import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pickWorkingToken, tokenCandidates } from "./cloudflare-token.mjs";
 
 // Found next to this script's folder, wherever the deploy is started from (a missing file would silently turn into "create new resources").
 const RESOURCES_FILE = fileURLToPath(new URL("../cloudflare.resources.json", import.meta.url));
@@ -31,13 +32,13 @@ if (resources.accountId) {
   process.env.CLOUDFLARE_ACCOUNT_ID = resources.accountId;
 }
 if (resources.filesLimitGb && !process.env.FILES_LIMIT_GB?.trim()) process.env.FILES_LIMIT_GB = String(resources.filesLimitGb);
-// A pasted token can arrive with a trailing newline or extra lines (Cloudflare's token page shows a test command under the token), and wrangler then
-// refuses it ("invalid header value"). Only the token itself is used.
+// A pasted token can arrive with a trailing newline, extra lines or the account id next to it (Cloudflare's token page also shows a test command
+// under the token), and wrangler then refuses it. Here only the first plausible piece is kept; once the other secrets are known to be present, each
+// piece is tried against Cloudflare below and the one it accepts is used.
+const RAW_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? "";
 {
-  const raw = process.env.CLOUDFLARE_API_TOKEN ?? "";
-  const parts = raw.split(/\s+/).filter(Boolean);
-  const token = parts.find((part) => /^[A-Za-z0-9_-]{30,}$/.test(part)) ?? parts[0] ?? "";
-  if (raw.trim() !== token) console.log("Note: the CLOUDFLARE_API_TOKEN secret contains more than the token (extra lines or spaces). Only the token itself is used. Please save the secret again with just the token.");
+  const token = tokenCandidates(RAW_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ?? "")[0] ?? RAW_TOKEN.trim().split(/\s+/)[0] ?? "";
+  if (RAW_TOKEN.trim() !== token) console.log("Note: the CLOUDFLARE_API_TOKEN secret contains more than the token (extra lines or spaces). Only the token itself is used. Please save the secret again with just the token.");
   process.env.CLOUDFLARE_API_TOKEN = token;
 }
 const CONFIG = "dist/server/wrangler.json";
@@ -48,6 +49,18 @@ const missing = REQUIRED.filter((name) => !process.env[name]?.trim() && !(name =
 if (missing.length) {
   console.error(`Missing GitHub secrets / environment values: ${missing.join(", ")}\nSee release-docs/DEPLOY-GITHUB-TO-CLOUDFLARE-FA.md.`);
   process.exit(1);
+}
+
+// Ask Cloudflare whether the token works, before anything is deployed, so a wrong token is explained plainly instead of through wrangler's errors.
+{
+  const picked = await pickWorkingToken(RAW_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ?? "");
+  if (picked.verified === true) process.env.CLOUDFLARE_API_TOKEN = picked.token;
+  else if (picked.verified === false) {
+    const shapes = RAW_TOKEN.split(/\s+/).filter(Boolean).map((part) => `${part.length} characters${/^[0-9a-f]{32}$/i.test(part) ? " (looks like an account id, not a token)" : ""}`);
+    console.error(`Cloudflare did not accept the CLOUDFLARE_API_TOKEN secret. The secret holds ${shapes.length} piece(s): ${shapes.join("; ") || "nothing"}.
+A real token is 40 or more letters and digits without spaces. Create a new token in Cloudflare (My Profile > API Tokens > Create Token), copy it with the Copy button, and save it as the secret CLOUDFLARE_API_TOKEN with nothing else in it.`);
+    process.exit(1);
+  } else console.log("Could not reach Cloudflare to check the token beforehand. Continuing with it as it is.");
 }
 
 function wrangler(args, { allowFail = false } = {}) {
