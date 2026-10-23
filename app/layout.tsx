@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./operation-hub.css";
@@ -32,7 +32,15 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/icons/apple-touch-icon.png",
   },
+  // Lets a phone or computer install the site as an app (Add to Home Screen / Install). It is the same private site, opened without the browser bars.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Alert Tradie Pro", statusBarStyle: "black-translucent" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0c0d",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
