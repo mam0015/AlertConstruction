@@ -31,6 +31,15 @@ if (resources.accountId) {
   process.env.CLOUDFLARE_ACCOUNT_ID = resources.accountId;
 }
 if (resources.filesLimitGb && !process.env.FILES_LIMIT_GB?.trim()) process.env.FILES_LIMIT_GB = String(resources.filesLimitGb);
+// A pasted token can arrive with a trailing newline or extra lines (Cloudflare's token page shows a test command under the token), and wrangler then
+// refuses it ("invalid header value"). Only the token itself is used.
+{
+  const raw = process.env.CLOUDFLARE_API_TOKEN ?? "";
+  const parts = raw.split(/\s+/).filter(Boolean);
+  const token = parts.find((part) => /^[A-Za-z0-9_-]{30,}$/.test(part)) ?? parts[0] ?? "";
+  if (raw.trim() !== token) console.log("Note: the CLOUDFLARE_API_TOKEN secret contains more than the token (extra lines or spaces). Only the token itself is used. Please save the secret again with just the token.");
+  process.env.CLOUDFLARE_API_TOKEN = token;
+}
 const CONFIG = "dist/server/wrangler.json";
 const REQUIRED = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "OWNER_EMAIL", "OWNER_PASSWORD_HASH", "OWNER_SESSION_SECRET", "CUSTOMER_CONTACT_HASH_SECRET"];
 const SECRETS = ["OWNER_EMAIL", "OWNER_PASSWORD_HASH", "OWNER_DISPLAY_NAME", "OWNER_SESSION_SECRET", "TEAM_SESSION_SECRET", "TEAM_CODE", "TEAM_CODE_HASH", "CUSTOMER_CONTACT_HASH_SECRET", "RESEND_API_KEY", "TEAM_NOTIFICATION_EMAIL_FROM", "JARVIS_GMAIL_CLIENT_ID", "JARVIS_GMAIL_CLIENT_SECRET", "JARVIS_GMAIL_ACCOUNTS", "JARVIS_ANTHROPIC_API_KEY", "JARVIS_AI_MODEL", "JARVIS_AI", "JARVIS_AI_FALLBACKS", "JARVIS_COMPANY_NAME", "JARVIS_OPENJARVIS_URL", "JARVIS_OPENJARVIS_API_KEY", "JARVIS_OPENJARVIS_MODEL", "JARVIS_OPENJARVIS_ACCESS_ID", "JARVIS_OPENJARVIS_ACCESS_SECRET"];
