@@ -111,6 +111,7 @@ Repository → **Actions → "Deploy Alert Tradie Pro" → Run workflow** (it al
 It installs, builds, **runs every test (nothing is deployed if one fails)**, checks that your database and file bucket (named in
 `cloudflare.resources.json`) exist, deploys, and stores your settings as Worker secrets. It never creates, replaces or empties them. After 3–5 minutes the log ends with
 `Live at https://alert-tradie-pro.<your-name>.workers.dev`.
+A brand-new Cloudflare account has no `workers.dev` name yet. The deploy registers the one written in `cloudflare.resources.json` (`workersSubdomain`), and never changes a name the account already has.
 
 Prefer to deploy from your own computer without GitHub Actions? Set the same names as environment variables, then:
 

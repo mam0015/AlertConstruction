@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pickWorkingToken, tokenCandidates } from "./cloudflare-token.mjs";
+import { ensureWorkersSubdomain } from "./workers-subdomain.mjs";
 
 // Found next to this script's folder, wherever the deploy is started from (a missing file would silently turn into "create new resources").
 const RESOURCES_FILE = fileURLToPath(new URL("../cloudflare.resources.json", import.meta.url));
@@ -67,6 +68,9 @@ function wrangler(args, { allowFail = false } = {}) {
   const result = spawnSync("npx", ["--no-install", "wrangler", ...args], { encoding: "utf8", env: process.env });
   if (result.status !== 0 && !allowFail) {
     console.error(result.stdout, result.stderr);
+    if (/workers\.dev subdomain/i.test(`${result.stdout}${result.stderr}`)) {
+      throw new Error("This Cloudflare account has no workers.dev name yet. Put the name you want in cloudflare.resources.json as \"workersSubdomain\" (lowercase letters, digits and \"-\") and run the deploy again, or register one in the Cloudflare dashboard under Workers & Pages.");
+    }
     throw new Error(`wrangler ${args.slice(0, 2).join(" ")} failed`);
   }
   return result;
@@ -130,6 +134,13 @@ config.d1_databases = [{ binding: "DB", database_name: database.name, database_i
 config.r2_buckets = [{ binding: "BUCKET", bucket_name: BUCKET }];
 config.images = { binding: "IMAGES" };
 await writeFile(CONFIG, JSON.stringify(config, null, 2));
+
+// 3b. A new account has no workers.dev name. Register the one named in cloudflare.resources.json (WORKERS_SUBDOMAIN wins); an existing name is never changed.
+await ensureWorkersSubdomain({
+  accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+  token: process.env.CLOUDFLARE_API_TOKEN,
+  name: process.env.WORKERS_SUBDOMAIN?.trim() || resources.workersSubdomain || "",
+});
 
 // 4. Deploy, then store the private values as Worker secrets.
 console.log(`Deploying ${WORKER}…`);
