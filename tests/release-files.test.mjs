@@ -1,6 +1,7 @@
 // Guards the go-live path: the deploy workflow, the deploy script, the environment template and the code must agree on
 // which secrets exist, so a value the app reads can always be set, and a deploy never silently drops one.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -74,4 +75,20 @@ test("the company's own Cloudflare database and bucket are named in one file, an
   // A new company starts empty: demo data stays off in production.
   assert.match(deployScript, /values\.ATP_DEMO_SEED = "false"/);
   assert.match(deployScript, /FILES_LIMIT_GB/);
+});
+
+test("a Cloudflare token pasted with extra lines or spaces is cleaned instead of breaking the deploy", () => {
+  const token = "abcDEF1234567890abcDEF1234567890abcDEF12";
+  const run = (value) => spawnSync(process.execPath, ["scripts/deploy-cloudflare.mjs"], {
+    cwd: new URL("..", import.meta.url), encoding: "utf8",
+    env: { PATH: process.env.PATH, CLOUDFLARE_API_TOKEN: value }, // nothing else is set, so it stops at the "missing secrets" check, before any network call
+  });
+  for (const pasted of [`${token}\n`, `  ${token}  `, `${token}\ncurl -X GET https://api.cloudflare.com/client/v4/user/tokens/verify`, `\n${token}\n\n`]) {
+    const out = run(pasted);
+    assert.ok(!/Missing GitHub secrets[^\n]*CLOUDFLARE_API_TOKEN/.test(out.stdout + out.stderr), `the token counts as present: ${JSON.stringify(pasted)}`);
+    assert.match(out.stdout + out.stderr, /Missing GitHub secrets/, "it still stops before any network call");
+    if (pasted !== token) assert.ok(!/abcDEF1234567890abcDEF1234567890abcDEF12/.test(out.stdout + out.stderr), "the token is never printed");
+  }
+  assert.match(run(`${token}\nextra line`).stdout, /contains more than the token/);
+  assert.match(run("").stderr + run("").stdout, /Missing GitHub secrets[^\n]*CLOUDFLARE_API_TOKEN/, "an empty token is still reported as missing");
 });
