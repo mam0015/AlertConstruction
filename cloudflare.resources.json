@@ -1,7 +1,8 @@
 {
-  "_about": "Where this app keeps its data in YOUR Cloudflare account. These are identifiers, not passwords, so they are safe to keep in GitHub. The deploy (scripts/deploy-cloudflare.mjs) uses exactly these and never creates a second database or bucket. A value in an environment variable of the same purpose (CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID, R2_BUCKET_NAME) wins over this file.",
+  "_about": "Where this app keeps its data in YOUR Cloudflare account. These are identifiers, not passwords, so they are safe to keep in GitHub. The deploy (scripts/deploy-cloudflare.mjs) uses exactly these and never creates a second database or bucket. A value in an environment variable of the same purpose (CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID, R2_BUCKET_NAME) wins over this file. workersSubdomain is the name in https://alert-tradie-pro.<name>.workers.dev; it is registered only if the account has none yet and an existing name is never changed.",
   "accountId": "0543287a79f9b297abe68d1d353c0a2d",
   "d1DatabaseId": "3a834f61-3186-4e1f-a789-501090d1a9ed",
   "r2Bucket": "test-at",
-  "filesLimitGb": 8
+  "filesLimitGb": 8,
+  "workersSubdomain": "alerttradie"
 }

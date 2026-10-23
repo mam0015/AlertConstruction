@@ -127,3 +127,48 @@ test("the Cloudflare token is picked out of a messy secret by asking Cloudflare 
   const down = await pickWorkingToken(token, account, async () => ({ ok: false, status: 503, json: async () => ({}) }));
   assert.equal(down.verified, null, "a Cloudflare outage (5xx) is not treated as a refusal either");
 });
+
+test("the workers.dev name is registered only when the account has none, and an existing name is never changed", async () => {
+  const { ensureWorkersSubdomain } = await import("../scripts/workers-subdomain.mjs");
+  const calls = [];
+  const logs = [];
+  const run = (name, answers) => ensureWorkersSubdomain({
+    accountId: "acc", token: "secret-token-value", name, log: (line) => logs.push(line),
+    fetchFn: async (url, init = {}) => {
+      calls.push({ url, method: init.method ?? "GET", body: init.body, auth: init.headers?.Authorization });
+      const answer = answers[calls.filter((call) => call.url === url).length - 1] ?? answers.at(-1);
+      return { ok: answer.status < 300, status: answer.status, json: async () => answer.body };
+    },
+  });
+  const none = { status: 200, body: { success: true, result: { subdomain: null } } };
+  const done = { status: 200, body: { success: true, result: { subdomain: "alerttradie" } } };
+
+  assert.equal(await run("other", [done]), "exists");
+  assert.deepEqual(calls.map((call) => call.method), ["GET"], "an existing name is not touched");
+
+  calls.length = 0;
+  assert.equal(await run("AlertTradie ", [none, done]), "registered");
+  assert.deepEqual(calls.map((call) => call.method), ["GET", "PUT"]);
+  assert.equal(JSON.parse(calls[1].body).subdomain, "alerttradie");
+  assert.match(calls[1].url, /\/accounts\/acc\/workers\/subdomain$/);
+
+  calls.length = 0;
+  assert.equal(await run("", [{ status: 404, body: { success: false } }]), "no-name");
+  assert.equal(await run("-bad-", [none]), "invalid-name");
+  assert.equal(await run("bad name!", [none]), "invalid-name");
+  assert.ok(!calls.some((call) => call.method === "PUT"), "nothing is registered without a valid name");
+
+  calls.length = 0;
+  const taken = { status: 409, body: { success: false, errors: [{ message: "subdomain already taken" }] } };
+  assert.equal(await run("alerttradie", [none, taken]), "refused");
+  assert.ok(logs.some((line) => /subdomain already taken/.test(line)));
+
+  calls.length = 0;
+  assert.equal(await run("alerttradie", [{ status: 403, body: { success: false } }]), "unknown", "an unclear answer registers nothing");
+  assert.ok(!calls.some((call) => call.method === "PUT"));
+  assert.equal(await ensureWorkersSubdomain({ accountId: "acc", token: "t", name: "x", log: () => {}, fetchFn: async () => { throw new Error("offline"); } }), "unknown");
+  assert.ok(!logs.join("\n").includes("secret-token-value"), "the token is never printed");
+
+  const resources = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("../cloudflare.resources.json", import.meta.url), "utf8"));
+  assert.match(resources.workersSubdomain, /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, "the name in the file is allowed");
+});
