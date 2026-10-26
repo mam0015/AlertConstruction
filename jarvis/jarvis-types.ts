@@ -1,5 +1,6 @@
 export type BrainId = "jarvis1" | "jarvis2";
-export type Brain = { id: BrainId; name: string; engine: string; where: string; available: boolean; model: string };
+export type Brain = { id: BrainId; name: string; engine: string; kind: string; where: string; available: boolean; model: string };
+export type BrainMode = "online" | "offline";
 export type BrainCheck = { ok: boolean; message: string; model?: string; agent?: string; warnings: string[] };
 export type Scope = "company_email" | "employee_updates" | "client_comments" | "team_messages" | "work" | "tasks" | "schedule" | "finance" | "people";
 export type SourceReport = { status: string; count: number; mailboxes?: { label: string; status: string; count: number; canReply?: boolean }[] };

@@ -155,7 +155,7 @@ jarvis/
   jarvis.mjs            reads the sources and builds the news and the plans
   assistant.mjs         "ask Jarvis" and "send the approved reply"
   ai.mjs                the persona and prompt, strict schema, Claude call, answer validation
-  brains.mjs            Jarvis 1 / Jarvis 2: which brain answers
+  brains.mjs            Jarvis 1 / Jarvis 2: which brain answers, and each brain's Online / Offline switch (Offline = no AI call at all)
   openjarvis.mjs        Jarvis 2: the translator to OpenJarvis's API, and "Test connection"
   proofread.mjs         three-pass proofreading (AI or rules) with the drift guard
   actions.mjs           message / calendar entry / task: validation, confirmation, once-only execution
@@ -164,12 +164,14 @@ jarvis/
   audit.mjs             send and action log, once-only claims, rate limits
   persian.mjs           basic-mode sentences in Persian (used when the Owner writes Persian)
   voice.mjs             what to read aloud, in which language, with which voice (pure, tested)
+  naturalVoice.mjs      the natural voice (Cloudflare Workers AI, Aura-1): voices, how text is cut, what the server accepts
+  naturalPlayer.ts      plays the pieces end to end on the audio clock (no gaps); the device voice takes over on any failure
   text.mjs              small helpers (redaction, escaping, header safety)
   server.ts             shared route plumbing (Owner gate, size limits, secrets)
   sources/              email, employee-updates, client-comments, team-messages, work, tasks, schedule, finance, people
   JarvisPanel.tsx, JarvisParts.tsx, VoiceBar.tsx, useVoice.ts, jarvis.module.css   the console inside the Owner app (VoiceBar/useVoice: reading aloud and the microphone)
   scripts/gmail-authorize.mjs           one-time mailbox connection
-app/api/owner/jarvis/   route.ts (briefing), ask, send, act, proofread, brain (test connection)
+app/api/owner/jarvis/   route.ts (briefing), ask, send, act, proofread, brain (test connection), speak (natural voice)
 ```
 
 ---

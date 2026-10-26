@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { onEstimateLines, takeEstimateLines } from "../estimate-tools/bridge";
+import type { UsePayload } from "../estimate-tools/EstimateTools";
 
 type Line = { id: number; group: "Materials" | "Labour" | "Subcontractor" | "Other"; description: string; quantity: string; unit: string; unitPrice: string };
 
@@ -16,17 +18,35 @@ const templates = [
 const aud = (value: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(value);
 const amount = (value: string) => { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : 0; };
 
+// Lines sent from the Estimate tools (price-list based). A blank first line is replaced; the margin and contingency follow the tool's choice.
+const fromTools = (payload: UsePayload, startId: number): Line[] => payload.lines.map((line, index) => ({ id: startId + index, ...line }));
+const isBlank = (line: Line) => !line.description.trim() && !line.unitPrice.trim();
+
 export default function EstimateCalculator({ initialTerms, busy, onSubmit }: {
   initialTerms: string;
   busy: boolean;
   onSubmit: (payload: { amount: string; scope: string; terms: string }) => void;
 }) {
-  const [lines, setLines] = useState<Line[]>([{ id: 1, group: "Materials", description: "", quantity: "1", unit: "lot", unitPrice: "" }]);
-  const [markup, setMarkup] = useState("0");
-  const [contingency, setContingency] = useState("0");
+  // Lines that were sent while no job was open for pricing are waiting; they appear as soon as the calculator opens.
+  const [waiting] = useState(() => takeEstimateLines());
+  const [lines, setLines] = useState<Line[]>(() => (waiting ? fromTools(waiting, 1) : [{ id: 1, group: "Materials", description: "", quantity: "1", unit: "lot", unitPrice: "" }]));
+  const [markup, setMarkup] = useState(() => (waiting?.mode === "builder" ? String(waiting.margin) : "0"));
+  const [contingency, setContingency] = useState(() => String(waiting?.contingency ?? 0));
   const [gst, setGst] = useState(true);
   const [terms, setTerms] = useState(initialTerms);
-  const [summary, setSummary] = useState("");
+  const [summary, setSummary] = useState(() => waiting?.summary ?? "");
+  const [received, setReceived] = useState(waiting?.lines.length ?? 0);
+
+  useEffect(() => onEstimateLines((payload) => {
+    setLines((all) => {
+      const kept = all.filter((line) => !isBlank(line));
+      return [...kept, ...fromTools(payload, Math.max(0, ...all.map((line) => line.id)) + 1)];
+    });
+    setMarkup(payload.mode === "builder" ? String(payload.margin) : "0");
+    if (payload.contingency !== undefined) setContingency(String(payload.contingency));
+    setSummary((current) => current || payload.summary);
+    setReceived((count) => count + payload.lines.length);
+  }), []);
 
   const totals = useMemo(() => {
     const subtotal = lines.reduce((sum, line) => sum + amount(line.quantity) * amount(line.unitPrice), 0);
@@ -57,6 +77,7 @@ export default function EstimateCalculator({ initialTerms, busy, onSubmit }: {
   const ready = totals.total > 0 && lines.some((line) => line.description.trim() && amount(line.quantity) * amount(line.unitPrice) > 0);
 
   return <form onSubmit={(event) => { event.preventDefault(); onSubmit({ amount: totals.total.toFixed(2), scope: buildScope(), terms }); }}>
+    {received > 0 && <p role="status" style={{ margin: "0 0 10px", padding: "9px 12px", border: "1px solid rgba(247,207,100,.5)", background: "rgba(247,207,100,.08)", fontSize: 13 }}>{received} line{received === 1 ? "" : "s"} came from the Estimate tools (priced from the company price list). Check the quantities and the margin, then approve.</p>}
     <label><span>Scope summary (what the customer is getting)</span><textarea value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="e.g. Supply and install … as discussed on site." /></label>
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

@@ -66,6 +66,20 @@
 .brainInfo{display:flex;flex-direction:column;gap:8px}
 .brainInfo p{margin:0;color:var(--j-soft);font-size:13px;line-height:1.65}
 .brainInfo b{color:var(--j-ink);font-weight:600}
+.modeRow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.modeLabel{color:var(--j-muted);font-family:var(--j-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.modePick{display:inline-flex;border:1px solid var(--j-line);border-radius:2px;overflow:hidden}
+.modeOption{min-height:34px;padding:6px 16px;border:0;background:transparent;color:var(--j-soft);font-family:var(--j-mono);font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer}
+.modeOption+.modeOption{border-left:1px solid var(--j-line)}
+.modeActive{background:rgba(77,255,176,.14);color:var(--j-neon)}
+.diff{border:1px solid var(--j-line);padding:8px 12px}
+.diff summary{cursor:pointer;color:var(--j-cyan);font-family:var(--j-mono);font-size:12px;letter-spacing:.04em}
+.diff table{width:100%;margin-top:8px;border-collapse:collapse;font-size:12px;line-height:1.5}
+.diff th,.diff td{padding:6px 8px;border-top:1px solid var(--j-line);text-align:left;vertical-align:top;color:var(--j-soft)}
+.diff thead th{color:var(--j-ink);border-top:0}
+.diff tbody th{color:var(--j-muted);font-weight:600;width:22%}
+.speakerPick{display:inline-flex;align-items:center;gap:8px;color:var(--j-muted);font-family:var(--j-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.speakerPick select{min-height:34px;max-width:100%;padding:4px 8px;border:1px solid var(--j-line);border-radius:2px;background:var(--j-panel);color:var(--j-ink);font-family:inherit;font-size:12px;text-transform:none;letter-spacing:0}
 .brainTest{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .brainTest p{align-self:stretch}
 .turnBrain{color:var(--j-dim);font-weight:600;letter-spacing:.04em;text-transform:none}

@@ -133,6 +133,8 @@ config.name = WORKER;
 config.d1_databases = [{ binding: "DB", database_name: database.name, database_id: database.uuid }];
 config.r2_buckets = [{ binding: "BUCKET", bucket_name: BUCKET }];
 config.images = { binding: "IMAGES" };
+// Jarvis's natural voice is made by Cloudflare Workers AI. If Cloudflare refuses the binding, the deploy below is repeated without it.
+config.ai = { binding: "AI" };
 await writeFile(CONFIG, JSON.stringify(config, null, 2));
 
 // 3b. A new account has no workers.dev name. Register the one named in cloudflare.resources.json (WORKERS_SUBDOMAIN wins); an existing name is never changed.
@@ -145,7 +147,21 @@ await ensureWorkersSubdomain({
 // 4. Deploy, then store the private values as Worker secrets.
 console.log(`Deploying ${WORKER}…`);
 // Automatic provisioning is off: wrangler may only attach the database and bucket named above, never create one.
-const deployed = wrangler(["deploy", "--config", CONFIG, "--experimental-provision=false", "--experimental-auto-create=false"]);
+const deployArgs = ["deploy", "--config", CONFIG, "--experimental-provision=false", "--experimental-auto-create=false"];
+let deployed = wrangler(deployArgs, { allowFail: true });
+if (deployed.status !== 0) {
+  console.error(deployed.stdout, deployed.stderr);
+  // The natural voice is a bonus: if the account cannot use Workers AI (or the token may not attach it), the app is still deployed without it,
+  // and Jarvis reads aloud with the voice on the device.
+  if (!config.ai || /workers\.dev subdomain/i.test(`${deployed.stdout}${deployed.stderr}`)) {
+    if (/workers\.dev subdomain/i.test(`${deployed.stdout}${deployed.stderr}`)) throw new Error("This Cloudflare account has no workers.dev name yet. Put the name you want in cloudflare.resources.json as \"workersSubdomain\" (lowercase letters, digits and \"-\") and run the deploy again, or register one in the Cloudflare dashboard under Workers & Pages.");
+    throw new Error("wrangler deploy failed");
+  }
+  console.log("Note: the deploy did not work with the AI binding (Jarvis's natural voice). Trying once more without it; Jarvis will read aloud with the voice on the device.");
+  delete config.ai;
+  await writeFile(CONFIG, JSON.stringify(config, null, 2));
+  deployed = wrangler(deployArgs);
+}
 console.log(deployed.stdout);
 
 const dir = await mkdtemp(join(tmpdir(), "atp-secrets-"));

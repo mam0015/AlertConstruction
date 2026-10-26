@@ -6,7 +6,7 @@ import { ActionCard, Composer, PlansList, ProofreadReport, Reactor, when } from 
 import VoiceBar from "./VoiceBar";
 import { useVoice, type VoiceApi } from "./useVoice";
 import { joinSpoken, newsScript, plansScript } from "./voice.mjs";
-import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, Draft, Focus, Item, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
+import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, BrainMode, Draft, Focus, Item, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
 
 const SOURCES: { id: Scope; label: string; icon: LucideIcon }[] = [
   { id: "company_email", label: "Email", icon: Mail },
@@ -38,10 +38,23 @@ const sourceLabel = (id: Scope) => SOURCES.find((source) => source.id === id)?.l
 const todayInMelbourne = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 const BRAIN_KEY = "jarvis.brain";
+const MODE_KEY = "jarvis.mode";
 const BRAIN_NOTE: Record<BrainId, string> = {
   jarvis1: "Claude, Anthropic's cloud AI. The smartest choice. Your question and the records it needs (names, subjects and short previews; email addresses and phone numbers removed) are sent to Anthropic to write the answer.",
   jarvis2: "OpenJarvis, an open-source AI that runs on your own computer or server. Your records go only to your own server, not to Anthropic. How well it writes depends on the model you load there.",
 };
+
+const MODE_NOTE: Record<BrainMode, string> = {
+  online: "Online: the AI brain answers. Jarvis writes, proofreads and prepares things like a person would.",
+  offline: "Offline: nothing is sent to any AI and the device's own voice is used. Jarvis answers with its built-in rules only: it finds, lists and sorts your records, but does not write or reason like the AI.",
+};
+const DIFFERENCES: { what: string; one: string; two: string }[] = [
+  { what: "Where it thinks", one: "Anthropic's cloud (online)", two: "Your own computer or server (private)" },
+  { what: "Needs", one: "Internet + an Anthropic key (paid by use)", two: "OpenJarvis running on your side (no per-answer fee)" },
+  { what: "Your records", one: "Names, subjects and short previews go to Anthropic", two: "Go only to your own server" },
+  { what: "How well it writes", one: "The strongest", two: "Depends on the model you load" },
+  { what: "Offline mode", one: "AI off, basic rules, nothing leaves", two: "AI off, basic rules, nothing leaves" },
+];
 
 async function postJson<T>(url: string, payload: unknown): Promise<T> {
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
@@ -78,6 +91,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const [showComposer, setShowComposer] = useState(false);
   // Which brain the Owner picked (remembered on this device). Empty = the default: Jarvis 1 if connected, else Jarvis 2, else basic mode.
   const [chosen, setChosen] = useState<BrainId | "">("");
+  // Online / Offline for each brain (remembered on this device). Offline = no AI call at all.
+  const [modes, setModes] = useState<Record<BrainId, BrainMode>>({ jarvis1: "online", jarvis2: "online" });
   const [testing, setTesting] = useState(false);
   const [brainCheck, setBrainCheck] = useState<BrainCheck | null>(null);
   // What the Owner has to tick before Send: only shown when the draft needs it.
@@ -97,8 +112,16 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     try {
       const saved = window.localStorage.getItem(BRAIN_KEY);
       if (saved === "jarvis1" || saved === "jarvis2") setChosen(saved);
+      const savedModes = JSON.parse(window.localStorage.getItem(MODE_KEY) ?? "{}") as Partial<Record<BrainId, string>>;
+      setModes({ jarvis1: savedModes.jarvis1 === "offline" ? "offline" : "online", jarvis2: savedModes.jarvis2 === "offline" ? "offline" : "online" });
     } catch { /* private mode: the choice just is not remembered */ }
   }, []);
+
+  function chooseMode(id: BrainId, mode: BrainMode) {
+    const next = { ...modes, [id]: mode };
+    setModes(next);
+    try { window.localStorage.setItem(MODE_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
+  }
 
   function chooseBrain(id: BrainId) {
     setChosen(id);
@@ -171,12 +194,12 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setText("");
     try {
       const answer = await postJson<{ mode: string; reply: string; suggestions: AiSuggestion[]; draft: Draft | null; actions: ProposedAction[]; notice: string; brain: { name: string; engine: string } | null }>("/api/owner/jarvis/ask", {
-        message: instruction, history, hours: request.hours, ...(brainId ? { brain: brainId } : {}),
+        message: instruction, history, hours: request.hours, ...brainFields,
         // The draft being edited goes along, so "make it shorter" or "also mention Friday" changes THAT text instead of starting again.
         ...(draft && draftBody.trim() ? { currentDraft: draftBody } : {}),
         ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId }, useOtherRecords: useOther } : {}),
       });
-      setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode, actions: answer.actions, brainName: answer.brain ? `${answer.brain.name} · ${answer.brain.engine}` : "basic mode" }]);
+      setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode, actions: answer.actions, brainName: answer.brain ? `${answer.brain.name} · ${answer.brain.engine}` : offline ? "offline mode" : "basic mode" }]);
       // The new answer is turn number turns.length + 1 (the Owner's own line was added just before it).
       if (latest.current?.voice.prefs.speakAnswers) latest.current.voice.speak(`turn-${turns.length + 1}`, answer.reply);
       setActionStates((current) => ({ ...current, ...Object.fromEntries((answer.actions ?? []).map((action) => [action.id, { phase: "ready" } as ActionState])) }));
@@ -204,7 +227,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setActionStates((current) => ({ ...current, [action.id]: { phase: "doing" } }));
     try {
       const result = await postJson<{ summary: string; proofread: ProofreadSummary | null }>("/api/owner/jarvis/act", {
-        id: action.id, confirm: true, ...(brainId ? { brain: brainId } : {}),
+        id: action.id, confirm: true, ...brainFields,
         action: { type: action.type, person: action.personEmail, title: action.title, text: action.text, dates: action.dates, startTime: action.startTime, projectCode: action.projectCode, priority: action.priority },
       });
       setActionStates((current) => ({ ...current, [action.id]: { phase: "done", message: result.summary, proofread: result.proofread } }));
@@ -221,7 +244,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setChecking(true);
     setChatError("");
     try {
-      const result = await postJson<ProofreadSummary & { text: string }>("/api/owner/jarvis/proofread", { text: draftBody, ...(brainId ? { brain: brainId } : {}) });
+      const result = await postJson<ProofreadSummary & { text: string }>("/api/owner/jarvis/proofread", { text: draftBody, ...brainFields });
       setDraftBody(result.text);
       setReport(result);
       setConfirming(false);
@@ -240,7 +263,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setChatError("");
     try {
       const result = await postJson<{ to: string; subject: string; proofread: ProofreadSummary | null }>("/api/owner/jarvis/send", {
-        mailbox: draft.mailbox, messageId: draft.messageId, body: draftBody, to: draft.to, confirm: true, ...(brainId ? { brain: brainId } : {}),
+        mailbox: draft.mailbox, messageId: draft.messageId, body: draftBody, to: draft.to, confirm: true, ...brainFields,
         confirmReplyTo: confirmReplyTo || undefined, confirmAutomated: confirmAutomated || undefined,
       });
       setSentNotice(`Sent to ${result.to}: “${result.subject}”.`);
@@ -268,11 +291,16 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   // The brain that will answer: the Owner's pick, or the default (first connected one).
   const active = brains.find((brain) => brain.id === chosen) ?? brains.find((brain) => brain.available) ?? brains[0];
   const brainId: BrainId | "" = chosen || "";
-  const aiOn = Boolean(active?.available);
+  const mode: BrainMode = modes[active?.id ?? "jarvis1"];
+  const offline = mode === "offline";
+  const brainFields = { ...(brainId ? { brain: brainId } : {}), ...(offline ? { mode: "offline" } : {}) };
+  const aiOn = Boolean(active?.available) && !offline;
   const online = Object.values(data?.sources ?? {}).filter((entry) => entry?.status === "ok").length;
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
+  const { setOffline } = voice;
+  useEffect(() => { setOffline(offline); }, [offline, setOffline]);
   useEffect(() => { latest.current = { ask, voice, asking, text }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
 
   function talk() {
@@ -295,8 +323,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         <h1>JARVIS<span>{" // owner console"}</span></h1>
         <p><ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />Takes orders from you only. Nothing leaves until you press the button.</p>
       </div>
-      <span className={aiOn ? styles.modeOn : styles.modeOff} title={aiOn ? `${active?.name} (${active?.engine}) is answering` : "Basic mode: fixed rules, no AI"}>
-        <i aria-hidden="true" />{aiOn ? `online · ${active?.name.toLowerCase()}` : "offline · basic"}
+      <span className={aiOn ? styles.modeOn : styles.modeOff} title={aiOn ? `${active?.name} (${active?.engine}) is answering` : offline ? "Offline mode: nothing is sent to any AI" : "Basic mode: fixed rules, no AI"}>
+        <i aria-hidden="true" />{aiOn ? `online · ${active?.name.toLowerCase()}` : offline ? `offline · ${active?.name.toLowerCase()}` : "offline · basic"}
       </span>
     </header>
     <p className={styles.boot} aria-live="polite">
@@ -311,7 +339,21 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         </button>)}
       </div>
       {active && <div className={styles.brainInfo}>
+        <div className={styles.modeRow}>
+          <span className={styles.modeLabel}>{active.name} · {active.kind}</span>
+          <div className={styles.modePick} role="radiogroup" aria-label={`${active.name} mode`}>
+            {(["online", "offline"] as const).map((value) => <button key={value} type="button" role="radio" aria-checked={mode === value} className={`${styles.modeOption} ${mode === value ? styles.modeActive : ""}`} onClick={() => chooseMode(active.id, value)}>{value === "online" ? "Online" : "Offline"}</button>)}
+          </div>
+        </div>
+        <p className={styles.noteSoft} role="status">{MODE_NOTE[mode]}</p>
         <p>{BRAIN_NOTE[active.id]} <b>Either one can do everything: read the whole app, give you the news, write and proofread, prepare messages, calendar entries and tasks.</b></p>
+        <details className={styles.diff}>
+          <summary>Jarvis 1 or Jarvis 2? What is different</summary>
+          <table>
+            <thead><tr><th scope="col" /><th scope="col">Jarvis 1 · Claude</th><th scope="col">Jarvis 2 · OpenJarvis</th></tr></thead>
+            <tbody>{DIFFERENCES.map((row) => <tr key={row.what}><th scope="row">{row.what}</th><td>{row.one}</td><td>{row.two}</td></tr>)}</tbody>
+          </table>
+        </details>
         {!active.available && active.id === "jarvis2" && <p className={styles.noteSoft}>Jarvis 2 is not connected yet. Run OpenJarvis on your own computer or server, then add the <code>JARVIS_OPENJARVIS_URL</code> secret (setup: <code>docs/JARVIS2-OPENJARVIS.md</code>). Until then Jarvis answers in basic mode.</p>}
         {!active.available && active.id === "jarvis1" && <p className={styles.noteSoft}>Jarvis 1 is not connected yet. Add the <code>JARVIS_ANTHROPIC_API_KEY</code> secret (setup: <code>jarvis/README.md</code>).</p>}
         {active.available && active.id === "jarvis2" && <div className={styles.brainTest}>
@@ -327,7 +369,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         <h2><Terminal size={15} strokeWidth={1.75} aria-hidden="true" />Command line</h2>
         <button className={styles.ghostText} type="button" aria-expanded={showComposer} onClick={() => setShowComposer((value) => !value)}>{showComposer ? "Hide" : "Prepare by hand"}</button>
       </div>
-      <VoiceBar voice={voice} hasNews={Boolean(data?.items.length)} hasPlans={Boolean(data?.plans.length)}
+      <VoiceBar voice={voice} offline={offline} hasNews={Boolean(data?.items.length)} hasPlans={Boolean(data?.plans.length)}
         onReadNews={() => readAloud("news", newsScript(data?.items ?? [], { lang: voice.prefs.lang }))}
         onReadPlans={() => readAloud("plans", plansScript(data?.plans ?? [], { lang: voice.prefs.lang }))} />
       {data && !aiOn && <p className={styles.note}>Basic mode: Jarvis searches your records, lists the news and puts <b>your own words</b> into a tidy reply. Connect Jarvis 1 or Jarvis 2 above and it also understands any language, writes replies and prepares messages, calendar entries and tasks from one sentence.</p>}
