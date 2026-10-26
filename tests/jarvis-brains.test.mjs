@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { askJarvis, parseAskInput, sendOwnerReply } from "../jarvis/assistant.mjs";
-import { describeBrains, parseBrain, resolveBrain } from "../jarvis/brains.mjs";
+import { describeBrains, parseBrain, parseMode, resolveBrain } from "../jarvis/brains.mjs";
 import { checkOpenJarvis, createOpenJarvisClient, extractJson, parseOpenJarvis, skeleton } from "../jarvis/openjarvis.mjs";
 import { RESPONSE_SCHEMA } from "../jarvis/ai.mjs";
 import { proofread } from "../jarvis/proofread.mjs";
@@ -68,6 +68,33 @@ test("brains: both are listed, the Owner's choice is honoured, and a brain that 
   assert.equal(parseBrain("jarvis2"), "jarvis2");
   assert.equal(parseBrain("jarvis3"), null);
   assert.equal(parseBrain({}), null);
+});
+
+test("brains: Offline mode switches the AI off for either brain, makes no client and says so", () => {
+  assert.deepEqual(describeBrains({}).map((brain) => brain.kind), ["Online brain", "Private brain"]);
+  assert.equal(parseMode(undefined), "");
+  assert.equal(parseMode("offline"), "offline");
+  assert.equal(parseMode("online"), "online");
+  assert.equal(parseMode("dark"), null);
+  assert.equal(parseMode(true), null);
+  for (const id of ["jarvis1", "jarvis2"]) {
+    const brain = resolveBrain({ apiKey: "k", openJarvis: jarvis2() }, id, { offline: true });
+    assert.equal(brain.id, id);
+    assert.equal(brain.enabled, false, "offline: the brain is not used");
+    assert.equal(brain.offline, true);
+    assert.equal(brain.client, null, "offline: no AI client exists, so nothing can be sent");
+  }
+  assert.equal(resolveBrain({ apiKey: "k" }, "jarvis1").offline, false);
+});
+
+test("brains: asking in Offline mode never calls the AI and tells the Owner it is offline", async () => {
+  const claude = fakeAi(() => aiReply({ reply: "should not be used", suggestions: [], draft: null, actions: [] }));
+  const answer = await askJarvis({ db: freshDb(), config: { apiKey: "k", company: "Alert Construction" }, ai: { client: claude.client }, owner, input: parseAskInput({ message: "What's the news?", brain: "jarvis1", mode: "offline" }), people, now: Date.now() });
+  assert.equal(claude.calls.length, 0, "no request reached the AI");
+  assert.equal(answer.mode, "rules");
+  assert.equal(answer.offline, true);
+  assert.match(answer.notice, /Offline mode/);
+  assert.throws(() => parseAskInput({ message: "hi", mode: "sideways" }), /Online or Offline/);
 });
 
 test("jarvis 2 address: https for the internet, plain http only for localhost, no embedded passwords, /v1 tolerated", () => {

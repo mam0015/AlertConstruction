@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Workflow as WorkflowIcon, TriangleAlert, ArrowRight as ArrowRightIcon, HardHat, ListChecks, FolderKanban, Inbox, CalendarDays, MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Workflow as WorkflowIcon, TriangleAlert, ArrowRight as ArrowRightIcon, HardHat, ListChecks, FolderKanban, Inbox, CalendarDays, MessageSquare, Briefcase, Calculator, type LucideIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 import WorkflowBoard from "../workflow/WorkflowBoard";
+import EstimateTools from "../estimate-tools/EstimateTools";
 import WorkerManagementPanel from "../workers/WorkerManagementPanel";
 import TaskManagementPanel from "../tasks/TaskManagementPanel";
 import TaskInbox from "../tasks/TaskInbox";
 import OperationsControlPanel from "../operations/OperationsControlPanel";
 import styles from "./admin.module.css";
 
-type View = "overview" | "workflow" | "issues" | "followups" | "workers" | "tasks" | "projects" | "requests" | "schedule" | "messages";
+type View = "overview" | "workflow" | "estimate" | "issues" | "followups" | "workers" | "tasks" | "projects" | "requests" | "schedule" | "messages";
 type Resource = "project" | "request" | "schedule" | "message";
 type Project = { id: number; code: string; name: string; service: string; stage: string; progress: number; customerName: string; suburb: string; startDate: string; notes: string; updatedAt: string };
 type JobRequest = { id: number; code: string; requestType: "Project Request" | "Job Request"; customerName: string; contact: string; service: string; suburb: string; submittedAt: string; status: string; priority: string; summary: string; assignedTo: string; updatedAt: string };
@@ -25,6 +26,7 @@ const empty: Snapshot = { projects: [], requests: [], scheduleEvents: [], messag
 const nav: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Operations overview", icon: LayoutDashboard },
   { id: "workflow", label: "Project workflow", icon: WorkflowIcon },
+  { id: "estimate", label: "Estimate tools", icon: Calculator },
   { id: "issues", label: "Site delays & problems", icon: TriangleAlert },
   { id: "followups", label: "Upcoming follow-ups", icon: ArrowRightIcon },
   { id: "workers", label: "Worker assignments", icon: HardHat },
@@ -174,6 +176,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
   const filteredProjects = useMemo(() => data.projects.filter((project) => `${project.code} ${project.name} ${project.suburb}`.toLowerCase().includes(projectQuery.toLowerCase())), [data.projects, projectQuery]);
   const headers: Record<View, [string, string, string]> = {
     overview: ["Operation Hub · Admin", "Keep delivery moving.", "Requests, projects, site time and team direction in one black-and-gold operational command centre."],
+    estimate: ["Price the work", "Estimate tools", "Electrical, plumbing and cladding estimates, the AI plan estimator, quote price check, renovation budget and invoices, priced from the company price list."],
     workflow: ["Request-to-project control", "Project workflow", "Review customer requests, coordinate Site Visits, prepare estimates and control every hand-off."],
     issues: ["Immediate site escalation", "Site delays & problems", "Review Site Supervisor reports, record the action and reschedule the next site follow-up."],
     followups: ["Daily task continuity", "Upcoming follow-ups", "Record tomorrow’s priorities at clock-out and keep every open follow-up visible."],
@@ -200,6 +203,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
         {(notice || error) && <div className={`${styles.notice} ${error ? styles.errorNotice : ""}`}><span>{error ? "!" : "✓"}</span>{error || notice}<button onClick={() => { setNotice(""); setError(""); }}>×</button></div>}
         {loading ? <div className={styles.loading}><i />Opening live operations…</div> : <>
           {view === "workflow" && <WorkflowBoard role="admin" />}
+          {view === "estimate" && <EstimateTools role="admin" />}
           {view === "issues" && <OperationsControlPanel role="admin" mode="issues" preview={viewerEmail.includes(".local")} />}
           {view === "followups" && <OperationsControlPanel role="admin" mode="followups" preview={viewerEmail.includes(".local")} />}
           {view === "workers" && <WorkerManagementPanel role="admin" />}

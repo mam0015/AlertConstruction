@@ -1,6 +1,6 @@
 import { runtimeBindings } from "../../../../../db/runtime";
 import { noteAsk } from "../../../../../jarvis/audit.mjs";
-import { parseBrain, resolveBrain } from "../../../../../jarvis/brains.mjs";
+import { parseBrain, parseMode, resolveBrain } from "../../../../../jarvis/brains.mjs";
 import { summariseProofread } from "../../../../../jarvis/assistant.mjs";
 import { proofread } from "../../../../../jarvis/proofread.mjs";
 import { MAX_REPLY_CHARS } from "../../../../../jarvis/reply.mjs";
@@ -13,14 +13,16 @@ export async function POST(request: Request) {
   const gate = await requireOwner(request, { write: true });
   if (!gate.owner) return gate.response;
   try {
-    const body = await readJson(request) as { text?: unknown; brain?: unknown };
+    const body = await readJson(request) as { text?: unknown; brain?: unknown; mode?: unknown };
     if (typeof body?.text !== "string" || body.text.trim().length < 2) throw new JarvisAccessError("Write something to check first.", 400);
     const config = jarvisConfig();
     // A check can be three AI calls, so it counts against the same per-10-minute question limit as asking.
     await noteAsk((await runtimeBindings()).DB, gate.owner.email);
     const chosen = parseBrain(body.brain);
     if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
-    const brain = resolveBrain(config, chosen, { testClient: hooks().aiClient ?? null, fetchImpl: networkFetch() });
+    const mode = parseMode(body?.mode);
+    if (mode === null) throw new JarvisAccessError("Choose Online or Offline.", 400);
+    const brain = resolveBrain(config, chosen, { testClient: hooks().aiClient ?? null, fetchImpl: networkFetch(), offline: mode === "offline" });
     const report = await proofread(body.text, { client: brain.enabled ? brain.client : null, model: brain.model, maxChars: MAX_REPLY_CHARS });
     return Response.json({ text: report.text, ...summariseProofread(report) }, { headers });
   } catch (error) {

@@ -6,7 +6,7 @@
 
 import { abandonSend, beginSend, finishSend, noteAsk } from "./audit.mjs";
 import { askAi, chooseRecords, friendlyAiError } from "./ai.mjs";
-import { notConnectedText, parseBrain, resolveBrain } from "./brains.mjs";
+import { notConnectedText, offlineText, parseBrain, parseMode, resolveBrain } from "./brains.mjs";
 import { suggestForItem } from "./advisor.mjs";
 import { clip, looseSearch } from "./briefing.mjs";
 import { checkDraft } from "./draft-guard.mjs";
@@ -37,9 +37,11 @@ export function parseAskInput(body) {
   }
   const brain = parseBrain(body.brain);
   if (brain === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
+  const mode = parseMode(body.mode);
+  if (mode === null) throw new JarvisAccessError("Choose Online or Offline.", 400);
   const useOtherRecords = body.useOtherRecords === true;
   const currentDraft = typeof body.currentDraft === "string" ? clipText(body.currentDraft, MAX_REPLY_CHARS) : "";
-  return { message, history, focus, brain, useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
+  return { message, history, focus, brain, offline: mode === "offline", useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
 }
 
 export function templateReply({ fromName, text, ownerName, company }) {
@@ -188,7 +190,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   const withheld = items.length - usable.length;
   const today = melbourneDate(now);
   // The Owner picks the brain (Jarvis 1 = Claude, Jarvis 2 = OpenJarvis); everything else below is identical for both.
-  const brain = resolveBrain(config, input.brain, { testClient: ai?.client ?? null, fetchImpl });
+  const brain = resolveBrain(config, input.brain, { testClient: ai?.client ?? null, fetchImpl, offline: input.offline === true });
   // Plans are other people's calendar text; while drafting an email they stay out of the AI's view unless the Owner ticked "use other records".
   const plans = original && !input.useOtherRecords ? [] : briefing.plans;
   if (brain.enabled && !openProblem) {
@@ -222,8 +224,9 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     ? incompleteNote(briefing.briefing.incomplete.map((entry) => (persian ? FA.areas[entry.scope] ?? entry.label : entry.label)), persian) : "";
   // A brain the Owner picked but that is not connected is never swapped for the other one: Jarvis says so and uses basic mode.
   const chosenButOff = !brain.enabled && Boolean(input.brain);
-  if (chosenButOff && !notice) notice = notConnectedText(brain);
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian }) };
+  if (brain.offline && !notice) notice = offlineText(brain);
+  else if (chosenButOff && !notice) notice = notConnectedText(brain);
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff || brain.offline ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   // While an email is open, records outside its thread are kept from the AI. Say so, so "nothing else is new" is not taken to mean "nothing happened".
@@ -272,6 +275,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     draft,
     actions,
     brain: outcome.mode === "ai" ? { id: brain.id, name: brain.name, engine: brain.engine } : null,
+    offline: brain.offline,
     notice: outcome.mode === "rules" ? notice : "",
     usage: outcome.usage ?? null,
     model: outcome.model ?? "",
@@ -296,7 +300,9 @@ export async function sendOwnerReply({ db, config, fetchImpl, ai, owner, input, 
   // Only corrections are allowed (see proofread.mjs); if the check cannot be trusted the Owner's text goes out exactly as written.
   const chosen = parseBrain(input.brain);
   if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
-  const brain = resolveBrain(config, chosen, { testClient: ai?.client ?? null, fetchImpl });
+  const mode = parseMode(input.mode);
+  if (mode === null) throw new JarvisAccessError("Choose Online or Offline.", 400);
+  const brain = resolveBrain(config, chosen, { testClient: ai?.client ?? null, fetchImpl, offline: mode === "offline" });
   // Three AI calls are about to be made, so this counts against the same question limit as asking does.
   if (brain.enabled && input.proofread !== false) await noteAsk(db, owner.email, now);
   const report = input.proofread === false ? null : await proofread(typed, { client: brain.enabled ? brain.client : null, model: brain.model, maxChars: MAX_REPLY_CHARS });

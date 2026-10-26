@@ -115,8 +115,10 @@ test("voice: the screen offers reading and listening in both languages, honestly
   assert.match(hook, /speechSynthesis/);
   assert.match(hook, /voiceschanged/);
   assert.match(bar, /own speech service|speech service/i, "the privacy note about voice typing is shown");
-  // Nothing is stored on the server and nothing leaves the device except through the browser's own speech service.
-  assert.ok(!/fetch\(/.test(hook), "the voice code never calls the network itself");
+  // Nothing is stored on the server and nothing leaves the device except through the browser's own speech service and, only when the Owner
+  // uses the natural voice, Jarvis's own speak route (which asks Cloudflare AI to make the audio).
+  const calls = [...hook.matchAll(/fetch\(([^)]*)\)/g)].map((match) => match[1]);
+  assert.ok(calls.every((call) => call.includes('"/api/owner/jarvis/speak"')), "the voice code's only network call is Jarvis's own speak route");
   // Choices are remembered on this device only, and safely when storage is unavailable.
   assert.match(hook, /try \{ raw = window\.localStorage\.getItem\(KEY\); \} catch/, "reading the saved choices is guarded");
   assert.match(hook, /try \{ window\.localStorage\.setItem\(KEY, JSON\.stringify\(next\)\); \} catch/, "saving the choices is guarded");

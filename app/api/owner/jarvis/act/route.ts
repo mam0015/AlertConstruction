@@ -1,7 +1,7 @@
 import { runtimeBindings } from "../../../../../db/runtime";
 import { listPeople } from "../../../../../db/team-store";
 import { performAction } from "../../../../../jarvis/actions.mjs";
-import { parseBrain, resolveBrain } from "../../../../../jarvis/brains.mjs";
+import { parseBrain, parseMode, resolveBrain } from "../../../../../jarvis/brains.mjs";
 import { melbourneDate } from "../../../../../jarvis/jarvis.mjs";
 import { summariseProofread } from "../../../../../jarvis/assistant.mjs";
 import { executorsFor, teamPeople } from "../../../../../jarvis/executors";
@@ -16,10 +16,12 @@ export async function POST(request: Request) {
   try {
     const env = await runtimeBindings();
     const config = jarvisConfig();
-    const input = await readJson(request) as { brain?: unknown };
+    const input = await readJson(request) as { brain?: unknown; mode?: unknown };
     const chosen = parseBrain(input?.brain);
     if (chosen === null) throw new JarvisAccessError("Choose Jarvis 1 or Jarvis 2.", 400);
-    const brain = resolveBrain(config, chosen, { testClient: hooks().aiClient ?? null, fetchImpl: networkFetch() });
+    const mode = parseMode(input?.mode);
+    if (mode === null) throw new JarvisAccessError("Choose Online or Offline.", 400);
+    const brain = resolveBrain(config, chosen, { testClient: hooks().aiClient ?? null, fetchImpl: networkFetch(), offline: mode === "offline" });
     const result = await performAction({
       db: env.DB, owner: gate.owner, input: input as never,
       people: await teamPeople(listPeople), today: melbourneDate(Date.now()), executors: executorsFor(gate.owner),

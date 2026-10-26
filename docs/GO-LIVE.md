@@ -163,6 +163,16 @@ Full instructions: [`jarvis/README.md`](../jarvis/README.md). In short:
 Jarvis only works inside the Owner area and only for the signed-in Owner. It can read the whole app (never passwords or keys), tells you the news only when you ask,
 and does nothing — sends an email, messages someone, adds a calendar entry — until you press its button. Either brain (Jarvis 1 or Jarvis 2) can do all of it.
 
+### Jarvis: Online / Offline, and the natural voice
+
+* **Online / Offline** — in **Owner → Jarvis** each brain has an Online and an Offline switch. Offline sends nothing to any AI and uses the device's own voice; Jarvis then answers with its built-in rules only.
+* **Jarvis 1 (Claude)** is the online brain: strongest, needs internet and the Anthropic key, and the records it needs go to Anthropic. **Jarvis 2 (OpenJarvis)** is the private brain: it runs on your own computer or server, so your records go only there; how well it writes depends on the model you load.
+* **Natural voice** — the deploy adds Cloudflare **Workers AI** to the Worker, and Jarvis reads aloud in a deep, human-sounding English voice (Zeus by default; pick another under the voice settings). It is English only: Persian, Offline mode and any failure use the voice installed on the device, so Jarvis is never silent. Cloudflare gives a free daily allowance (roughly five to eight minutes of speech); beyond that it costs a small fee per character on a paid account. A daily limit of 400 spoken pieces per Owner protects the allowance. The text that is read aloud is sent to Cloudflare to turn into sound. If Cloudflare refuses the AI binding, the deploy repeats without it and Jarvis keeps using the device voice.
+
+### Estimate tools
+
+**Owner and Admin → Estimate tools** (and a folded section at the top of the **Estimator** workspace): Electrical, Plumbing and Cladding estimates, the AI plan estimator, quote price check, renovation budget and an invoice calculator. The older tools shipped with no prices, so the **company price list** starts empty: the Owner or Admin types the price of each item once (ex GST), or presses **Fill in previous prices** to load the numbers the older tools carried, checks them and saves. Nothing is priced from a hidden default. The Manager and Estimator can use the prices but not change them; nobody else can see them. The AI plan estimator and quote price check use the same Claude key as Jarvis 1 and send the uploaded files to Anthropic (the screen says so before anything is sent); the AI never sees a price. Tiling and an engineering helper with several AIs are the next additions.
+
 ## If the Owner forgets the password
 
 Run `node scripts/security-setup.mjs` (choose `owner`), put the new `OWNER_PASSWORD_HASH` (and, if the address changes, `OWNER_EMAIL`) into the

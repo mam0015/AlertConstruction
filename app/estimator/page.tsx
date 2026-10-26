@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import StaffShell from "../team/StaffShell";
 import WorkflowBoard from "../workflow/WorkflowBoard";
+import EstimatorTools from "../estimate-tools/EstimatorTools";
 import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import { ownerCookieName, verifyOwnerSession } from "../owner-auth";
 
@@ -16,6 +17,7 @@ export default async function EstimatorPage() {
   const staff = await verifyAdminSession(store.get(adminCookieName())?.value);
   if (!owner && staff?.role !== "Estimator") redirect("/#team-sign-in");
   return <StaffShell title="Estimator workspace" subtitle={owner ? "Owner view" : staff?.email ?? ""} role={owner ? "Owner" : "Staff"}>
+    <EstimatorTools role={owner ? "owner" : "estimator"} />
     <WorkflowBoard role="estimator" />
   </StaffShell>;
 }

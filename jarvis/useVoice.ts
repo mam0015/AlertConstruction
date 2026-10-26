@@ -1,15 +1,21 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { chunksFor, listenProblem, pickVoice, voiceProblem, VOICE_LANGS } from "./voice.mjs";
+import { DEFAULT_SPEAKER, isSpeaker, naturalPieces } from "./naturalVoice.mjs";
+import { naturalSupported, playNatural, type NaturalFailure } from "./naturalPlayer";
 
-// Jarvis's ears and voice. Both belong to the Owner's own browser (Web Speech API): reading aloud uses the voices installed on the device,
-// and voice typing uses the browser's own online speech service. This code never sends anything to the Jarvis server by itself; what is
-// heard only ends up in the command box, and the Owner still presses Run (unless they chose "run when I stop talking").
+// Jarvis's ears and voice. Listening belongs to the Owner's own browser (Web Speech API): voice typing uses the browser's own online speech
+// service, and what is heard only ends up in the command box (the Owner still presses Run, unless they chose "run when I stop talking").
+// Reading aloud has two engines: the natural voice (human-sounding English, made by Cloudflare AI through /api/owner/jarvis/speak) and the
+// voices installed on the device. The device voice is used for Persian, in Offline mode, when the natural voice is not switched on, and
+// whenever the natural voice fails, so Jarvis never goes silent.
 
 export type VoiceLang = "en" | "fa";
-export type VoicePrefs = { lang: VoiceLang; speakAnswers: boolean; autoRun: boolean };
+export type VoiceEngine = "natural" | "device";
+export type VoicePrefs = { lang: VoiceLang; speakAnswers: boolean; autoRun: boolean; engine: VoiceEngine; speaker: string };
+export type SpeakerInfo = { id: string; label: string; note: string };
 const KEY = "jarvis.voice";
-const DEFAULTS: VoicePrefs = { lang: "en", speakAnswers: false, autoRun: false };
+const DEFAULTS: VoicePrefs = { lang: "en", speakAnswers: false, autoRun: false, engine: "natural", speaker: DEFAULT_SPEAKER };
 
 type RecognitionResult = { isFinal: boolean; 0: { transcript: string } };
 type RecognitionEvent = { resultIndex: number; results: ArrayLike<RecognitionResult> };
@@ -40,7 +46,10 @@ function readPrefs(): VoicePrefs {
     rawSaved = raw;
     try {
       const saved = JSON.parse(raw ?? "null") as Partial<VoicePrefs> | null;
-      parsed = saved ? { lang: saved.lang === "fa" ? "fa" : "en", speakAnswers: saved.speakAnswers === true, autoRun: saved.autoRun === true } : DEFAULTS;
+      parsed = saved ? {
+        lang: saved.lang === "fa" ? "fa" : "en", speakAnswers: saved.speakAnswers === true, autoRun: saved.autoRun === true,
+        engine: saved.engine === "device" ? "device" : "natural", speaker: typeof saved.speaker === "string" && isSpeaker(saved.speaker) ? saved.speaker : DEFAULT_SPEAKER,
+      } : DEFAULTS;
     } catch { parsed = DEFAULTS; }
   }
   return parsed;
@@ -62,6 +71,13 @@ export function useVoice() {
   // The language the microphone was actually started in (the choice may be changed while it listens).
   const [listenLang, setListenLang] = useState<VoiceLang>("en");
   const [note, setNote] = useState("");
+  // null until the server has answered; false when natural voice is not switched on (or failed for good), true when it is.
+  const [naturalOn, setNaturalOn] = useState<boolean | null>(null);
+  const [speakers, setSpeakers] = useState<SpeakerInfo[]>([]);
+  const naturalOkRef = useRef<boolean | null>(null);
+  const playerRef = useRef<ReturnType<typeof playNatural> | null>(null);
+  // Offline mode (set by the panel): nothing may leave the device, so only the device voice is used.
+  const offlineRef = useRef(false);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<Recognition | null>(null);
   const finalRef = useRef("");
@@ -71,9 +87,24 @@ export function useVoice() {
   const aliveRef = useRef(true);
 
   useEffect(() => {
+    let live = true;
+    fetch("/api/owner/jarvis/speak", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { available?: boolean; speakers?: SpeakerInfo[] } | null) => {
+        if (!live) return;
+        const on = Boolean(body?.available) && naturalSupported();
+        naturalOkRef.current = on;
+        setNaturalOn(on);
+        setSpeakers(body?.speakers ?? []);
+      })
+      .catch(() => { if (live) { naturalOkRef.current = false; setNaturalOn(false); } });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => {
     aliveRef.current = true;
     const synth = typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis;
-    if (!synth) return () => { aliveRef.current = false; };
+    if (!synth) return () => { aliveRef.current = false; playerRef.current?.stop(); };
     // Browsers load their voice list a moment after the page opens, and announce it with this event.
     const refresh = () => { voicesRef.current = synth.getVoices(); };
     refresh();
@@ -82,6 +113,7 @@ export function useVoice() {
       aliveRef.current = false;
       synth.removeEventListener?.("voiceschanged", refresh);
       readingRef.current += 1;
+      playerRef.current?.stop();
       synth.cancel();
       recognitionRef.current?.abort();
     };
@@ -95,6 +127,8 @@ export function useVoice() {
 
   const stopReading = useCallback(() => {
     readingRef.current += 1;
+    playerRef.current?.stop();
+    playerRef.current = null;
     if (typeof window.speechSynthesis !== "undefined") window.speechSynthesis.cancel();
     setSpeakingId("");
   }, []);
@@ -103,9 +137,8 @@ export function useVoice() {
     recognitionRef.current?.stop();
   }, []);
 
-  // Reads the text aloud, piece by piece. Pressing it again for the same thing stops it.
-  const speak = useCallback((id: string, text: string) => {
-    if (!aliveRef.current) return;
+  // Reads the text with the voices installed on the device, piece by piece.
+  const speakOnDevice = useCallback((id: string, text: string, why = "") => {
     if (typeof window.speechSynthesis === "undefined" || typeof SpeechSynthesisUtterance === "undefined") {
       setNote("This browser cannot read aloud. Try Chrome, Edge or Safari.");
       return;
@@ -117,7 +150,7 @@ export function useVoice() {
     if (!chunks.length) return;
     const voices = synth.getVoices().length ? synth.getVoices() : voicesRef.current;
     voicesRef.current = voices;
-    setNote(voiceProblem(chunks, voices));
+    setNote([why, voiceProblem(chunks, voices)].filter(Boolean).join(" "));
     // A Persian piece is only read by a Persian voice; an English voice would only produce nonsense.
     const playable = chunks.filter((chunk) => chunk.lang !== VOICE_LANGS.fa || pickVoice(voices, VOICE_LANGS.fa));
     if (!voices.length || !playable.length) return;
@@ -136,6 +169,35 @@ export function useVoice() {
       synth.speak(utterance);
     });
   }, [prefs.lang, stopReading]);
+
+  // Reads the text aloud. Pressing it again for the same thing stops it. English goes to the natural voice when it is on (and not Offline);
+  // Persian, Offline mode, a missing natural voice and any natural-voice failure go to the device voice instead.
+  const speak = useCallback((id: string, text: string) => {
+    if (!aliveRef.current) return;
+    const { pieces, persian } = naturalPieces(text);
+    const natural = prefs.engine === "natural" && naturalOkRef.current !== false && !offlineRef.current && !persian && pieces.length > 0 && naturalSupported();
+    if (!natural) { speakOnDevice(id, text); return; }
+    stopReading();
+    recognitionRef.current?.abort();
+    const token = readingRef.current;
+    setNote("");
+    setSpeakingId(id);
+    const player = playNatural(pieces, prefs.speaker);
+    playerRef.current = player;
+    player.done.then(() => {
+      if (readingRef.current !== token) return;
+      playerRef.current = null;
+      setSpeakingId("");
+    }).catch((failure: NaturalFailure) => {
+      // Stopped by the Owner: nothing to report. Otherwise the device voice takes over (when nothing had been heard yet), so Jarvis is never silent.
+      if (readingRef.current !== token || failure?.name === "AbortError") return;
+      playerRef.current = null;
+      if (failure?.status === 503 || failure?.status === 401 || failure?.status === 429) { naturalOkRef.current = false; setNaturalOn(false); }
+      const why = `${failure?.message || "The natural voice stopped."} `;
+      if (!player.started()) speakOnDevice(id, text, why.trim());
+      else { setSpeakingId(""); setNote(why.trim()); }
+    });
+  }, [prefs.engine, prefs.speaker, speakOnDevice, stopReading]);
 
   // Listens once. What is heard fills in live; when the speaker stops, onDone gets the finished sentence.
   const listen = useCallback((onDone: (said: string) => void) => {
@@ -184,7 +246,9 @@ export function useVoice() {
     }
   }, [prefs.lang, stopReading]);
 
-  return { prefs, update, canSpeak, canListen, speakingId, listening, listenLang, heard, note, setNote, speak, stopReading, listen, stopListening };
+  const setOffline = useCallback((value: boolean) => { offlineRef.current = value; }, []);
+
+  return { prefs, update, canSpeak, canListen, naturalOn, speakers, setOffline, speakingId, listening, listenLang, heard, note, setNote, speak, stopReading, listen, stopListening };
 }
 
 export type VoiceApi = ReturnType<typeof useVoice>;
