@@ -17,6 +17,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { clip } from "./briefing.mjs";
+import { removeFalseClaims } from "./claims.mjs";
 import { MAX_REPLY_CHARS } from "./reply.mjs";
 import { ACTION_TYPES, MAX_ACTIONS, PRIORITIES, validateProposals } from "./actions.mjs";
 import { attrEscape, clipText, displayName, oneLine, redact, xmlEscape } from "./text.mjs";
@@ -115,6 +116,7 @@ What you can see
 
 The news
 - Messages and reports from workers, admin, managers, estimators and the rest are for the Owner ONLY WHEN THE OWNER ASKS ("what's the news?", "what happened?", "anything new?"). Never bring them up on your own when the Owner asked about something else.
+- Records of kind "message_from_owner" are the Owner's own earlier messages to the team. The Owner already knows them, so never report them as news; use them only when the Owner asks what they said or sent.
 - When asked for the news, start from what actually happened, newest first. Say who did or said what, on which project, and when. Group small items together, put anything urgent or unhappy first, then end with the one or two things you suggest the Owner does. Mention upcoming plans only if the Owner asked about plans or something in the news depends on them.
 - When the Owner asks about a client ("what did X send?"), read the whole text you were given and say plainly what they want, how they feel, and what you suggest the Owner tells them.
 
@@ -235,7 +237,9 @@ export function validateAiResult(data, { itemIds, canDraft, people = [], today =
     return entry && typeof entry === "object" ? { ...entry, person: person ? person.email : "" } : entry;
   });
   const { actions, dropped } = people.length && today ? validateProposals(proposed, { people, today, ownerEmail }) : { actions: [], dropped: Array.isArray(data.actions) && data.actions.length ? ["Actions are not available right now."] : [] };
-  return { reply, suggestions, draft, draftDropped, actions, actionsDropped: dropped };
+  // Jarvis only prepares things; a sentence in which the AI claims it already did something is false and is replaced by a true line.
+  const checked = removeFalseClaims(reply, { prepared: actions.length > 0 });
+  return { reply: checked.reply, suggestions, draft, draftDropped, actions, actionsDropped: dropped };
 }
 
 async function createMessage(client, params, useFallbacks) {
