@@ -269,19 +269,6 @@ function businessYear() {
   return new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", year: "numeric" }).format(new Date());
 }
 
-// Project codes are ATP-YYYY-NNNNN, counting up from the highest number already used (in projects or in workflow cases), so two
-// customers can never be given the same code. The caller retries if two approvals pick the same number at the same instant.
-async function nextProjectCode(db: D1) {
-  const prefix = `ATP-${businessYear()}-`;
-  const used = await db.prepare("SELECT code AS value FROM projects WHERE code LIKE ? UNION SELECT project_code AS value FROM workflow_cases WHERE project_code LIKE ?").bind(`${prefix}%`, `${prefix}%`).all<{ value: string }>();
-  let highest = 0;
-  for (const row of used.results) {
-    const match = /^ATP-\d{4}-(\d+)$/.exec(String(row.value));
-    if (match) highest = Math.max(highest, Number(match[1]));
-  }
-  return `${prefix}${String(highest + 1).padStart(5, "0")}`;
-}
-
 function privateRequestCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
@@ -324,21 +311,21 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, "Admin contacted the customer", note);
   } else if (action === "approve_intake") {
     allow(role, "admin"); requireStage(stage, ["admin_review", "customer_contacted"]);
-    let projectCode = "";
-    let folder = "";
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-      projectCode = await nextProjectCode(db);
-      folder = `projects/${projectCode}`;
-      try {
-        await db.batch([
-          db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=?").bind(projectCode, folder, now, caseId),
-          db.prepare("INSERT INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at) VALUES (?,?,?,?,0,0,0,?,?,?,'Created from approved customer request.',?)").bind(projectCode, `${item.service} · ${item.suburb}`, item.service, "Site inspection", item.customerName, item.suburb, "", now),
-        ]);
-        break;
-      } catch (error) {
-        // Another approval took this number a moment ago: look again for the next free one.
-        if (attempt === 5 || !/unique|constraint/i.test(error instanceof Error ? error.message : String(error))) throw error;
-      }
+    const prefix = `ATP-${businessYear()}-`;
+    // ONE statement picks the next number and saves the project, so approvals made at the same moment can never be given the same code
+    // (the old "look, then save, retry" gave up under load). The numbers in projects AND in cases count, so a deleted project's number is not reused.
+    const made = await db.prepare(`INSERT INTO projects (code,name,service,stage,progress,contract_value,balance,customer_name,suburb,start_date,notes,updated_at)
+      SELECT ?1 || printf('%05d', COALESCE(MAX(CAST(substr(code, ?2) AS INTEGER)), 0) + 1), ?3, ?4, 'Site inspection', 0, 0, 0, ?5, ?6, '', 'Created from approved customer request.', ?7
+      FROM (SELECT code FROM projects WHERE code LIKE ?8 UNION ALL SELECT project_code AS code FROM workflow_cases WHERE project_code LIKE ?8)
+      RETURNING code`).bind(prefix, prefix.length + 1, `${item.service} · ${item.suburb}`, item.service, item.customerName, item.suburb, now, `${prefix}%`).first<{ code?: string }>();
+    const projectCode = String(made?.code ?? "");
+    if (!projectCode) throw new Error("The project could not be created. Please try again.");
+    const folder = `projects/${projectCode}`;
+    // Only the first of two approvals of the same request (a double click, two Admins) may move it on; the second takes its project back.
+    const moved = await db.prepare("UPDATE workflow_cases SET stage='site_visit_ready',project_code=?,project_folder=?,updated_at=? WHERE id=? AND stage IN ('admin_review','customer_contacted')").bind(projectCode, folder, now, caseId).run();
+    if (Number(moved.meta.changes) !== 1) {
+      await db.prepare("DELETE FROM projects WHERE code=?").bind(projectCode).run().catch(() => undefined);
+      throw new Error("This action is not available at the current project stage.");
     }
     await event(db, caseId, "Admin", actorEmail, action, "Admin approved intake and created the project folder", folder);
   } else if (action === "assign_visit") {

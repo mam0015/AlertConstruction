@@ -45,6 +45,12 @@ export async function throttleExceeded(key: string, limit: number, windowMs: num
   return { exceeded: Number(row.hits) >= limit, retryAfterSeconds: Math.max(1, Math.ceil((Number(row.windowStart) + windowMs - now) / 1000)) };
 }
 
+// Gives one slot back, for an attempt that should not count after all (a right reference, a form refused for a typing mistake). Never goes below zero.
+export async function throttleRefund(key: string) {
+  const db = await database();
+  await db.prepare("UPDATE rate_limits SET hits = CASE WHEN hits > 0 THEN hits - 1 ELSE 0 END WHERE key = ?").bind(key).run();
+}
+
 export async function throttleReset(key: string) {
   const db = await database();
   await db.prepare("DELETE FROM rate_limits WHERE key = ?").bind(key).run();

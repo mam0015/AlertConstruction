@@ -1,4 +1,4 @@
-import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../../../db/throttle";
+import { clientAddress, sha256Hex, throttleHit, throttleRefund, tooManyRequests } from "../../../../../db/throttle";
 import { findCustomerProjectsByContact, normaliseCustomerContact, type CustomerContactKind } from "../../../../../db/workflow-store";
 import { requestIsSameOrigin } from "../../../../owner-auth";
 
@@ -26,15 +26,20 @@ export async function POST(request: Request) {
   if (!valid) return Response.json({ error: kind === "email" ? "Enter a valid email address." : "Enter a valid Australian phone number." }, { status: 400 });
   if (location.length < 4) return Response.json({ error: "Enter the site address or suburb you gave us (at least 4 characters)." }, { status: 400 });
 
-  const guards = await limits(request, kind, contact);
-  const states = await Promise.all(guards.map((guard) => throttleExceeded(guard.key, guard.limit, WINDOW)));
-  const over = states.find((state) => state.exceeded);
-  if (over) return tooManyRequests("Too many lookup attempts. Try again later.", over.retryAfterSeconds);
+  // Every attempt takes its slots first, in single atomic statements, so a burst of parallel guesses cannot all pass a "not over the limit yet" check.
+  // The visitor's own address is charged first: a visitor who is already over their limit never uses up the TARGET's allowance, so one person cannot
+  // lock a real customer out by hammering their e-mail address. A lookup that finds the project gives its slots back: only wrong guesses use them up.
+  const [byAddress, byTarget] = await limits(request, kind, contact);
+  const mine = await throttleHit(byAddress.key, byAddress.limit, WINDOW);
+  if (!mine.allowed) return tooManyRequests("Too many lookup attempts. Try again later.", mine.retryAfterSeconds);
+  const theirs = await throttleHit(byTarget.key, byTarget.limit, WINDOW);
+  if (!theirs.allowed) {
+    await throttleRefund(byAddress.key);
+    return tooManyRequests("Too many lookup attempts. Try again later.", theirs.retryAfterSeconds);
+  }
 
   const projects = await findCustomerProjectsByContact(kind, contact, location);
-  if (!projects.length) {
-    await Promise.all(guards.map((guard) => throttleHit(guard.key, guard.limit, WINDOW)));
-    return Response.json({ error: "No project matches those details." }, { status: 404, headers: { "Cache-Control": "no-store" } });
-  }
+  if (!projects.length) return Response.json({ error: "No project matches those details." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  await Promise.all([throttleRefund(byAddress.key), throttleRefund(byTarget.key)]);
   return Response.json({ ok: true, projects }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -89,7 +89,7 @@ test("public request, file upload, tracking and customer message persist", async
   const response = await request("/api/requests", { method: "POST", body: form });
   assert.equal(response.status, 201);
   const created = await response.json();
-  assert.match(created.code, /^ATP-\d{4}-(?:\d{5}|[A-F0-9-]+)$/);
+  assert.match(created.code, /^ATP-\d{4}-(?:\d{5}|[A-F0-9-]+|[A-HJ-NP-Z2-9]{12})$/);
   assert.equal(bucket.objects.size, 1);
 
   const tracking = await request(`/api/track/${created.code}`);

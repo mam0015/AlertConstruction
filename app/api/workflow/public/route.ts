@@ -1,5 +1,5 @@
 import { createPublicWorkflowRequest, customerChangeDecision, customerEstimateDecision, getPublicWorkflow } from "../../../../db/workflow-store";
-import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../../db/throttle";
+import { clientAddress, sha256Hex, throttleExceeded, throttleHit, throttleRefund, tooManyRequests } from "../../../../db/throttle";
 import { requestIsSameOrigin } from "../../../owner-auth";
 
 const TRACK_WINDOW = 30 * 60 * 1000;
@@ -14,30 +14,38 @@ function failed(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const key = await sha256Hex(`customer-track|${clientAddress(request)}`);
-  const limit = await throttleExceeded(key, 12, TRACK_WINDOW);
-  if (limit.exceeded) return tooManyRequests("Too many reference attempts. Try again later.", limit.retryAfterSeconds);
   const code = new URL(request.url).searchParams.get("code")?.trim() ?? "";
   if (!code) return Response.json({ error: "Enter your project reference." }, { status: 400 });
+  // The attempt is counted BEFORE it is looked up (one atomic statement), so a burst of parallel guesses cannot all pass a "not over the limit yet" check.
+  // A right reference gives its slot back: only wrong guesses use up the allowance.
+  const key = await sha256Hex(`customer-track|${clientAddress(request)}`);
+  const slot = await throttleHit(key, 12, TRACK_WINDOW);
+  if (!slot.allowed) return tooManyRequests("Too many reference attempts. Try again later.", slot.retryAfterSeconds);
   const data = await getPublicWorkflow(code);
-  if (!data) {
-    await throttleHit(key, 12, TRACK_WINDOW);
-    return Response.json({ error: "We could not find that project reference." }, { status: 404 });
-  }
+  if (!data) return Response.json({ error: "We could not find that project reference." }, { status: 404 });
+  await throttleRefund(key);
   return Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-    // Five new requests per hour per visitor; typing mistakes that are refused do not count, and the count really expires.
+    // Five new requests per hour per visitor. A cheap look first, then the slot is taken in ONE atomic statement before the request is saved, so a burst of
+    // parallel requests cannot all slip in. A request refused for a typing mistake gives its slot back, and the count really expires.
     const key = await sha256Hex(`customer-create|${clientAddress(request)}`);
     const limit = await throttleExceeded(key, 5, CREATE_WINDOW);
     if (limit.exceeded) return tooManyRequests("Too many requests. Try again later.", limit.retryAfterSeconds);
     const payload = await request.json().catch(() => null) as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) return Response.json({ error: "The request could not be read." }, { status: 400 });
-    const created = await createPublicWorkflowRequest(payload);
-    await throttleHit(key, 5, CREATE_WINDOW);
+    const slot = await throttleHit(key, 5, CREATE_WINDOW);
+    if (!slot.allowed) return tooManyRequests("Too many requests. Try again later.", slot.retryAfterSeconds);
+    let created;
+    try {
+      created = await createPublicWorkflowRequest(payload);
+    } catch (error) {
+      await throttleRefund(key);
+      throw error;
+    }
     return Response.json({ data: created }, { status: 201 });
   } catch (error) {
     return failed(error);

@@ -1,7 +1,7 @@
 import { createPublicRequest, type PublicRequestInput } from "../../../db/request-store";
 import { requestIsSameOrigin } from "../../owner-auth";
 import { isStorageFull } from "../../../db/storage-usage";
-import { clientAddress, sha256Hex, throttleExceeded, throttleHit, tooManyRequests } from "../../../db/throttle";
+import { clientAddress, sha256Hex, throttleExceeded, throttleHit, throttleRefund, tooManyRequests } from "../../../db/throttle";
 
 const allowedServices = new Set([
   "Kitchen Renovations", "Bathroom Renovations", "Home Renovations", "Home Extensions",
@@ -53,14 +53,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Upload up to 5 supported files, maximum 10 MB each and 25 MB total." }, { status: 400 });
   }
 
+  // The slot is taken in ONE atomic statement before saving, so parallel requests cannot all pass the check above; a request that fails gives it back.
+  const slot = await throttleHit(limitKey, 5, 60 * 60 * 1000);
+  if (!slot.allowed) return tooManyRequests("Too many requests. Try again later.", slot.retryAfterSeconds);
   try {
     const result = await createPublicRequest(input, files);
-    await throttleHit(limitKey, 5, 60 * 60 * 1000);
     return Response.json({ ok: true, code: result.code, redirect: `/track/${encodeURIComponent(result.code)}` }, {
       status: 201,
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
+    await throttleRefund(limitKey).catch(() => undefined);
     // Nothing was saved. The customer is never told how full the company's storage is.
     if (isStorageFull(error)) return Response.json({ error: "Photos and files cannot be accepted right now. Please send your request without attachments, or contact the company directly." }, { status: 507 });
     return Response.json({ error: "We could not save your request. Please try again." }, { status: 500 });
