@@ -4,7 +4,7 @@
 // waiting. Nothing is kept: the audio exists only in memory while it plays.
 
 type Controller = { stop: () => void; done: Promise<void> };
-export type NaturalFailure = Error & { status?: number; code?: string };
+export type NaturalFailure = Error & { status?: number; code?: string; lang?: "en" | "fa" };
 
 const AHEAD = 3; // how many pieces are asked for before the first one has finished playing
 const OVERLAP = 0.035; // seconds: the encoder's silent tail of one piece is laid over the start of the next, so speech runs on
@@ -20,20 +20,22 @@ function audioContext(): AudioContext {
 
 export const naturalSupported = () => typeof window !== "undefined" && Boolean(window.AudioContext ?? (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext);
 
-async function fetchPiece(text: string, speaker: string, signal: AbortSignal): Promise<ArrayBuffer> {
+export type Piece = { text: string; lang: "en" | "fa" };
+
+async function fetchPiece(piece: Piece, speaker: string, signal: AbortSignal): Promise<ArrayBuffer> {
   const response = await fetch("/api/owner/jarvis/speak", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, speaker }), cache: "no-store", signal,
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: piece.text, lang: piece.lang, speaker }), cache: "no-store", signal,
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as { error?: string; code?: string };
-    throw Object.assign(new Error(body.error ?? "The natural voice is not available."), { status: response.status, code: body.code }) as NaturalFailure;
+    throw Object.assign(new Error(body.error ?? "The natural voice is not available."), { status: response.status, code: body.code, lang: piece.lang }) as NaturalFailure;
   }
   return response.arrayBuffer();
 }
 
 // Starts reading `pieces`. `onStart` runs when the first sound begins; `done` settles when the last one ends (resolves) or when the voice
 // fails (rejects with the failure; `started` says whether anything had been heard yet, so the caller can fall back to the device voice).
-export function playNatural(pieces: string[], speaker: string, { onStart }: { onStart?: () => void } = {}): Controller & { started: () => boolean } {
+export function playNatural(pieces: Piece[], speaker: string, { onStart }: { onStart?: () => void } = {}): Controller & { started: () => boolean } {
   const audio = audioContext();
   const abort = new AbortController();
   const sources: AudioBufferSourceNode[] = [];

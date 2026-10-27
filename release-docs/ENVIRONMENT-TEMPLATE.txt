@@ -63,3 +63,7 @@ JARVIS_OPENJARVIS_MODEL=<MODEL_NAME>
 # Only when the server is exposed through a Cloudflare Tunnel protected by Cloudflare Access (a service token):
 JARVIS_OPENJARVIS_ACCESS_ID=<CLOUDFLARE_ACCESS_CLIENT_ID>
 JARVIS_OPENJARVIS_ACCESS_SECRET=<CLOUDFLARE_ACCESS_CLIENT_SECRET>
+# Optional: lets Jarvis READ PERSIAN ALOUD with a server voice (OpenAI speech). English needs no key. Voice: onyx (default, deep), ash, echo, ballad, verse, alloy, fable. JARVIS_PERSIAN_VOICE=off switches it off.
+JARVIS_OPENAI_API_KEY=
+JARVIS_OPENAI_VOICE=onyx
+JARVIS_PERSIAN_VOICE=
