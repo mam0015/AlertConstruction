@@ -57,6 +57,8 @@ const GREETING = /^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening)|salam|s
 const THANKS = /^\s*(?:thanks|thank you|thx|cheers|great|ok|okay|cool|merci|ممنون|مرسی|متشکرم|تشکر|باشه|خوبه)[\s!.,،؟?]*$/i;
 const CANNOT = /^\s*(?:please\s+)?(?:delete|erase|wipe|destroy|remove|drop)\b|\bignore\b[^.?]*\b(?:rules|instructions|above|previous)\b|^\s*(?:please\s+)?email (?:everyone|all)\b|پاک کن|حذف کن|نادیده بگیر/i;
 const ACTION = /^\s*(?:please\s+)?(?:tell|message|text|remind|notify)\b(?!\s+(?:me|us)\b)|\b(?:add|put|create|make|set up|book|schedule)\b[^?]*\b(?:calendar|diary|task|reminder|appointment)\b|\b(?:give|assign)\b[^?]*\btask\b|\bsend\b[^?]*\b(?:message|text)\b|بگو|بگذار|بساز|بنویس|بفرست|یادآوری کن|اضافه کن|ثبت کن|پیام بده|خبر بده|اطلاع بده/i;
+// "What should I do first?" / "any complaints?": the quick buttons. Only these are answered with the list of what needs attention when nothing matches.
+const PRIORITY_QUESTION = /\b(first|urgent|urgently|priority|priorities|prioriti[sz]e|attention|important|should i|need to handle|need to do|to do|todo|complaints?|problems?|issues?|risks?|overdue|late|waiting|stuck|behind)\b|اول|فوری|مهم|اولویت|توجه|شکایت|مشکل|چه کار|چی کار|عقب/i;
 const SOURCE_HEADING = { company_email: "Email", employee_updates: "Reports", client_comments: "Clients", team_messages: "Team messages", work: "Requests and projects", tasks: "Tasks", finance: "Money", people: "Team" };
 const dayLabel = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : dayLabel.format(date); };
@@ -154,6 +156,10 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
     };
   }
   const matches = looseSearch(items, message);
+  // A question the rules cannot read is not answered with an unrelated list: Jarvis says what basic mode can do.
+  if (!matches.length && !PRIORITY_QUESTION.test(message)) {
+    return say(persian ? FA.lookupOnly(period) : `I found nothing about that in ${period}. Without the AI I can only look things up: name a client, a project or a person, ask for the news, or ask what is coming up.`);
+  }
   const chosen = (matches.length ? matches : items.filter((item) => item.urgent)).slice(0, 6);
   const lines = chosen.map((item) => (persian
     ? `• ${isolate(item.title)}${item.who ? ` — ${isolate(item.who.replace(/<[^>]*>/g, ""))}` : ""}`
@@ -222,7 +228,9 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   // Plans are other people's calendar text; while drafting an email they stay out of the AI's view unless the Owner ticked "use other records".
   const plans = original && !input.useOtherRecords ? [] : briefing.plans;
   if (brain.enabled && !openProblem) {
-    const records = chooseRecords(usable);
+    // The Owner's own messages to the team are not news to the Owner (basic mode already leaves them out): when the Owner asks for the news they stay out of the AI's view too.
+    const forAi = NEWS_QUESTION.test(input.message) ? usable.filter((item) => item.kind !== "message_from_owner") : usable;
+    const records = chooseRecords(forAi);
     try {
       const answer = await askAi({
         client: brain.client,
@@ -233,7 +241,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
         focus: original ? { mailbox: account.label, fromName: preview?.toName || original.from?.name || "", subject: original.subject, text: original.text, cut: original.textCut } : null,
         canDraft: Boolean(preview),
         sourceStatus: Object.fromEntries(Object.entries(briefing.sources).map(([name, report]) => [name, report.status])),
-        totalRecords: items.length,
+        totalRecords: items.length - (usable.length - forAi.length),
         currentDraft: preview ? input.currentDraft : "",
         plans, people, today, ownerEmail: owner.email,
         itemIds: new Set([...records.map((item) => item.id), ...(focusId ? [focusId] : [])]),

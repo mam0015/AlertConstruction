@@ -42,6 +42,7 @@ export const FA = {
   needsAi: "در حالت ساده نمی‌توانم پیام، برنامهٔ تقویم یا کار آماده کنم. زیر خط فرمان «Prepare by hand» را بزنید و خودتان بنویسید، یا Jarvis 1 یا Jarvis 2 را وصل کنید تا من آماده‌اش کنم.",
   noNews: (period) => `در ${period} هیچ اتفاق تازه‌ای نیفتاده است.`,
   noMatch: (period) => `در ${period} چیزی پیدا نکردم.`,
+  lookupOnly: (period) => `در ${period} چیزی درباره‌ی این پیدا نکردم. بدون هوش مصنوعی فقط می‌توانم جست‌وجو کنم: اسم یک مشتری، یک پروژه یا یک نفر را بگویید، یا اخبار و برنامه‌های پیش رو را بپرسید.`,
   periods: { day: "۲۴ ساعت گذشته", days: (n) => `${n} روز گذشته`, hours: (n) => `${n} ساعت گذشته` },
   // Short screen-only notes (never part of the answer, so they are never read aloud).
   basicNote: "حالت ساده: هوش مصنوعی وصل نیست، برای همین در رکوردهای شما گشتم.",

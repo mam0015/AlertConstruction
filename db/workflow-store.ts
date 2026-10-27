@@ -406,12 +406,13 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
     await event(db, caseId, "Admin", actorEmail, action, "Estimate sent to the customer", "Customer approval is now required.", "customer");
   } else if (action === "activate_project") {
     allow(role, "admin"); requireStage(stage, ["customer_approved"]);
-    const estimate = await db.prepare("SELECT status FROM workflow_estimates WHERE case_id=?").bind(caseId).first<{ status?: string }>();
+    const estimate = await db.prepare("SELECT status,amount_cents AS amountCents FROM workflow_estimates WHERE case_id=?").bind(caseId).first<{ status?: string; amountCents?: number }>();
     if (estimate?.status !== "customer_accepted") throw new Error("The customer must accept the estimate first.");
     await db.batch([
       db.prepare("UPDATE workflow_estimates SET confirmed_at=? WHERE case_id=?").bind(now, caseId),
       db.prepare("UPDATE workflow_cases SET stage='active_project',updated_at=? WHERE id=?").bind(now, caseId),
-      db.prepare("UPDATE projects SET stage='Scheduled',progress=5,updated_at=? WHERE code=?").bind(now, item.projectCode),
+      // The price the customer accepted is the project's contract value (in cents). A value the Owner already typed in by hand is never overwritten.
+      db.prepare("UPDATE projects SET stage='Scheduled',progress=5,contract_value=CASE WHEN contract_value=0 THEN ? ELSE contract_value END,updated_at=? WHERE code=?").bind(Number(estimate.amountCents) || 0, now, item.projectCode),
     ]);
     await event(db, caseId, "Admin", actorEmail, action, "Customer-approved work converted to an active project", String(item.projectCode));
   } else if (action === "submit_progress_update") {

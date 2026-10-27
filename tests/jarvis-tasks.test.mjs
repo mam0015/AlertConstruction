@@ -66,7 +66,7 @@ test("tasks: an empty answer says which period was searched, so \"nothing\" is n
   const empty = (message, extra) => askJarvis({ db, config: { company: "Alert Construction" }, owner, input: parseAskInput({ message, ...extra }) });
   assert.match((await empty("What's the news?", { hours: 24 })).reply, /in the last 24 hours\.$/);
   assert.match((await empty("What's the news?")).reply, /in the last 3 days\.$/);
-  assert.match((await empty("Find the Smith invoice", { hours: 168 })).reply, /in the last 7 days\.$/);
+  assert.match((await empty("Find the Smith invoice", { hours: 168 })).reply, /in the last 7 days\./);
   assert.match((await empty("اخبار چیه؟", { hours: 24 })).reply, /۲۴ ساعت گذشته/);
   assert.match((await empty("اخبار چیه؟")).reply, /3 روز گذشته/);
 });
