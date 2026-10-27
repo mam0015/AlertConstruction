@@ -156,6 +156,8 @@ npm test && node scripts/deploy-cloudflare.mjs
    با نام‌های `JARVIS_GMAIL_CLIENT_ID`، `JARVIS_GMAIL_CLIENT_SECRET` و `JARVIS_GMAIL_ACCOUNTS` در GitHub secrets بگذارید.
 2. **حالت هوشمند:** در <https://console.anthropic.com> یک کلید بسازید (همان‌جا سقف هزینهٔ ماهانه بگذارید) و با نام
    `JARVIS_ANTHROPIC_API_KEY` در GitHub secrets بگذارید. بدون آن Jarvis در «حالت ساده» کار می‌کند و چیزی از سیستم شما خارج نمی‌شود.
+   باید از نوع **Repository secret** باشد (GitHub ← Settings ← Secrets and variables ← Actions ← *Repository secrets*) و دقیقاً با همین نام، نه Variable.
+   لاگ deploy بعد از آن می‌نویسد `Jarvis 1 (Claude) key: found` (خودِ کلید هرگز چاپ نمی‌شود). بعد از deploy بعدی در **Owner ← Jarvis** زیر Jarvis 1 دکمهٔ **Test connection** را بزنید.
 3. **اختیاری — Jarvis 2:** به‌جای هوش مصنوعی ابریِ Anthropic (یا کنارش) می‌توانید برنامهٔ متن‌باز [OpenJarvis](https://github.com/open-jarvis/OpenJarvis) را روی کامپیوتر یا سرور خودتان
    اجرا کنید و در **Owner → Jarvis** انتخابش کنید. راهنما: [`JARVIS2-OPENJARVIS-FA.md`](JARVIS2-OPENJARVIS-FA.md). secretها: `JARVIS_OPENJARVIS_URL`، `JARVIS_OPENJARVIS_API_KEY`، `JARVIS_OPENJARVIS_MODEL`.
 4. دوباره deploy کنید (**Actions → Run workflow**) تا secretهای جدید به Worker برسند. در **Owner → Jarvis** بررسی کنید.

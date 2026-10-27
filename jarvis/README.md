@@ -79,7 +79,8 @@ never swapped for the other one: Jarvis says so and uses basic mode.
 **Jarvis 1 — Claude (Anthropic's cloud).** Create a key at <https://console.anthropic.com> (set a monthly spend limit there) and store it as the
 Cloudflare secret `JARVIS_ANTHROPIC_API_KEY`. Optional: `JARVIS_AI_MODEL` (default `claude-opus-5-5`; `claude-sonnet-5-5` costs about half as much),
 `JARVIS_AI=off`, `JARVIS_AI_FALLBACKS=off`, `JARVIS_COMPANY_NAME` (reply sign-offs).
-*What leaves your system:* your question, the records Jarvis needs (names, subjects, short previews) and, for a reply, that one email — with email
+**Test connection** (Owner → Jarvis, under Jarvis 1) sends one tiny request ("reply OK", no company data) and says whether the key reached the app and works; the
+deploy log also says, by name only, whether the secret was found. *What leaves your system:* your question, the records Jarvis needs (names, subjects, short previews) and, for a reply, that one email — with email
 addresses and phone numbers replaced by `[email]` / `[phone]` — go to Anthropic's API.
 
 **Jarvis 2 — OpenJarvis (your own server).** An open-source AI you run yourself; your records go only to your own server. Setup is in
