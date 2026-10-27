@@ -6,7 +6,7 @@ import test from "node:test";
 import { askJarvis, parseAskInput, sendOwnerReply } from "../jarvis/assistant.mjs";
 import { describeBrains, parseBrain, parseMode, resolveBrain } from "../jarvis/brains.mjs";
 import { checkOpenJarvis, createOpenJarvisClient, extractJson, parseOpenJarvis, skeleton } from "../jarvis/openjarvis.mjs";
-import { RESPONSE_SCHEMA } from "../jarvis/ai.mjs";
+import { checkClaude, RESPONSE_SCHEMA } from "../jarvis/ai.mjs";
 import { proofread } from "../jarvis/proofread.mjs";
 import { aiReply, baseConfig, createTables, fakeAi, FIXTURE_OWNER, gmailMessage, googleMock, melbDate, seed } from "./helpers/jarvis-fixtures.mjs";
 import { TestD1 } from "./helpers/test-d1.mjs";
@@ -275,6 +275,50 @@ test("jarvis 2 proofreads three times and sends with the same safeguards (recipi
   await assert.rejects(() => sendOwnerReply({ db: freshDb(), config, fetchImpl: both(), owner, input: { ...input, brain: "jarvis7" } }), (error) => error.status === 400);
 });
 
+
+// ---------------------------------------------------------------------------------------------------------------------
+// "Test connection" for Jarvis 1: one tiny real request, with a plain reason when it cannot work (and never the key).
+const fakeClaudeClient = (reply) => { const calls = []; return { calls, beta: { messages: { create: async (request) => { calls.push(request); return typeof reply === "function" ? reply(request) : reply; } } } }; };
+
+test("Jarvis 1 test: with no key it says the secret has not reached the app, and asks nothing", async () => {
+  const client = fakeClaudeClient({ content: [{ type: "text", text: "OK" }] });
+  const none = await checkClaude({ apiKey: "" }, { client });
+  assert.equal(none.ok, false);
+  assert.match(none.message, /JARVIS_ANTHROPIC_API_KEY/);
+  assert.match(none.message, /Deploy/);
+  assert.equal(client.calls.length, 0, "nothing is sent without a key");
+  const off = await checkClaude({ apiKey: "sk-ant-secret-value", aiMode: "off" }, { client });
+  assert.equal(off.ok, false);
+  assert.match(off.message, /switched off/);
+  assert.equal(client.calls.length, 0);
+});
+
+test("Jarvis 1 test: a working key answers, the request is tiny and carries no company data", async () => {
+  const client = fakeClaudeClient({ content: [{ type: "text", text: "OK" }], model: "claude-opus-5-5", stop_reason: "end_turn" });
+  const result = await checkClaude({ apiKey: "sk-ant-secret-value", company: "Alert Construction" }, { client });
+  assert.equal(result.ok, true);
+  assert.match(result.message, /Jarvis 1 answered/);
+  assert.equal(result.model, "claude-opus-5-5");
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0].messages.length, 1);
+  assert.ok(client.calls[0].messages[0].content.length < 60, "only a one-line test prompt");
+  assert.ok(client.calls[0].max_tokens >= 1000, "room for the model to answer");
+  assert.ok(!JSON.stringify(result).includes("sk-ant-secret-value"), "the key is never in the result");
+});
+
+test("Jarvis 1 test: a rejected key, a wrong model, a busy service and a refusal each get a plain message", async () => {
+  const fail = (status) => fakeClaudeClient(() => { throw Object.assign(new Error("provider text sk-ant-secret-value"), { status }); });
+  const rejected = await checkClaude({ apiKey: "sk-ant-secret-value" }, { client: fail(401) });
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.message, /key was rejected/);
+  assert.match((await checkClaude({ apiKey: "sk-ant-secret-value", model: "claude-nope" }, { client: fail(404) })).message, /JARVIS_AI_MODEL/);
+  assert.match((await checkClaude({ apiKey: "sk-ant-secret-value" }, { client: fail(429) })).message, /busy/);
+  assert.match((await checkClaude({ apiKey: "sk-ant-secret-value" }, { client: fail(500) })).message, /could not reach/);
+  for (const result of [rejected, await checkClaude({ apiKey: "sk-ant-secret-value" }, { client: fail(500) })]) assert.ok(!JSON.stringify(result).includes("sk-ant-secret-value"), "no key and no provider text in the message");
+  const refused = await checkClaude({ apiKey: "sk-ant-secret-value" }, { client: fakeClaudeClient({ content: [], stop_reason: "refusal" }) });
+  assert.equal(refused.ok, false);
+});
+
 // ---------------------------------------------------------------------------------------------------------------------
 const app = await startWorker("jbr");
 process.env.JARVIS_COMPANY_NAME = "Alert Construction";
@@ -331,6 +375,36 @@ test("API: 'Test connection' is Owner-only and reports the server's agent; the k
   assert.equal(body.agent, "simple");
   assert.ok(!JSON.stringify(body).includes("oj_sk_test_key"));
   for (const method of ["GET", "PUT", "PATCH", "DELETE"]) assert.equal((await app.request("/api/owner/jarvis/brain", { method, headers: { cookie: ownerCookie } })).status, 405, method);
+});
+
+test("API: 'Test connection' for Jarvis 1 is Owner-only, says plainly when the key has not arrived, and reports a working key without showing it", async () => {
+  const ask = (cookie, body, init = {}) => app.request("/api/owner/jarvis/brain", { ...app.json(cookie, body), ...init });
+  assert.equal((await ask(null, { brain: "jarvis1" })).status, 401);
+  assert.equal((await ask(tilerCookie, { brain: "jarvis1" })).status, 401);
+  assert.equal((await ask(ownerCookie, { brain: "jarvis1" }, { origin: false })).status, 403);
+  assert.equal((await ask(ownerCookie, { brain: "jarvis9" })).status, 400);
+
+  const missing = await (await ask(ownerCookie, { brain: "jarvis1" })).json();
+  assert.equal(missing.ok, false);
+  assert.match(missing.message, /JARVIS_ANTHROPIC_API_KEY/);
+
+  process.env.JARVIS_ANTHROPIC_API_KEY = "sk-ant-route-test-key";
+  const client = fakeClaudeClient({ content: [{ type: "text", text: "OK" }], model: "claude-opus-5-5" });
+  globalThis.__JARVIS_TEST_HOOKS__ = { fetchImpl: server.fetchImpl, aiClient: client };
+  try {
+    const working = await ask(ownerCookie, { brain: "jarvis1" });
+    assert.equal(working.status, 200);
+    const body = await working.json();
+    assert.equal(body.ok, true);
+    assert.equal(client.calls.length, 1);
+    assert.ok(!JSON.stringify(body).includes("sk-ant-route-test-key"));
+    const two = await (await ask(ownerCookie, {})).json();
+    assert.equal(two.agent, "simple", "no brain given still tests Jarvis 2");
+    assert.equal(client.calls.length, 1, "Jarvis 2 test never touches Claude");
+  } finally {
+    delete process.env.JARVIS_ANTHROPIC_API_KEY;
+    globalThis.__JARVIS_TEST_HOOKS__ = { fetchImpl: server.fetchImpl };
+  }
 });
 
 test("API: 'Check 3×' can run on Jarvis 2, and an unconnected Jarvis 1 falls back to the basic checker", async () => {

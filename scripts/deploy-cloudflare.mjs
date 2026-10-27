@@ -52,6 +52,15 @@ if (missing.length) {
   process.exit(1);
 }
 
+// Which optional Jarvis settings reached this deploy (names and found / not found only; a value is never printed). A secret saved under the wrong
+// name, in the wrong place (Variables, Environment or Codespaces secrets) or saved after the deploy ran simply is not here, and this line says so.
+{
+  const found = (name) => Boolean(process.env[name]?.trim());
+  const claude = process.env.JARVIS_ANTHROPIC_API_KEY?.trim() ?? "";
+  console.log(`Jarvis 1 (Claude) key: ${claude ? (claude.startsWith("sk-ant-") ? "found" : "found, but it does not start with sk-ant-, so it may not be an Anthropic key") : "NOT found. The Actions repository secret JARVIS_ANTHROPIC_API_KEY is missing or empty (GitHub > Settings > Secrets and variables > Actions > Repository secrets)"}.`);
+  console.log(`Jarvis 2 (OpenJarvis) address: ${found("JARVIS_OPENJARVIS_URL") ? "found" : "not set"}. Persian server voice (OpenAI key): ${found("JARVIS_OPENAI_API_KEY") ? "found" : "not set"}. Company email: ${found("JARVIS_GMAIL_ACCOUNTS") ? "found" : "not set"}.`);
+}
+
 // Ask Cloudflare whether the token works, before anything is deployed, so a wrong token is explained plainly instead of through wrangler's errors.
 {
   const picked = await pickWorkingToken(RAW_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ?? "");

@@ -157,6 +157,8 @@ Full instructions: [`jarvis/README.md`](../jarvis/README.md). In short:
    `JARVIS_GMAIL_CLIENT_ID`, `JARVIS_GMAIL_CLIENT_SECRET` and `JARVIS_GMAIL_ACCOUNTS`.
 2. **Smart mode:** create a key at <https://console.anthropic.com> (set a monthly spend limit there) and save it as the GitHub
    secret `JARVIS_ANTHROPIC_API_KEY`. Without it Jarvis still works in Simple mode and nothing leaves your system.
+   It must be a **Repository secret** (GitHub → Settings → Secrets and variables → Actions → *Repository secrets*) with exactly that name, not a Variable.
+   The deploy log then says `Jarvis 1 (Claude) key: found` (it never prints the key). After the next deploy press **Test connection** under Jarvis 1 in **Owner → Jarvis**.
 3. **Optional — Jarvis 2:** instead of (or next to) Anthropic's cloud AI you can run the open-source [OpenJarvis](https://github.com/open-jarvis/OpenJarvis) on your own
    computer or server and choose it in **Owner → Jarvis**. Setup: [`JARVIS2-OPENJARVIS.md`](JARVIS2-OPENJARVIS.md). Secrets: `JARVIS_OPENJARVIS_URL`, `JARVIS_OPENJARVIS_API_KEY`, `JARVIS_OPENJARVIS_MODEL`.
 4. Run the deploy again (**Actions → Run workflow**) so the new secrets reach the Worker. Open **Owner → Jarvis** to check.

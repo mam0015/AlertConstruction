@@ -279,6 +279,27 @@ export async function askAi({ client, model = DEFAULT_MODEL, ownerName, company,
   };
 }
 
+// "Test connection" for Jarvis 1: one tiny real request, so the Owner can see for certain that the key reached the app and works. It sends no company
+// data (just "reply OK") and costs a fraction of a cent. The key itself never leaves the server.
+export async function checkClaude(config, { client = null } = {}) {
+  if (!aiEnabled(config)) {
+    const off = String(config?.aiMode ?? "").toLowerCase() === "off";
+    return { ok: false, message: off ? "Jarvis 1 is switched off (JARVIS_AI is set to off)." : "Jarvis 1 is not connected: the JARVIS_ANTHROPIC_API_KEY secret has not reached the app. Save it as an Actions repository secret in GitHub, then run Deploy Alert Tradie Pro again; the deploy log says whether it found the key.", warnings: [] };
+  }
+  const model = config.model || DEFAULT_MODEL;
+  const started = Date.now();
+  try {
+    const response = await (client ?? createAiClient(config)).beta.messages.create({
+      model, max_tokens: 1500, messages: [{ role: "user", content: "Reply with the single word OK." }], output_config: { effort: "low" },
+    });
+    const text = (response.content ?? []).filter((block) => block.type === "text").map((block) => block.text).join("").trim();
+    if (response.stop_reason === "refusal") return { ok: false, message: "Jarvis 1 answered, but the AI declined a plain test request.", warnings: [] };
+    return { ok: true, message: `Jarvis 1 answered in ${Date.now() - started} ms${text ? ` (“${text.slice(0, 20)}”)` : ""}.`, model: response.model ?? model, warnings: [] };
+  } catch (error) {
+    return { ok: false, message: friendlyAiError(error), warnings: [] };
+  }
+}
+
 // Turns an SDK error into a message that is safe to show the Owner (never includes keys or raw provider text).
 export function friendlyAiError(error) {
   if (error instanceof AiError) return error.message;

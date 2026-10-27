@@ -134,7 +134,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setTesting(true);
     setBrainCheck(null);
     try {
-      setBrainCheck(await postJson<BrainCheck>("/api/owner/jarvis/brain", {}));
+      setBrainCheck(await postJson<BrainCheck>("/api/owner/jarvis/brain", { brain: active?.id ?? "jarvis2" }));
     } catch (problem) {
       setBrainCheck({ ok: false, message: problem instanceof Error ? problem.message : "Jarvis could not test the connection.", warnings: [] });
     } finally {
@@ -356,7 +356,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
         </details>
         {!active.available && active.id === "jarvis2" && <p className={styles.noteSoft}>Jarvis 2 is not connected yet. Run OpenJarvis on your own computer or server, then add the <code>JARVIS_OPENJARVIS_URL</code> secret (setup: <code>docs/JARVIS2-OPENJARVIS.md</code>). Until then Jarvis answers in basic mode.</p>}
         {!active.available && active.id === "jarvis1" && <p className={styles.noteSoft}>Jarvis 1 is not connected yet. Add the <code>JARVIS_ANTHROPIC_API_KEY</code> secret (setup: <code>jarvis/README.md</code>).</p>}
-        {active.available && active.id === "jarvis2" && <div className={styles.brainTest}>
+        {(active.id === "jarvis1" || active.available) && <div className={styles.brainTest}>
           <button className={styles.ghost} type="button" onClick={() => void testBrain()} disabled={testing}>{testing ? "Testing…" : "Test connection"}</button>
           {brainCheck && <p className={brainCheck.ok ? styles.success : styles.error} role="status">{brainCheck.message}{brainCheck.ok && brainCheck.model ? ` Model: ${brainCheck.model}.` : ""}</p>}
           {brainCheck?.warnings.map((warning) => <p key={warning} className={styles.warnBox} role="status">{warning}</p>)}
