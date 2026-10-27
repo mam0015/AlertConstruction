@@ -49,9 +49,11 @@ async function ensureRequestFilesTableOnce() {
   await db.prepare("CREATE INDEX IF NOT EXISTS request_files_code_idx ON request_files(request_code)").run();
 }
 
+// 12 random letters and digits (about 60 bits, no 0/O/1/I): a reference cannot be guessed, and two customers cannot be given the same one at the same moment.
 function requestCode() {
-  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 100000;
-  return `ATP-${new Date().getUTCFullYear()}-${String(random).padStart(5, "0")}`;
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return `ATP-${new Date().getUTCFullYear()}-${Array.from(bytes, (byte) => alphabet[byte % 32]).join("")}`;
 }
 
 async function uniqueRequestCode() {
