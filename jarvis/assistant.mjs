@@ -52,6 +52,11 @@ export function templateReply({ fromName, text, ownerName, company }) {
 
 const NEWS_QUESTION = /\b(news|what(?:'s| is| has| have)?\s+(?:new|happened|happening|going on)|anything new|any updates?|updates?|catch me up|brief me|bring me up to speed|khabar|akhbar)\b|خبر|اخبار|چه شده|اتفاق/i;
 const PLANS_QUESTION = /\b(plans?|planned|upcoming|coming up|schedule|calendar|agenda|tomorrow|next week|this week|programme|program|barname|taghvim)\b|برنامه|تقویم|فردا|پیش رو|آینده|این هفته|هفته بعد/i;
+// Things the rules can answer without an AI are looked up; things they cannot do are said plainly instead of being answered with an unrelated list.
+const GREETING = /^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening)|salam|salaam|سلام|درود)[\s!.,،؟?]*$/i;
+const THANKS = /^\s*(?:thanks|thank you|thx|cheers|great|ok|okay|cool|merci|ممنون|مرسی|متشکرم|تشکر|باشه|خوبه)[\s!.,،؟?]*$/i;
+const CANNOT = /^\s*(?:please\s+)?(?:delete|erase|wipe|destroy|remove|drop)\b|\bignore\b[^.?]*\b(?:rules|instructions|above|previous)\b|^\s*(?:please\s+)?email (?:everyone|all)\b|پاک کن|حذف کن|نادیده بگیر/i;
+const ACTION = /^\s*(?:please\s+)?(?:tell|message|text|remind|notify)\b(?!\s+(?:me|us)\b)|\b(?:add|put|create|make|set up|book|schedule)\b[^?]*\b(?:calendar|diary|task|reminder|appointment)\b|\b(?:give|assign)\b[^?]*\btask\b|\bsend\b[^?]*\b(?:message|text)\b|بگو|بگذار|بساز|بنویس|بفرست|یادآوری کن|اضافه کن|ثبت کن|پیام بده|خبر بده|اطلاع بده/i;
 const SOURCE_HEADING = { company_email: "Email", employee_updates: "Reports", client_comments: "Clients", team_messages: "Team messages", work: "Requests and projects", tasks: "Tasks", finance: "Money", people: "Team" };
 const dayLabel = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : dayLabel.format(date); };
@@ -73,9 +78,27 @@ export function newsText(items, { perArea = 4, persian = false } = {}) {
   return [...areas].map(([source, list]) => `${SOURCE_HEADING[source] ?? source}:\n${list.map((item) => `• ${whenText(item.at)} — ${item.title}${item.who && !item.title.includes(item.who) ? ` (${item.who.replace(/<[^>]*>/g, "").trim()})` : ""}${item.preview ? `: ${clip(item.preview, 140)}` : ""}`).join("\n")}`).join("\n\n");
 }
 
+// A plan's title starts with "2026-10-27 09:00 — "; it is turned into the day as a person says it ("Tue 27 Oct, 9:00") so it reads (and is read aloud) naturally.
+const planDay = { en: new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }), fa: new Intl.DateTimeFormat("fa-u-ca-gregory-nu-latn", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }) };
+function planWhen(title, persian) {
+  const match = String(title ?? "").match(/^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))? — ([\s\S]*)$/);
+  const stamp = match ? new Date(`${match[1]}T12:00:00Z`) : null;
+  if (!match || Number.isNaN(stamp.getTime())) return { when: "", rest: String(title ?? "") };
+  return { when: `${planDay[persian ? "fa" : "en"].format(stamp)}${match[2] ? `, ${match[2]}` : ""}`, rest: match[3] };
+}
 export function plansText(plans, max = 12, { persian = false } = {}) {
-  if (persian) return plans.slice(0, max).map((plan) => `• ${isolate(plan.title)}${plan.who ? ` — ${isolate(plan.who)}` : ""}${plan.project ? ` [${plan.project}]` : ""}`).join("\n");
-  return plans.slice(0, max).map((plan) => `• ${plan.title}${plan.who ? ` — ${plan.who}` : ""}${plan.project ? ` [${plan.project}]` : ""}`).join("\n");
+  return plans.slice(0, max).map((plan) => {
+    const { when, rest } = planWhen(plan.title, persian);
+    if (persian) return `• ${when ? `${when} — ` : ""}${isolate(rest)}${plan.who ? ` — ${isolate(plan.who)}` : ""}${plan.project ? ` [${plan.project}]` : ""}`;
+    return `• ${when ? `${when} — ` : ""}${rest}${plan.who ? ` — ${plan.who}` : ""}${plan.project ? ` [${plan.project}]` : ""}`;
+  }).join("\n");
+}
+
+// "the last 3 days": every "nothing found" answer says which period was searched, so an empty answer is not mistaken for "nothing ever happened".
+export function periodText(hours, persian = false) {
+  const h = Number(hours) || 72;
+  if (persian) return h <= 24 ? FA.periods.day : h % 24 === 0 ? FA.periods.days(h / 24) : FA.periods.hours(h);
+  return h <= 24 ? "the last 24 hours" : h % 24 === 0 ? `the last ${h / 24} days` : `the last ${h} hours`;
 }
 
 const incompleteNote = (labels, persian) => persian
@@ -93,36 +116,39 @@ function suggestionsFor(items, max = 6) {
 }
 
 // What Jarvis can do without AI: format the Owner's own words into a reply, or point at the matching records.
-function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false, persian = false }) {
+// `reply` is ONLY the answer: it is what is read aloud and copied. Anything about the mode (basic, offline, not connected) goes in `notice`,
+// which the screen shows in small print and which is never spoken.
+function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false, persian = false, hours = 72 }) {
+  const note = notice || (persian ? FA.basicNote : "Basic mode: no AI is connected, so I searched your records.");
   if (preview) {
     return {
-      reply: persian
-        ? `${notice ? `${isolate(notice)} ` : FA.basicPrefix}${FA.basicPreviewTail}`
-        : `${notice ? `${notice} ` : "Basic mode (no AI is connected). "}I have put your words into a reply. Please read it, change anything you want, then press Send.`,
+      reply: persian ? FA.basicPreviewTail : "I have put your words into a reply. Please read it, change anything you want, then press Send.",
+      notice: note,
       suggestions: [],
       draft: { body: templateReply({ fromName: preview.toName || preview.original.from?.name, text: message, ownerName: owner.name, company }), note: "Written from your exact words — nothing was added." },
     };
   }
-  if (failedOpen && persian) {
-    return { reply: `${notice ? `${isolate(notice)} ` : ""}${FA.couldNotRead}`.trim(), suggestions: [], draft: null };
-  }
   if (failedOpen) {
-    return { reply: `${notice} I did NOT write your reply, because I could not read that email. Please try again in a moment.`.trim(), suggestions: [], draft: null };
+    return { reply: persian ? FA.couldNotRead : "I did NOT write your reply, because I could not read that email. Please try again in a moment.", notice: notice || "", suggestions: [], draft: null };
   }
-  const lead = persian
-    ? `${notice ? `${isolate(notice)} ` : FA.basicLead}`
-    : `${notice ? `${notice} ` : "Basic mode (no AI is connected), so I looked through your records. "}`;
+  const period = periodText(hours, persian);
+  const say = (reply) => ({ reply, notice: note, suggestions: [], draft: null });
+  if (CANNOT.test(message)) return say(persian ? FA.cannot : "I can't do that. I can read the app, give you the news and prepare messages, calendar entries and tasks for you to confirm. I never delete or change records, money or access.");
+  if (ACTION.test(message)) return say(persian ? FA.needsAi : "In basic mode I can't prepare messages, calendar entries or tasks. Press “Prepare by hand” under the command line to write it yourself, or connect an AI brain so I can prepare it for you.");
+  if (THANKS.test(message)) return say(persian ? FA.thanks : "You're welcome.");
+  if (GREETING.test(message)) return say(persian ? FA.hello : "Hello. Ask me for the news or what is coming up, or name a client or a project and I will look.");
   if (PLANS_QUESTION.test(message) && !NEWS_QUESTION.test(message)) {
     const header = persian ? FA.plansHeader : "This is what is planned, soonest first:";
     const none = persian ? FA.plansNone(LIMITS.planDays) : `Nothing is planned in the next ${LIMITS.planDays} days.`;
-    return { reply: `${plans.length ? `${lead}${header}\n${plansText(plans, 12, { persian })}` : `${lead}${none}`}${incomplete ? `\n\n${incomplete}` : ""}`, suggestions: [], draft: null };
+    return { reply: `${plans.length ? `${header}\n${plansText(plans, 12, { persian })}` : none}${incomplete ? `\n\n${incomplete}` : ""}`, notice: note, suggestions: [], draft: null };
   }
   if (NEWS_QUESTION.test(message)) {
     const news = newsText(items, { persian });
     const header = persian ? FA.newsHeader : "Here is what has happened, newest first:";
-    const none = persian ? FA.newsNone : "Nothing new has happened in this period.";
+    const none = persian ? FA.noNews(period) : `Nothing new has happened in ${period}.`;
     return {
-      reply: `${news ? `${lead}${header}\n\n${news}` : `${lead}${none}`}${incomplete ? `\n\n${incomplete}` : ""}`,
+      reply: `${news ? `${header}\n\n${news}` : none}${incomplete ? `\n\n${incomplete}` : ""}`,
+      notice: note,
       suggestions: suggestionsFor(items.filter((item) => item.urgent)),
       draft: null,
     };
@@ -135,8 +161,9 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
   const matchHeader = persian ? (matches.length ? FA.matches : FA.attention) : `${matches.length ? "These match" : "These need your attention"}:`;
   return {
     reply: `${chosen.length
-      ? `${lead}${matchHeader}\n${lines.join("\n")}`
-      : `${lead}${persian ? FA.nothingFound : "I found nothing matching in this period."}`}${incomplete ? `\n\n${incomplete}` : ""}`,
+      ? `${matchHeader}\n${lines.join("\n")}`
+      : persian ? FA.noMatch(period) : `I found nothing matching in ${period}.`}${incomplete ? `\n\n${incomplete}` : ""}`,
+    notice: note,
     suggestions: suggestionsFor(chosen),
     draft: null,
   };
@@ -189,6 +216,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   const usable = input.useOtherRecords ? items : items.filter(isRelated);
   const withheld = items.length - usable.length;
   const today = melbourneDate(now);
+  const persian = wantsPersian(input.message);
   // The Owner picks the brain (Jarvis 1 = Claude, Jarvis 2 = OpenJarvis); everything else below is identical for both.
   const brain = resolveBrain(config, input.brain, { testClient: ai?.client ?? null, fetchImpl, offline: input.offline === true });
   // Plans are other people's calendar text; while drafting an email they stay out of the AI's view unless the Owner ticked "use other records".
@@ -219,14 +247,13 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
       notice = friendlyAiError(error);
     }
   }
-  const persian = wantsPersian(input.message);
   const incomplete = (briefing.briefing.incomplete ?? []).length
     ? incompleteNote(briefing.briefing.incomplete.map((entry) => (persian ? FA.areas[entry.scope] ?? entry.label : entry.label)), persian) : "";
   // A brain the Owner picked but that is not connected is never swapped for the other one: Jarvis says so and uses basic mode.
   const chosenButOff = !brain.enabled && Boolean(input.brain);
-  if (brain.offline && !notice) notice = offlineText(brain);
-  else if (chosenButOff && !notice) notice = notConnectedText(brain);
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff || brain.offline ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian }) };
+  if (brain.offline && !notice) notice = persian ? FA.offline(brain.name) : offlineText(brain);
+  else if (chosenButOff && !notice) notice = persian ? FA.notConnected(brain.name, brain.engine) : notConnectedText(brain);
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff || brain.offline ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian, hours: input.hours }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   // While an email is open, records outside its thread are kept from the AI. Say so, so "nothing else is new" is not taken to mean "nothing happened".
@@ -276,7 +303,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     actions,
     brain: outcome.mode === "ai" ? { id: brain.id, name: brain.name, engine: brain.engine } : null,
     offline: brain.offline,
-    notice: outcome.mode === "rules" ? notice : "",
+    notice: outcome.mode === "rules" ? (outcome.notice ?? notice) : "",
     usage: outcome.usage ?? null,
     model: outcome.model ?? "",
   };

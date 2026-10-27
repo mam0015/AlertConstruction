@@ -164,7 +164,7 @@ jarvis/
   audit.mjs             send and action log, once-only claims, rate limits
   persian.mjs           basic-mode sentences in Persian (used when the Owner writes Persian)
   voice.mjs             what to read aloud, in which language, with which voice (pure, tested)
-  naturalVoice.mjs      the natural voice (Cloudflare Workers AI, Aura-1): voices, how text is cut, what the server accepts
+  naturalVoice.mjs      the natural voice (Cloudflare Workers AI Aura-1 for English; OpenAI speech for Persian when its key exists): voices, how text is cut, what the server accepts
   naturalPlayer.ts      plays the pieces end to end on the audio clock (no gaps); the device voice takes over on any failure
   text.mjs              small helpers (redaction, escaping, header safety)
   server.ts             shared route plumbing (Owner gate, size limits, secrets)

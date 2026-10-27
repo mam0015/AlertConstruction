@@ -33,8 +33,9 @@ test("persian: isolate wraps text so it cannot reorder the sentence around it, a
 test("persian: the news question in Persian gets a Persian answer with the records untouched", async () => {
   const out = await ask("اخبار چیه؟");
   assert.equal(out.mode, "rules");
-  assert.ok(out.reply.includes(FA.basicLead.trim()));
-  assert.ok(out.reply.includes(FA.newsHeader));
+  assert.equal(out.notice, FA.basicNote, "the mode is a small Persian note on screen");
+  assert.ok(!out.reply.includes(FA.basicNote) && !/حالت ساده/.test(out.reply), "and is not part of the answer, so it is never read aloud");
+  assert.ok(out.reply.startsWith(FA.newsHeader), "the answer starts with the news itself");
   assert.ok(!/Here is what has happened|Basic mode/.test(out.reply), "no English sentences from Jarvis");
   // The real records appear exactly as written, each one isolated.
   assert.ok(out.reply.includes(`${FSI}Roof leak${PDI}`), "a seeded record title is shown, isolated");

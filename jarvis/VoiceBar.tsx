@@ -2,7 +2,7 @@
 import { CalendarClock, Newspaper, Play, Square } from "lucide-react";
 import styles from "./jarvis.module.css";
 import type { VoiceApi, VoiceEngine, VoiceLang } from "./useVoice";
-import { voiceNaturalNote } from "./naturalVoice.mjs";
+import { persianHelp, persianNote, voiceNaturalNote } from "./naturalVoice.mjs";
 
 const LANGUAGES: { id: VoiceLang; label: string; note: string }[] = [
   { id: "en", label: "English", note: "English" },
@@ -59,6 +59,8 @@ export default function VoiceBar({ voice, onReadNews, onReadPlans, hasNews, hasP
     <div role="status" aria-live="polite">{voice.note && <p className={styles.warnBox}>{voice.note}</p>}</div>
     {!voice.canSpeak && <p className={styles.noteSoft}>This browser cannot read aloud. Chrome, Edge and Safari can.</p>}
     {!voice.canListen && <p className={styles.noteSoft}>This browser has no voice typing (Chrome, Edge and Safari do). You can still type everything.</p>}
+    {voice.prefs.lang === "fa" && !offline && voice.persianOn === false && voice.deviceHasPersian === false && <p className={styles.warnBox} role="status">{persianHelp}</p>}
+    {voice.prefs.lang === "fa" && !offline && voice.prefs.engine === "natural" && voice.persianOn === true && <p className={styles.voiceNote}>{persianNote}</p>}
     {offline && <p className={styles.noteSoft}>Offline mode is on: only the voice installed on this device is used, and nothing is sent to Cloudflare.</p>}
     {!offline && voice.prefs.engine === "natural" && voice.naturalOn === false && <p className={styles.noteSoft}>The natural voice is not switched on for this app yet (it needs Cloudflare Workers AI), so Jarvis uses the voice on this device for now.</p>}
     {!offline && voice.prefs.engine === "natural" && naturalReady && <p className={styles.voiceNote}>{voiceNaturalNote}</p>}

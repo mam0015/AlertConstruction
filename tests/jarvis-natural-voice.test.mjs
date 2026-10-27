@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { DEFAULT_SPEAKER, MAX_PIECE_CHARS, NATURAL_MODEL, naturalPieces, parseSpeakInput, SPEAKERS, synthesize } from "../jarvis/naturalVoice.mjs";
+import { DEFAULT_PERSIAN_VOICE, DEFAULT_SPEAKER, MAX_PIECE_CHARS, NATURAL_MODEL, naturalPieces, OPENAI_SPEECH_URL, parseSpeakInput, persianConfig, PERSIAN_MODEL, SPEAKERS, synthesize, synthesizePersian } from "../jarvis/naturalVoice.mjs";
 import { startWorker } from "./helpers/worker-harness.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -19,27 +19,56 @@ test("natural voice: a deep male voice is the default and only male voices are o
 
 test("natural voice: the first piece is short so speech starts quickly, and nothing is lost", () => {
   const text = "Good morning. Three jobs started today and the tiles arrived early. The council inspection moved to Thursday at nine. Please call the supplier about the delayed windows because the install date depends on it. That is everything for now.";
-  const { pieces, persian } = naturalPieces(text);
-  assert.equal(persian, false);
+  const { pieces, hasPersian, hasEnglish } = naturalPieces(text);
+  assert.deepEqual([hasPersian, hasEnglish], [false, true]);
   assert.ok(pieces.length >= 2);
-  assert.ok(pieces[0].length <= 150, "the first piece is short");
-  assert.ok(pieces.every((piece) => piece.length <= 420));
-  assert.equal(pieces.join(" ").replace(/\s+/g, " "), text.replace(/\s+/g, " "));
-  assert.deepEqual(naturalPieces("   "), { pieces: [], persian: false });
+  assert.ok(pieces[0].text.length <= 150, "the first piece is short");
+  assert.ok(pieces.every((piece) => piece.text.length <= 420 && piece.lang === "en"));
+  assert.equal(pieces.map((piece) => piece.text).join(" ").replace(/\s+/g, " "), text.replace(/\s+/g, " "));
+  assert.deepEqual(naturalPieces("   "), { pieces: [], hasPersian: false, hasEnglish: false });
 });
 
-test("natural voice: any Persian in the text hands the whole reading to the device voice", () => {
-  const result = naturalPieces("The tiles arrive Thursday.\nکاشی‌ها پنجشنبه می‌رسد.");
-  assert.equal(result.persian, true);
-  assert.deepEqual(result.pieces, []);
+test("natural voice: English and Persian pieces are kept apart, each in its own language, in order", () => {
+  const result = naturalPieces("The tiles arrive Thursday.\nکاشی‌ها پنجشنبه می‌رسد.\nPlease confirm the order.");
+  assert.deepEqual([result.hasPersian, result.hasEnglish], [true, true]);
+  assert.deepEqual(result.pieces.map((piece) => piece.lang), ["en", "fa", "en"]);
+  assert.ok(result.pieces[1].text.includes("کاشی"));
+  const onlyPersian = naturalPieces("این اخبار است، از تازه‌ترین.");
+  assert.deepEqual([onlyPersian.hasPersian, onlyPersian.hasEnglish], [true, false]);
 });
 
-test("natural voice: the server accepts one short piece and a listed voice, and nothing else", () => {
-  assert.deepEqual(parseSpeakInput({ text: "  Hello   there. " }), { text: "Hello there.", speaker: "zeus" });
+test("natural voice: the server accepts one short piece, its language and a listed voice, and nothing else", () => {
+  assert.deepEqual(parseSpeakInput({ text: "  Hello   there. " }), { text: "Hello there.", lang: "en", speaker: "zeus" });
   assert.equal(parseSpeakInput({ text: "Hi", speaker: "orion" }).speaker, "orion");
-  for (const bad of [null, [], "text", {}, { text: "" }, { text: 5 }, { text: "x".repeat(MAX_PIECE_CHARS + 1) }, { text: "Hi", speaker: "asteria" }, { text: "Hi", speaker: "../x" }]) {
+  assert.equal(parseSpeakInput({ text: "سلام", lang: "fa" }).lang, "fa");
+  for (const bad of [null, [], "text", {}, { text: "" }, { text: 5 }, { text: "x".repeat(MAX_PIECE_CHARS + 1) }, { text: "Hi", speaker: "asteria" }, { text: "Hi", speaker: "../x" }, { text: "Hi", lang: "de" }]) {
     assert.throws(() => parseSpeakInput(bad), (error) => error instanceof Error && [400, 413].includes(error.status), JSON.stringify(bad));
   }
+});
+
+test("persian voice: only with the OpenAI key, never by default, and the key never goes anywhere but OpenAI", async () => {
+  assert.equal(persianConfig({}), null);
+  assert.equal(persianConfig({ JARVIS_OPENAI_API_KEY: "  " }), null);
+  assert.equal(persianConfig({ JARVIS_OPENAI_API_KEY: "sk-x", JARVIS_PERSIAN_VOICE: "off" }), null, "can be switched off");
+  assert.deepEqual(persianConfig({ JARVIS_OPENAI_API_KEY: " sk-x " }), { key: "sk-x", voice: DEFAULT_PERSIAN_VOICE });
+  assert.equal(persianConfig({ JARVIS_OPENAI_API_KEY: "sk-x", JARVIS_OPENAI_VOICE: "ASH" }).voice, "ash");
+  assert.equal(persianConfig({ JARVIS_OPENAI_API_KEY: "sk-x", JARVIS_OPENAI_VOICE: "nonsense" }).voice, "onyx", "an unknown voice name falls back to the deep one");
+
+  const calls = [];
+  const ok = async (url, init) => { calls.push({ url, init }); return new Response(MP3, { headers: { "content-type": "audio/mpeg" } }); };
+  const audio = await synthesizePersian({ key: "sk-x", voice: "onyx" }, { text: "سلام، این اخبار است." }, ok);
+  assert.deepEqual([...new Uint8Array(await new Response(audio.body).arrayBuffer())], [...MP3]);
+  assert.equal(calls[0].url, OPENAI_SPEECH_URL);
+  assert.equal(calls[0].init.headers.Authorization, "Bearer sk-x");
+  const sent = JSON.parse(calls[0].init.body);
+  assert.deepEqual([sent.model, sent.voice, sent.input, sent.response_format], [PERSIAN_MODEL, "onyx", "سلام، این اخبار است.", "mp3"]);
+  assert.match(sent.instructions, /Persian/);
+  const refuse = (status) => async () => new Response("no", { status });
+  await assert.rejects(() => synthesizePersian({ key: "sk-x", voice: "onyx" }, { text: "x" }, refuse(401)), (error) => error.status === 503, "a rejected key is the Owner's to fix");
+  await assert.rejects(() => synthesizePersian({ key: "sk-x", voice: "onyx" }, { text: "x" }, refuse(429)), (error) => error.status === 429);
+  await assert.rejects(() => synthesizePersian({ key: "sk-x", voice: "onyx" }, { text: "x" }, refuse(500)), (error) => error.status === 502);
+  await assert.rejects(() => synthesizePersian({ key: "sk-x", voice: "onyx" }, { text: "x" }, async () => { throw new Error("offline"); }), (error) => error.status === 502);
+  await assert.rejects(() => synthesizePersian(null, { text: "x" }, ok), (error) => error.status === 503);
 });
 
 test("natural voice: audio comes back from every shape Workers AI can answer in, and failures are explained", async () => {
@@ -106,6 +135,35 @@ test("API: the voice is Owner-only, says when it is not switched on, speaks when
   const brokenBody = await broken.text();
   assert.ok(!brokenBody.includes("secret upstream detail"), "upstream error text is not passed on");
   assert.match(brokenBody, /failed/);
+
+  // Persian: Aura is English only, so Persian needs the OpenAI key; without it the page is told and the device voice is used.
+  assert.equal((await (await get(owner)).json()).persian, false);
+  const noPersian = await post(owner, { text: "سلام، این اخبار است.", lang: "fa" });
+  assert.equal(noPersian.status, 503);
+  assert.equal((await noPersian.json()).code, "unavailable");
+  const english = calls.length;
+  process.env.JARVIS_OPENAI_API_KEY = "sk-test-persian";
+  const speech = [];
+  globalThis.__JARVIS_TEST_HOOKS__ = { fetchImpl: async (url, init) => { speech.push({ url: String(url), init }); return new Response(MP3, { headers: { "content-type": "audio/mpeg" } }); } };
+  try {
+    assert.equal((await (await get(owner)).json()).persian, true);
+    const fa = await post(owner, { text: "سلام، این اخبار است.", lang: "fa" });
+    assert.equal(fa.status, 200, await fa.clone().text());
+    assert.equal(fa.headers.get("content-type"), "audio/mpeg");
+    assert.deepEqual([...new Uint8Array(await fa.arrayBuffer())], [...MP3]);
+    assert.equal(speech.length, 1);
+    assert.equal(speech[0].url, "https://api.openai.com/v1/audio/speech");
+    assert.equal(calls.length, english, "Persian never goes through Cloudflare's English voice");
+    assert.equal((await post(staff, { text: "سلام", lang: "fa" })).status, 401);
+    assert.equal((await post(owner, { text: "Hi", lang: "de" })).status, 400);
+    globalThis.__JARVIS_TEST_HOOKS__ = { fetchImpl: async () => new Response("denied", { status: 401 }) };
+    const rejected = await post(owner, { text: "سلام", lang: "fa" });
+    assert.equal(rejected.status, 503);
+    assert.ok(!(await rejected.text()).includes("sk-test-persian"), "the key is never echoed");
+  } finally {
+    delete process.env.JARVIS_OPENAI_API_KEY;
+    delete globalThis.__JARVIS_TEST_HOOKS__;
+  }
 
   // The daily limit: once it is used up, the browser is told to use the device voice until tomorrow.
   app.env.AI = { run: async () => new Response(MP3) };

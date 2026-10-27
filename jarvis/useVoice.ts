@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { chunksFor, listenProblem, pickVoice, voiceProblem, VOICE_LANGS } from "./voice.mjs";
 import { DEFAULT_SPEAKER, isSpeaker, naturalPieces } from "./naturalVoice.mjs";
-import { naturalSupported, playNatural, type NaturalFailure } from "./naturalPlayer";
+import { naturalSupported, playNatural, type NaturalFailure, type Piece } from "./naturalPlayer";
 
 // Jarvis's ears and voice. Listening belongs to the Owner's own browser (Web Speech API): voice typing uses the browser's own online speech
 // service, and what is heard only ends up in the command box (the Owner still presses Run, unless they chose "run when I stop talking").
@@ -75,6 +75,11 @@ export function useVoice() {
   const [naturalOn, setNaturalOn] = useState<boolean | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerInfo[]>([]);
   const naturalOkRef = useRef<boolean | null>(null);
+  // The Persian server voice (OpenAI key). Unlike English it is only used once the server has said it exists.
+  const persianOkRef = useRef(false);
+  const [persianOn, setPersianOn] = useState<boolean | null>(null);
+  // Whether this device has a Persian voice of its own (null until the browser has listed its voices).
+  const [deviceHasPersian, setDeviceHasPersian] = useState<boolean | null>(null);
   const playerRef = useRef<ReturnType<typeof playNatural> | null>(null);
   // Offline mode (set by the panel): nothing may leave the device, so only the device voice is used.
   const offlineRef = useRef(false);
@@ -90,14 +95,17 @@ export function useVoice() {
     let live = true;
     fetch("/api/owner/jarvis/speak", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { available?: boolean; speakers?: SpeakerInfo[] } | null) => {
+      .then((body: { available?: boolean; persian?: boolean; speakers?: SpeakerInfo[] } | null) => {
         if (!live) return;
         const on = Boolean(body?.available) && naturalSupported();
         naturalOkRef.current = on;
         setNaturalOn(on);
+        const persian = Boolean(body?.persian) && naturalSupported();
+        persianOkRef.current = persian;
+        setPersianOn(persian);
         setSpeakers(body?.speakers ?? []);
       })
-      .catch(() => { if (live) { naturalOkRef.current = false; setNaturalOn(false); } });
+      .catch(() => { if (live) { naturalOkRef.current = false; setNaturalOn(false); persianOkRef.current = false; setPersianOn(false); } });
     return () => { live = false; };
   }, []);
 
@@ -106,11 +114,16 @@ export function useVoice() {
     const synth = typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis;
     if (!synth) return () => { aliveRef.current = false; playerRef.current?.stop(); };
     // Browsers load their voice list a moment after the page opens, and announce it with this event.
-    const refresh = () => { voicesRef.current = synth.getVoices(); };
-    refresh();
+    const refresh = () => {
+      voicesRef.current = synth.getVoices();
+      if (voicesRef.current.length) setDeviceHasPersian(Boolean(pickVoice(voicesRef.current, VOICE_LANGS.fa)));
+    };
+    voicesRef.current = synth.getVoices();
+    const later = window.setTimeout(refresh, 400);
     synth.addEventListener?.("voiceschanged", refresh);
     return () => {
       aliveRef.current = false;
+      window.clearTimeout(later);
       synth.removeEventListener?.("voiceschanged", refresh);
       readingRef.current += 1;
       playerRef.current?.stop();
@@ -170,19 +183,20 @@ export function useVoice() {
     });
   }, [prefs.lang, stopReading]);
 
-  // Reads the text aloud. Pressing it again for the same thing stops it. English goes to the natural voice when it is on (and not Offline);
-  // Persian, Offline mode, a missing natural voice and any natural-voice failure go to the device voice instead.
+  // Reads the text aloud. Pressing it again for the same thing stops it. The server voices read English (Cloudflare AI) and, when the OpenAI key
+  // exists, Persian. Offline mode, a language with no server voice, and any server-voice failure use the voice installed on the device instead.
   const speak = useCallback((id: string, text: string) => {
     if (!aliveRef.current) return;
-    const { pieces, persian } = naturalPieces(text);
-    const natural = prefs.engine === "natural" && naturalOkRef.current !== false && !offlineRef.current && !persian && pieces.length > 0 && naturalSupported();
+    const { pieces, hasPersian, hasEnglish } = naturalPieces(text);
+    const natural = prefs.engine === "natural" && !offlineRef.current && naturalSupported() && pieces.length > 0
+      && (!hasEnglish || naturalOkRef.current !== false) && (!hasPersian || persianOkRef.current);
     if (!natural) { speakOnDevice(id, text); return; }
     stopReading();
     recognitionRef.current?.abort();
     const token = readingRef.current;
     setNote("");
     setSpeakingId(id);
-    const player = playNatural(pieces, prefs.speaker);
+    const player = playNatural(pieces as Piece[], prefs.speaker);
     playerRef.current = player;
     player.done.then(() => {
       if (readingRef.current !== token) return;
@@ -192,7 +206,10 @@ export function useVoice() {
       // Stopped by the Owner: nothing to report. Otherwise the device voice takes over (when nothing had been heard yet), so Jarvis is never silent.
       if (readingRef.current !== token || failure?.name === "AbortError") return;
       playerRef.current = null;
-      if (failure?.status === 503 || failure?.status === 401 || failure?.status === 429) { naturalOkRef.current = false; setNaturalOn(false); }
+      if (failure?.status === 503 || failure?.status === 401 || failure?.status === 429) {
+        if (failure.lang === "fa" || failure.status === 429) { persianOkRef.current = false; setPersianOn(false); }
+        if (failure.lang !== "fa" || failure.status === 429) { naturalOkRef.current = false; setNaturalOn(false); }
+      }
       const why = `${failure?.message || "The natural voice stopped."} `;
       if (!player.started()) speakOnDevice(id, text, why.trim());
       else { setSpeakingId(""); setNote(why.trim()); }
@@ -248,7 +265,7 @@ export function useVoice() {
 
   const setOffline = useCallback((value: boolean) => { offlineRef.current = value; }, []);
 
-  return { prefs, update, canSpeak, canListen, naturalOn, speakers, setOffline, speakingId, listening, listenLang, heard, note, setNote, speak, stopReading, listen, stopListening };
+  return { prefs, update, canSpeak, canListen, naturalOn, persianOn, deviceHasPersian, speakers, setOffline, speakingId, listening, listenLang, heard, note, setNote, speak, stopReading, listen, stopListening };
 }
 
 export type VoiceApi = ReturnType<typeof useVoice>;

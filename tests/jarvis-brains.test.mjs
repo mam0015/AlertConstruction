@@ -241,14 +241,16 @@ test("jarvis 2 cannot step outside the rules: injected text in a record, a hosti
 
   const none = await askJarvis({ db: d1, config: { apiKey: "k", company: "Alert Construction" }, ai: { client: fakeAi(() => aiReply({ reply: "claude answered", suggestions: [], draft: null, actions: [] })).client }, owner, input: parseAskInput({ message: "What's the news?", brain: "jarvis2" }), people });
   assert.equal(none.mode, "rules", "Jarvis 2 was chosen but is not connected: basic mode, not Claude");
-  assert.match(none.reply, /Jarvis 2 \(OpenJarvis\) is not connected yet, so I used basic mode/);
+  assert.match(none.notice, /Jarvis 2 \(OpenJarvis\) is not connected yet, so I used basic mode/, "the mode is said in the small notice");
+  assert.ok(!/Jarvis 2|not connected|basic mode/i.test(none.reply), "the answer itself (what is read aloud) never starts with the brain's name or the mode");
   assert.equal(none.brain, null);
   assert.throws(() => parseAskInput({ message: "hi", brain: "jarvis9" }), (error) => error.status === 400 && /Jarvis 1 or Jarvis 2/.test(error.message));
 
   const down = fakeOpenJarvis({ answer: () => "x", status: 500 });
   const failed = await askJarvis({ db: d1, config: withJarvis2(), fetchImpl: down.fetchImpl, owner, input: parseAskInput({ message: "What's the news?", brain: "jarvis2" }), people });
   assert.equal(failed.mode, "rules", "when Jarvis 2 is down the Owner still gets basic mode and the reason");
-  assert.match(failed.reply, /Jarvis 2 could not answer just now/);
+  assert.match(failed.notice, /Jarvis 2 could not answer just now/);
+  assert.ok(!/could not answer/.test(failed.reply), "the failure is the small notice, not part of the spoken answer");
   assert.ok(!JSON.stringify(failed).includes("oj_sk_test_key"));
 });
 
