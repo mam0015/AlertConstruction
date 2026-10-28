@@ -1,5 +1,6 @@
 import { createCalendarEntries, sendChat, type TeamPerson } from "../db/team-store";
 import { performTaskManagementAction } from "../db/task-store";
+import { createOwnerRecord } from "../db/owner-store";
 import { runtimeBindings } from "../db/runtime";
 import type { TeamIdentity } from "../app/team-identity";
 
@@ -17,6 +18,10 @@ export function executorsFor(owner: { email: string; name: string }) {
     },
     async addCalendar({ personEmail, title, notes, dates, startTime, projectCode }: { personEmail: string; title: string; notes: string; dates: string[]; startTime: string; projectCode: string }) {
       await createCalendarEntries(identity, { assigneeEmail: personEmail, title, notes, dates, startTime, projectCode });
+    },
+    // The same function the Owner's own Finance page uses (amounts are whole cents), so every rule of a finance entry applies.
+    async addFinance({ financeType, category, projectCode, amountCents, entryDate, note }: { financeType: string; category: string; projectCode: string; amountCents: number; entryDate: string; note: string }) {
+      await createOwnerRecord("finance", { type: financeType, category, projectCode, amount: amountCents, entryDate, note });
     },
     async createTask({ personEmail, title, instructions, priority, projectCode }: { personEmail: string; title: string; instructions: string; priority: string; projectCode: string }) {
       let caseId = 0;

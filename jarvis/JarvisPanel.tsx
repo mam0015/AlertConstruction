@@ -6,7 +6,7 @@ import { ActionCard, Composer, PlansList, ProofreadReport, Reactor, when } from 
 import VoiceBar from "./VoiceBar";
 import { useVoice, type VoiceApi } from "./useVoice";
 import { joinSpoken, newsScript, plansScript } from "./voice.mjs";
-import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, BrainMode, Draft, Focus, Item, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
+import type { ActionState, Advice, AiSuggestion, BrainCheck, BrainId, BrainMode, Draft, Focus, Item, Pending, ProofreadSummary, ProposedAction, Request, Result, Scope, Turn } from "./jarvis-types";
 
 const SOURCES: { id: Scope; label: string; icon: LucideIcon }[] = [
   { id: "company_email", label: "Email", icon: Mail },
@@ -31,6 +31,8 @@ const ACTION_TEXT: Record<string, string> = { reply_email: "Reply", call: "Call"
 const QUICK = [
   { label: "News", prompt: "What's the news?" },
   { label: "Coming up", prompt: "What is coming up?" },
+  { label: "Open tasks", prompt: "What tasks are open?" },
+  { label: "Money", prompt: "How is the money?" },
   { label: "Do first today", prompt: "What should I do first today?" },
   { label: "Complaints", prompt: "Any complaints I need to handle?" },
 ];
@@ -89,6 +91,8 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const [report, setReport] = useState<ProofreadSummary | null>(null);
   const [actionStates, setActionStates] = useState<Record<string, ActionState>>({});
   const [showComposer, setShowComposer] = useState(false);
+  // A command Jarvis asked a question about ("Which Ali?", "What should the task be?"): kept here and sent back with the Owner's next sentence.
+  const [pendingCommand, setPendingCommand] = useState<Pending | null>(null);
   // Which brain the Owner picked (remembered on this device). Empty = the default: Jarvis 1 if connected, else Jarvis 2, else basic mode.
   const [chosen, setChosen] = useState<BrainId | "">("");
   // Online / Offline for each brain (remembered on this device). Offline = no AI call at all.
@@ -193,12 +197,14 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     setTurns((current) => [...current, { role: "owner", content: instruction }]);
     setText("");
     try {
-      const answer = await postJson<{ mode: string; reply: string; suggestions: AiSuggestion[]; draft: Draft | null; actions: ProposedAction[]; notice: string; brain: { name: string; engine: string } | null }>("/api/owner/jarvis/ask", {
+      const answer = await postJson<{ mode: string; reply: string; suggestions: AiSuggestion[]; draft: Draft | null; actions: ProposedAction[]; notice: string; pending?: Pending | null; brain: { name: string; engine: string } | null }>("/api/owner/jarvis/ask", {
         message: instruction, history, hours: request.hours, ...brainFields,
+        ...(pendingCommand && !focus ? { pending: pendingCommand } : {}),
         // The draft being edited goes along, so "make it shorter" or "also mention Friday" changes THAT text instead of starting again.
         ...(draft && draftBody.trim() ? { currentDraft: draftBody } : {}),
         ...(focus ? { focus: { mailbox: focus.mailbox, messageId: focus.messageId }, useOtherRecords: useOther } : {}),
       });
+      setPendingCommand(answer.pending ?? null);
       setTurns((current) => [...current, { role: "jarvis", content: answer.reply, suggestions: answer.suggestions, notice: answer.notice, mode: answer.mode, actions: answer.actions, brainName: answer.brain ? `${answer.brain.name} · ${answer.brain.engine}` : offline ? "offline mode" : "basic mode" }]);
       // The new answer is turn number turns.length + 1 (the Owner's own line was added just before it).
       if (latest.current?.voice.prefs.speakAnswers) latest.current.voice.speak(`turn-${turns.length + 1}`, answer.reply);
@@ -228,7 +234,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
     try {
       const result = await postJson<{ summary: string; proofread: ProofreadSummary | null }>("/api/owner/jarvis/act", {
         id: action.id, confirm: true, ...brainFields,
-        action: { type: action.type, person: action.personEmail, title: action.title, text: action.text, dates: action.dates, startTime: action.startTime, projectCode: action.projectCode, priority: action.priority },
+        action: { type: action.type, person: action.personEmail, title: action.title, text: action.text, dates: action.dates, startTime: action.startTime, projectCode: action.projectCode, priority: action.priority, financeType: action.financeType, category: action.category, amountCents: action.amountCents, entryDate: action.entryDate },
       });
       setActionStates((current) => ({ ...current, [action.id]: { phase: "done", message: result.summary, proofread: result.proofread } }));
       update({});
@@ -372,8 +378,9 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       <VoiceBar voice={voice} offline={offline} hasNews={Boolean(data?.items.length)} hasPlans={Boolean(data?.plans.length)}
         onReadNews={() => readAloud("news", newsScript(data?.items ?? [], { lang: voice.prefs.lang }))}
         onReadPlans={() => readAloud("plans", plansScript(data?.plans ?? [], { lang: voice.prefs.lang }))} />
-      {data && !aiOn && <p className={styles.note}>Basic mode: Jarvis searches your records, lists the news and puts <b>your own words</b> into a tidy reply. Connect Jarvis 1 or Jarvis 2 above and it also understands any language, writes replies and prepares messages, calendar entries and tasks from one sentence.</p>}
-      {showComposer && data && <Composer team={data.team ?? []} today={todayInMelbourne()} onPropose={propose} />}
+      {data && !aiOn && <p className={styles.note}>Basic mode works without any AI. Say it in one sentence and Jarvis prepares it for your button: <b>“set a task for Ali: check the tiles”</b>, <b>“tell Ben to be on site at 7”</b>, <b>“put the inspection in Sue’s calendar on Friday at 1pm”</b>, <b>“enter an expense of $320 for tiles on ATP-2026-00124”</b>. It also reads tasks, money and projects (<b>“what tasks does Ali have?”</b>, <b>“how is the money?”</b>), gives the news and what is coming up, and puts your own words into a tidy email reply. Connect Jarvis 1 or Jarvis 2 for open-ended advice and any wording.</p>}
+      {showComposer && data && <Composer team={data.team ?? []} projects={data.projects ?? []} today={todayInMelbourne()} onPropose={propose} />}
+      {pendingCommand && !focus && <div className={styles.pendingChip} role="status"><span>Jarvis is waiting for your answer to finish that. Type it below, or cancel.</span><button type="button" aria-label="Cancel that command" onClick={() => setPendingCommand(null)}>×</button></div>}
 
       {focus && <div className={styles.focusChip}>
         <span>Replying to <b>{focus.title}</b>{focus.who ? ` — ${focus.who}` : ""}</span>
@@ -381,7 +388,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
       </div>}
 
       <div className={styles.turns} aria-live="polite">
-        {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis drafts it, you check it." : "Try “What’s the news?”, “Message Ali: be on site at 7 tomorrow”, or “Put the council inspection in Sue’s calendar on Friday at 1pm”."}</p>}
+        {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis drafts it, you check it." : "Try “What’s the news?”, “Set a task for Ali: check the tiles”, “Enter an expense of $320 for tiles on ATP-2026-00124”, or “What tasks are open?”. Persian works too."}</p>}
         {turns.map((turn, index) => <div key={index} className={`${turn.role === "owner" ? styles.turnOwner : styles.turnJarvis} ${index === lastJarvis ? styles.turnLatest : ""}`}>
           <div className={styles.turnHead}>
             <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>

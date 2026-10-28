@@ -22,7 +22,9 @@ export type Result = {
   sent: SentLog[];
   actionsDone: ActionLog[];
   team: TeamMember[];
+  projects: ProjectChoice[];
 };
+export type ProjectChoice = { code: string; name: string; customer: string };
 export type AiSuggestion = { title: string; why: string; action: string; itemId: string };
 export type DraftWarning = { kind: string; text: string };
 export type ProofreadPass = { n: number; name: string; method: string; fixes: { was: string; now: string }[]; note: string };
@@ -33,9 +35,13 @@ export type Draft = {
   proofread?: ProofreadSummary | null;
 };
 export type ProposedAction = {
-  id: string; type: "send_message" | "add_calendar" | "create_task"; personEmail: string; personName: string; personRole: string;
+  id: string; type: "send_message" | "add_calendar" | "create_task" | "add_finance"; personEmail: string; personName: string; personRole: string;
   title: string; text: string; dates: string[]; startTime: string; projectCode: string; priority: string; summary: string;
+  // Money entries only (amount in whole cents, as the app stores it)
+  financeType?: "Income" | "Outcome"; category?: string; amountCents?: number; entryDate?: string; projectName?: string;
 };
+// What Jarvis already understood of a command it asked a question about; sent back with the Owner's next sentence.
+export type Pending = { intent: string; need: string; slots: Record<string, unknown> };
 export type ActionState = { phase: "ready" | "doing" | "done" | "dismissed" | "failed"; message?: string; proofread?: ProofreadSummary | null };
 export type Turn = { role: "owner" | "jarvis"; content: string; brainName?: string; suggestions?: AiSuggestion[]; notice?: string; mode?: string; actions?: ProposedAction[] };
 export type Focus = { mailbox: string; messageId: string; title: string; who: string };

@@ -55,7 +55,8 @@ test("assistant: without the AI, a question the rules cannot read gets a plain '
   const ask = (message) => askJarvis({ db: freshDb(), config: baseConfig(), fetchImpl: google.fetchImpl, owner, input: parseAskInput({ message }) });
   const lost = await ask("why is the sky blue and who wins the footy");
   assert.match(lost.reply, /I found nothing about that/);
-  assert.match(lost.reply, /name a client, a project or a person/);
+  assert.match(lost.reply, /set a task for Ali/);
+  assert.match(lost.reply, /what tasks does Ali have/);
   assert.doesNotMatch(lost.reply, /need your attention|These match/);
   assert.deepEqual(lost.suggestions, []);
   const persian = await ask("خرید زمین فوتبال و بازی فردا شب");

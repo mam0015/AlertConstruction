@@ -4,7 +4,8 @@ import { makeItem } from "../briefing.mjs";
 import { runQueries, sinceAndLimit } from "./run.mjs";
 
 const SOURCE = "finance";
-const money = (value) => `$${Number(value ?? 0).toLocaleString("en-AU")}`;
+// The database keeps money in whole cents (the Owner's Finance page divides by 100); Jarvis must say dollars.
+const money = (cents) => `$${(Number(cents ?? 0) / 100).toLocaleString("en-AU", { minimumFractionDigits: Number(cents ?? 0) % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 const queries = [
   {

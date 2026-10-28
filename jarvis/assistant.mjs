@@ -6,6 +6,11 @@
 
 import { abandonSend, beginSend, finishSend, noteAsk } from "./audit.mjs";
 import { askAi, chooseRecords, friendlyAiError } from "./ai.mjs";
+import { basicCommand, loadCommandContext } from "./basic.mjs";
+import { cleanPending } from "./commands.mjs";
+import { loadTasks } from "./lookups.mjs";
+import { ADVICE_QUESTION, DISPUTE_QUESTION, disputePlaybook } from "./playbook.mjs";
+import { createReader } from "./readonly-db.mjs";
 import { notConnectedText, offlineText, parseBrain, parseMode, resolveBrain } from "./brains.mjs";
 import { suggestForItem } from "./advisor.mjs";
 import { clip, looseSearch } from "./briefing.mjs";
@@ -41,7 +46,9 @@ export function parseAskInput(body) {
   if (mode === null) throw new JarvisAccessError("Choose Online or Offline.", 400);
   const useOtherRecords = body.useOtherRecords === true;
   const currentDraft = typeof body.currentDraft === "string" ? clipText(body.currentDraft, MAX_REPLY_CHARS) : "";
-  return { message, history, focus, brain, offline: mode === "offline", useOtherRecords, currentDraft, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
+  // What Jarvis already understood of a command it asked a question about (see basic.mjs). Only ever used to fill in blanks; everything is checked again.
+  const pending = cleanPending(body.pending);
+  return { message, history, focus, brain, offline: mode === "offline", useOtherRecords, currentDraft, pending, hours: boundedInteger(body.hours, LIMITS.defaultHours, 1, LIMITS.maxHours, "hours") };
 }
 
 export function templateReply({ fromName, text, ownerName, company }) {
@@ -59,6 +66,19 @@ const CANNOT = /^\s*(?:please\s+)?(?:delete|erase|wipe|destroy|remove|drop)\b|\b
 const ACTION = /^\s*(?:please\s+)?(?:tell|message|text|remind|notify)\b(?!\s+(?:me|us)\b)|\b(?:add|put|create|make|set up|book|schedule)\b[^?]*\b(?:calendar|diary|task|reminder|appointment)\b|\b(?:give|assign)\b[^?]*\btask\b|\bsend\b[^?]*\b(?:message|text)\b|بگو|بگذار|بساز|بنویس|بفرست|یادآوری کن|اضافه کن|ثبت کن|پیام بده|خبر بده|اطلاع بده/i;
 // "What should I do first?" / "any complaints?": the quick buttons. Only these are answered with the list of what needs attention when nothing matches.
 const PRIORITY_QUESTION = /\b(first|urgent|urgently|priority|priorities|prioriti[sz]e|attention|important|should i|need to handle|need to do|to do|todo|complaints?|problems?|issues?|risks?|overdue|late|waiting|stuck|behind)\b|اول|فوری|مهم|اولویت|توجه|شکایت|مشکل|چه کار|چی کار|عقب/i;
+// What basic mode (no AI) understands. Said whenever a sentence is not one of those, so the Owner is never left with "I can't".
+const BASIC_EXAMPLES_EN = `I didn't understand that as a command. Without an AI I understand sentences like:
+• set a task for Ali: check the tiles on the Smith job
+• tell Ben to be on site at 7 tomorrow
+• put the council inspection in Sue's calendar on Friday at 1pm
+• enter an expense of $320 for tiles on ATP-2026-00124
+• what tasks does Ali have? · how is the money? · how is the Smith kitchen?
+• what's the news? · what is coming up?
+You can also press “Prepare by hand” under the command line. Connect an AI brain for anything more open-ended.`;
+// A sentence that is clearly something else (news, plans, hello, thanks) is never taken for the answer to a question Jarvis asked.
+// (Plans words such as "tomorrow" or "calendar" are NOT counted here: they are exactly what the Owner says when asked "which day?".)
+const isOtherIntent = (text) => NEWS_QUESTION.test(text) || GREETING.test(text) || THANKS.test(text) || CANNOT.test(text);
+const isNewsOrPlans = (text) => NEWS_QUESTION.test(text) || PLANS_QUESTION.test(text);
 const SOURCE_HEADING = { company_email: "Email", employee_updates: "Reports", client_comments: "Clients", team_messages: "Team messages", work: "Requests and projects", tasks: "Tasks", finance: "Money", people: "Team" };
 const dayLabel = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const whenText = (iso) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : dayLabel.format(date); };
@@ -136,7 +156,7 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
   const period = periodText(hours, persian);
   const say = (reply) => ({ reply, notice: note, suggestions: [], draft: null });
   if (CANNOT.test(message)) return say(persian ? FA.cannot : "I can't do that. I can read the app, give you the news and prepare messages, calendar entries and tasks for you to confirm. I never delete or change records, money or access.");
-  if (ACTION.test(message)) return say(persian ? FA.needsAi : "In basic mode I can't prepare messages, calendar entries or tasks. Press “Prepare by hand” under the command line to write it yourself, or connect an AI brain so I can prepare it for you.");
+  if (ACTION.test(message)) return say(persian ? FA.needsAi : BASIC_EXAMPLES_EN);
   if (THANKS.test(message)) return say(persian ? FA.thanks : "You're welcome.");
   if (GREETING.test(message)) return say(persian ? FA.hello : "Hello. Ask me for the news or what is coming up, or name a client or a project and I will look.");
   if (PLANS_QUESTION.test(message) && !NEWS_QUESTION.test(message)) {
@@ -156,9 +176,18 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
     };
   }
   const matches = looseSearch(items, message);
+  if (DISPUTE_QUESTION.test(message)) {
+    const related = matches.slice(0, 4);
+    const lines = related.map((item) => (persian ? `• ${isolate(item.title)}${item.who ? ` — ${isolate(item.who.replace(/<[^>]*>/g, ""))}` : ""}` : `• ${item.title}${item.who ? ` — ${item.who.replace(/<[^>]*>/g, "").trim()}` : ""}`));
+    const head = related.length ? `${persian ? FA.matches : "These records look related:"}\n${lines.join("\n")}\n\n` : "";
+    return { reply: `${head}${disputePlaybook(persian)}${incomplete ? `\n\n${incomplete}` : ""}`, notice: note, suggestions: suggestionsFor(related), draft: null };
+  }
   // A question the rules cannot read is not answered with an unrelated list: Jarvis says what basic mode can do.
+  if (!matches.length && ADVICE_QUESTION.test(message)) {
+    return say(persian ? `${FA.adviceNeedsAi}\n${FA.needsAi}` : `Ideas and advice are what the AI brain is for: it reads your records and thinks the situation through with you. Connect Jarvis 1 or Jarvis 2 for that.\n${BASIC_EXAMPLES_EN}`);
+  }
   if (!matches.length && !PRIORITY_QUESTION.test(message)) {
-    return say(persian ? FA.lookupOnly(period) : `I found nothing about that in ${period}. Without the AI I can only look things up: name a client, a project or a person, ask for the news, or ask what is coming up.`);
+    return say(persian ? FA.lookupOnly(period) : `I found nothing about that in ${period}.\n${BASIC_EXAMPLES_EN}`);
   }
   const chosen = (matches.length ? matches : items.filter((item) => item.urgent)).slice(0, 6);
   const lines = chosen.map((item) => (persian
@@ -223,6 +252,8 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   const withheld = items.length - usable.length;
   const today = melbourneDate(now);
   const persian = wantsPersian(input.message);
+  // The real projects and finance categories: they tie "the Smith kitchen" to a project code for the rules, and they are what the AI may choose from.
+  const commandContext = input.focus ? { projects: [], categories: [] } : await loadCommandContext(db);
   // The Owner picks the brain (Jarvis 1 = Claude, Jarvis 2 = OpenJarvis); everything else below is identical for both.
   const brain = resolveBrain(config, input.brain, { testClient: ai?.client ?? null, fetchImpl, offline: input.offline === true });
   // Plans are other people's calendar text; while drafting an email they stay out of the AI's view unless the Owner ticked "use other records".
@@ -231,6 +262,8 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     // The Owner's own messages to the team are not news to the Owner (basic mode already leaves them out): when the Owner asks for the news they stay out of the AI's view too.
     const forAi = NEWS_QUESTION.test(input.message) ? usable.filter((item) => item.kind !== "message_from_owner") : usable;
     const records = chooseRecords(forAi);
+    // The AI sees every open task and every project's money (not only what changed lately), so it can answer "who is behind?" and "how are we doing?" — but not while an email is being answered.
+    const openTasks = original ? [] : await loadTasks(createReader(db), { open: true }).catch(() => []);
     try {
       const answer = await askAi({
         client: brain.client,
@@ -244,6 +277,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
         totalRecords: items.length - (usable.length - forAi.length),
         currentDraft: preview ? input.currentDraft : "",
         plans, people, today, ownerEmail: owner.email,
+        projects: original ? [] : commandContext.projects, openTasks,
         itemIds: new Set([...records.map((item) => item.id), ...(focusId ? [focusId] : [])]),
         useFallbacks: brain.fallbacks,
       });
@@ -261,7 +295,18 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
   const chosenButOff = !brain.enabled && Boolean(input.brain);
   if (brain.offline && !notice) notice = persian ? FA.offline(brain.name) : offlineText(brain);
   else if (chosenButOff && !notice) notice = persian ? FA.notConnected(brain.name, brain.engine) : notConnectedText(brain);
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: brain.enabled || openProblem || replyProblem || chosenButOff || brain.offline ? notice : "", incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian, hours: input.hours }) };
+  const rulesNotice = brain.enabled || openProblem || replyProblem || chosenButOff || brain.offline ? notice : "";
+  // Without an AI (or when it could not answer) the sentence is read by fixed rules first: tasks, messages, calendar entries and money entries are
+  // prepared for the Owner's button, and tasks, money and projects are read straight from the database. Only then the news / plans / search answers.
+  if (!outcome && !input.focus && !CANNOT.test(input.message)) {
+    try {
+      const command = await basicCommand({ db, message: input.message, people, owner, today, pending: input.pending, isOtherIntent, isNewsOrPlans, ...commandContext });
+      if (command) outcome = { mode: "rules", reply: command.reply, notice: rulesNotice || (command.persian ? FA.basicRulesNote : "Basic mode: no AI is connected, so I read your sentence with fixed rules."), suggestions: [], draft: null, actions: command.actions, pending: command.pending };
+    } catch (error) {
+      console.error("Jarvis could not read the command:", error instanceof Error ? error.name : "unknown");
+    }
+  }
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: rulesNotice, incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian, hours: input.hours }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   // While an email is open, records outside its thread are kept from the AI. Say so, so "nothing else is new" is not taken to mean "nothing happened".
@@ -312,6 +357,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
     brain: outcome.mode === "ai" ? { id: brain.id, name: brain.name, engine: brain.engine } : null,
     offline: brain.offline,
     notice: outcome.mode === "rules" ? (outcome.notice ?? notice) : "",
+    pending: outcome.pending ?? null,
     usage: outcome.usage ?? null,
     model: outcome.model ?? "",
   };

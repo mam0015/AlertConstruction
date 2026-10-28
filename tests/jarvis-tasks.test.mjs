@@ -30,21 +30,51 @@ test("tasks: every answer is only the answer — the brain's name and the mode a
   assert.match(persian.notice, /Jarvis 1 \(Claude\) هنوز وصل نیست/, "the small print is in Persian for a Persian question");
 });
 
-test("tasks: a request to tell, add or assign something is not answered with a list of plans or records; the rules say what to do instead", async () => {
-  for (const message of ["Tell Ali Karimi to be on site at 7am tomorrow", "Add a calendar entry for Friday 9am council inspection", "Give Ben Walsh a task to check the bathroom waterproofing", "Remind Sue about the inspection photos", "Send a message to the tiler about Thursday", "به علی بگو فردا ساعت ۷ سر کار باشد", "در تقویم جمعه ساعت ۹ بازرسی شهرداری بگذار", "یک کار برای بن بساز که ایزوله حمام را چک کند"]) {
-    const out = await ask(message);
-    assert.ok(out.actions.length === 0 && !out.draft);
-    assert.match(out.reply, /Prepare by hand/, message);
-    assert.ok(!/planned|برنامه‌ها پیش رو|match|These need/i.test(out.reply), message);
+const team = [
+  { email: "owner@alert.test", name: "Alex Owner (Owner)", role: "Owner" },
+  { email: "ali.karimi@alert.test", name: "ali.karimi · Estimator", role: "Estimator" },
+  { email: "ben.walsh@alert.test", name: "ben.walsh · Worker", role: "Worker" },
+  { email: "sue@alert.test", name: "sue · Admin", role: "Admin" },
+  { email: "tiler@alert.test", name: "tiler · Tiler", role: "Worker" },
+];
+const askTeam = (message, extra = {}) => askJarvis({ db: freshDb(), config: baseConfig(), fetchImpl: googleMock().fetchImpl, owner, people: team, input: parseAskInput({ message, ...extra }) });
+
+test("tasks: without an AI, a request to tell, add or assign something is PREPARED for the Owner's button, in English and Persian — not answered with a list of plans or records", async () => {
+  const cases = [
+    ["Tell Ali Karimi to be on site at 7am tomorrow", "send_message", "ali.karimi@alert.test"],
+    ["Add a calendar entry for Friday 9am council inspection", "add_calendar", "owner@alert.test"],
+    ["Give Ben Walsh a task to check the bathroom waterproofing", "create_task", "ben.walsh@alert.test"],
+    ["Remind Sue about the inspection photos", "send_message", "sue@alert.test"],
+    ["Send a message to the tiler: Thursday is fine", "send_message", "tiler@alert.test"],
+    ["به علی بگو فردا ساعت ۷ سر کار باشد", "send_message", "ali.karimi@alert.test"],
+    ["در تقویم سو جمعه ساعت ۹ بازرسی شهرداری بگذار", "add_calendar", "sue@alert.test"],
+    ["یک تسک برای بن بساز: ایزوله حمام را چک کند", "create_task", "ben.walsh@alert.test"],
+  ];
+  for (const [message, type, person] of cases) {
+    const out = await askTeam(message);
+    assert.equal(out.mode, "rules", message);
+    assert.equal(out.actions.length, 1, message);
+    assert.equal(out.actions[0].type, type, message);
+    assert.equal(out.actions[0].personEmail, person, message);
+    assert.ok(out.actions[0].summary, message);
+    assert.ok(!out.draft && !out.pending, message);
+    assert.match(out.reply, /Ready for you to confirm|آماده‌ی تأیید شماست/, message);
+    assert.match(out.reply, /Nothing has happened yet|هنوز هیچ کاری انجام نشده/, "the answer never claims it is done");
+    assert.ok(!/planned|برنامه‌ها پیش رو|These match|These need/i.test(out.reply), message);
   }
-  assert.match((await ask("به علی بگو فردا ساعت ۷ سر کار باشد")).reply, /[؀-ۿ]/, "answered in Persian");
+  assert.match((await askTeam("به علی بگو فردا ساعت ۷ سر کار باشد")).reply, /[؀-ۿ]/, "answered in Persian");
+  // The team list is the authority: a name that is not on it is asked about, never guessed.
+  const stranger = await askTeam("Tell Fred to be on site at 7am");
+  assert.equal(stranger.actions.length, 0);
+  assert.match(stranger.reply, /don't know anyone called “Fred”/);
+  assert.ok(stranger.pending && stranger.pending.need === "person");
 });
 
 test("tasks: questions that merely contain those words are still questions (\"tell me the news\", \"what is on the schedule\")", async () => {
   assert.match((await ask("Tell me the news")).reply, /^Here is what has happened|^Nothing new has happened/);
   assert.match((await ask("Let me know what is happening")).reply, /^Here is what has happened|^Nothing new|^I found nothing|^These/);
   assert.match((await ask("What is on the schedule tomorrow?")).reply, /^This is what is planned|^Nothing is planned/);
-  assert.match((await ask("What tasks do I have?")).reply, /^These|^I found nothing/);
+  assert.match((await ask("What tasks do I have?")).reply, /^Open tasks|^There are no open tasks/);
 });
 
 test("tasks: greetings and thanks get a short human answer; deleting things and \"ignore your rules\" are refused plainly", async () => {
