@@ -3,8 +3,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { FormEvent, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "./BrandLogo";
+import SiteHeader from "./site/SiteHeader";
+import { SERVICES } from "./site/site-content";
 
 const services = [
   {
@@ -57,6 +60,8 @@ const services = [
   },
 ];
 
+const aboutSlug = (title: string) => SERVICES.find((service) => service.title === title)?.slug ?? "";
+
 const brands = [
   {
     name: "Alert Construction",
@@ -78,8 +83,7 @@ const brands = [
 const TEAM_REMEMBER_KEY = "alert-tradie-pro-team-username";
 const CUSTOMER_REMEMBER_KEY = "alert-tradie-pro-customer-access";
 type PortalType = "customer" | "team" | null;
-type InfoPanel = "privacy" | "terms" | "support" | null;
-type Theme = "light" | "dark";
+type InfoPanel = "privacy" | "terms" | null;
 type CustomerAccessMethod = "code" | "email" | "phone";
 type CustomerProjectMatch = { requestCode: string; service: string; suburb: string; updatedAt: string };
 
@@ -96,7 +100,6 @@ async function readApiResult<T>(response: Response) {
 export default function Home() {
   const router = useRouter();
   const [comparison, setComparison] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [portal, setPortal] = useState<PortalType>(null);
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
   const [selectedService, setSelectedService] = useState("");
@@ -105,7 +108,6 @@ export default function Home() {
   const [requestUploadWarning, setRequestUploadWarning] = useState("");
   const [requestDuplicate, setRequestDuplicate] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
-  const [theme, setTheme] = useState<Theme>("light");
   const [trackingCode, setTrackingCode] = useState("");
   const [customerAccessMethod, setCustomerAccessMethod] = useState<CustomerAccessMethod>("code");
   const [customerContact, setCustomerContact] = useState("");
@@ -123,18 +125,6 @@ export default function Home() {
   const [customerRemember, setCustomerRemember] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const dialogTitleId = useId();
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const savedTheme = window.localStorage.getItem("alert-tradie-pro-theme");
-      const initialTheme: Theme = savedTheme === "dark" || savedTheme === "light"
-        ? savedTheme
-        : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      setTheme(initialTheme);
-      document.documentElement.dataset.theme = initialTheme;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
 
   useEffect(() => {
     // Remember-me convenience: only the username / project reference is kept on this device. Passwords are left to the browser's own password manager.
@@ -161,12 +151,29 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const openTeamLogin = () => {
-      if (window.location.hash === "#team-sign-in") setPortal("team");
+    // Links from the other pages (/#customer-sign-in, /#team-sign-in, /#privacy, /#terms) open the matching window on arrival.
+    const openFromHash = () => {
+      const hash = window.location.hash;
+      if (hash === "#team-sign-in") setPortal("team");
+      else if (hash === "#customer-sign-in") setPortal("customer");
+      else if (hash === "#privacy") setInfoPanel("privacy");
+      else if (hash === "#terms") setInfoPanel("terms");
     };
-    openTeamLogin();
-    window.addEventListener("hashchange", openTeamLogin);
-    return () => window.removeEventListener("hashchange", openTeamLogin);
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
+
+  useEffect(() => {
+    // "Request this Service" on the Services page arrives as /?service=Kitchen%20Renovations#request. Only a service we actually offer is accepted.
+    const wanted = new URLSearchParams(window.location.search).get("service");
+    if (wanted && services.some((service) => service.title === wanted)) {
+      const frame = window.requestAnimationFrame(() => {
+        setSelectedService(wanted);
+        document.getElementById("request")?.scrollIntoView();
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
   }, []);
 
   useEffect(() => {
@@ -203,7 +210,6 @@ export default function Home() {
       if (event.key === "Escape") {
         setPortal(null);
         setInfoPanel(null);
-        setMenuOpen(false);
       }
     };
     document.addEventListener("keydown", closeOnEscape);
@@ -211,15 +217,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = portal || infoPanel || menuOpen ? "hidden" : "";
+    document.body.style.overflow = portal || infoPanel ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [portal, infoPanel, menuOpen]);
-
-  function closeMenu() {
-    setMenuOpen(false);
-  }
+  }, [portal, infoPanel]);
 
   async function handleRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -343,13 +345,6 @@ export default function Home() {
     catch(error){const message=error instanceof Error?error.message:"Sign-in failed.";setTeamError(message==="The string did not match the expected pattern."?"Sign-in is temporarily unavailable. Please try again.":message)} finally{setTeamBusy(false)}
   }
 
-  function toggleTheme() {
-    const nextTheme: Theme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
-    window.localStorage.setItem("alert-tradie-pro-theme", nextTheme);
-  }
-
   function chooseService(service: string) {
     setSelectedService(service);
     document.getElementById("request")?.scrollIntoView({ behavior: "smooth" });
@@ -357,48 +352,8 @@ export default function Home() {
 
   return (
     <main>
-      <header className="site-header">
-        <a className="header-brand" href="#home" aria-label="Alert Tradie Pro home">
-          <BrandLogo kind="tradie" tone="dark" className="header-logo" />
-        </a>
-
-        <nav className="desktop-nav" aria-label="Primary navigation">
-          <a className="active" href="#home">Home</a>
-          <a href="#about">About Us</a>
-          <a href="#services">Services</a>
-          <button type="button" onClick={() => setPortal("customer")}>Customer Sign In</button>
-          <button type="button" onClick={() => setPortal("team")}>Team Sign In</button>
-          <a href="#support">Support</a>
-          <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}>
-            <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
-          </button>
-          <a className="header-cta" href="#request">Request a Job</a>
-        </nav>
-
-        <button
-          className={`menu-button ${menuOpen ? "is-open" : ""}`}
-          type="button"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-      </header>
-
-      {menuOpen && (
-        <div className="mobile-menu" aria-label="Mobile navigation">
-          <a href="#home" onClick={closeMenu}>Home</a>
-          <a href="#about" onClick={closeMenu}>About Us</a>
-          <a href="#services" onClick={closeMenu}>Services</a>
-          <button type="button" onClick={() => { closeMenu(); setPortal("customer"); }}>Customer Sign In</button>
-          <button type="button" onClick={() => { closeMenu(); setPortal("team"); }}>Team Sign In</button>
-          <a href="#support" onClick={closeMenu}>Support</a>
-          <a className="mobile-cta" href="#request" onClick={closeMenu}>Request a Job</a>
-        </div>
-      )}
+      <a className="skip-link" href="#home">Skip to the content</a>
+      <SiteHeader active="home" onCustomerSignIn={() => setPortal("customer")} onTeamSignIn={() => setPortal("team")} />
 
       <section className="hero" id="home" ref={heroRef}>
         <div className="comparison-scene" aria-label="Construction project before and after comparison">
@@ -463,9 +418,9 @@ export default function Home() {
                 <BrandLogo kind={brand.kind} />
               </div>
               <p>{brand.description}</p>
-              <a href={index === 2 ? "#request" : "#services"}>
-                {index === 2 ? "Request and track" : "Explore services"} <span>→</span>
-              </a>
+              {index === 2
+                ? <a href="#request">Request and track <span>→</span></a>
+                : <Link href={index === 0 ? "/services" : "/services#engineering-services"}>Explore services <span>→</span></Link>}
             </article>
           ))}
         </div>
@@ -487,9 +442,12 @@ export default function Home() {
                 <small>{service.brand}</small>
                 <h3>{service.title}</h3>
                 <p>{service.description}</p>
-                <button className="service-request-link" type="button" onClick={() => chooseService(service.title)}>
-                  Request this service <span>→</span>
-                </button>
+                <div className="service-actions">
+                  <button className="service-request-link" type="button" onClick={() => chooseService(service.title)}>
+                    Request this service <span>→</span>
+                  </button>
+                  <Link className="service-about-link" href={`/services#${aboutSlug(service.title)}`}>About<span className="sr-only"> {service.title}</span></Link>
+                </div>
               </div>
             </article>
           ))}
@@ -634,15 +592,15 @@ export default function Home() {
         <div><span>◌</span><strong>Direct communication</strong><small>A clear connection to our team</small></div>
       </section>
 
-      <footer id="support">
+      <footer>
         <div className="footer-main">
           <div className="footer-brand">
             <BrandLogo kind="construction" tone="dark" className="footer-lockup" />
-            <a href="https://alertconstruction.com.au">alertconstruction.com.au</a>
+            <a href="https://alertconstruction.com.au" target="_blank" rel="noopener noreferrer">alertconstruction.com.au</a>
           </div>
           <div className="footer-brand">
             <BrandLogo kind="engineers" tone="dark" className="footer-lockup" />
-            <a href="https://alertengineers.com.au">alertengineers.com.au</a>
+            <a href="https://alertengineers.com.au" target="_blank" rel="noopener noreferrer">alertengineers.com.au</a>
           </div>
           <div className="footer-brand">
             <BrandLogo kind="tradie" tone="dark" className="footer-lockup" />
@@ -654,7 +612,7 @@ export default function Home() {
           <div>
             <button type="button" onClick={() => setInfoPanel("privacy")}>Privacy</button>
             <button type="button" onClick={() => setInfoPanel("terms")}>Terms &amp; Conditions</button>
-            <button type="button" onClick={() => setInfoPanel("support")}>Support</button>
+            <Link href="/support">Support</Link>
             <a href="#request">Report an Issue</a>
           </div>
         </div>
@@ -860,18 +818,6 @@ export default function Home() {
               </>
             )}
 
-            {infoPanel === "support" && (
-              <>
-                <p className="section-kicker">Support</p>
-                <h2 id={dialogTitleId}>How the app works.</h2>
-                <div className="support-steps">
-                  <div><span>1</span><p><strong>Request a job</strong>Choose a service, add your project details and attach any useful photos or plans.</p></div>
-                  <div><span>2</span><p><strong>Receive your ATP code</strong>After the live system accepts the request, you receive a unique code such as ATP/123456.</p></div>
-                  <div><span>3</span><p><strong>Track the project</strong>Use Customer Sign In to view approved status updates, scheduled work and customer documents.</p></div>
-                </div>
-                <a className="support-email-button" href="#request" onClick={() => setInfoPanel(null)}>Open secure support form</a>
-              </>
-            )}
           </section>
         </div>
       )}

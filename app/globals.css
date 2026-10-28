@@ -722,6 +722,35 @@ html[data-theme="dark"] .theme-logo-dark {
   font-size: 18px;
 }
 
+.service-actions {
+  display: flex;
+  margin-top: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-actions .service-request-link {
+  margin-top: 0;
+}
+
+.service-card a.service-about-link {
+  margin-top: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--card-line);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 740;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.service-card a.service-about-link:hover,
+.service-card a.service-about-link:focus-visible {
+  border-color: var(--gold-strong);
+  color: #090b0c;
+  background: var(--gold-strong);
+}
+
 .request-section {
   padding: 86px clamp(24px, 5vw, 84px);
   color: white;
@@ -1937,10 +1966,6 @@ html[data-theme="dark"] .support-steps strong {
     font-size: 11px;
   }
 
-  .desktop-nav a[href="#support"] {
-    display: none;
-  }
-
   .hero-copy {
     width: 60vw;
   }
@@ -2387,3 +2412,98 @@ input[type="checkbox"],input[type="radio"]{accent-color:#f5b900}
 
 /* Contrast: the gold section labels on the light sections of the homepage were hard to read. */
 .compact-heading > .section-kicker { color: #8a6200; }
+
+/* ---- The strip above the header: Alert Construction · Alert Engineers · Alert 3D Pro ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: #090b0c;
+  background: var(--gold-strong);
+  font-size: 14px;
+  font-weight: 740;
+  transform: translateY(-160%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.company-bar {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 clamp(12px, 3vw, 30px);
+  color: #cfd3d6;
+  background: #050607;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.company-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.company-bar-label {
+  margin-right: 10px;
+  color: #8d9296;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.company-bar a {
+  padding: 7px 14px;
+  border-radius: 99px;
+  color: #e8eaec;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.company-bar a:hover {
+  color: var(--gold-strong);
+}
+
+.company-bar a.is-current {
+  color: #090b0c;
+  background: var(--gold-strong);
+}
+
+.company-bar a:focus-visible,
+.site-header a:focus-visible,
+.site-header button:focus-visible {
+  outline: 2px solid var(--gold-strong);
+  outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .company-bar {
+    justify-content: flex-start;
+  }
+
+  .company-bar-label {
+    display: none;
+  }
+
+  .company-bar a {
+    padding: 7px 12px;
+  }
+}
