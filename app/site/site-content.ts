@@ -3,8 +3,8 @@
 // The wording of the service descriptions below is general: it says what a job of that kind normally includes. What is included in a particular
 // project is always the written estimate or contract, and the pages say so.
 
-// The product name as the Owner writes it. (The logo in the header still reads "Alert Tradie Pro"; this is the only place to change the text.)
-export const PRODUCT_NAME = "Alert 3D Pro";
+// The product's name: Alert Tradie Pro (the same as the logo in the header). This is the only place that says it on the content pages.
+export const PRODUCT_NAME = "Alert Tradie Pro";
 export const CONSTRUCTION_NAME = "Alert Construction";
 export const ENGINEERS_NAME = "Alert Engineers";
 
@@ -12,7 +12,7 @@ export const CONSTRUCTION_URL = "https://alertconstruction.com.au";
 export const ENGINEERS_URL = "https://alertengineers.com.au";
 
 // Where customers write when something is wrong. Shown on the Support page only.
-export const SUPPORT_EMAIL = "ma.mobini@gmail.com";
+export const SUPPORT_EMAIL = "mamobiniali@gmail.com";
 export const SUPPORT_SUBJECT = `Support request - ${PRODUCT_NAME}`;
 
 export type ServiceInfo = {

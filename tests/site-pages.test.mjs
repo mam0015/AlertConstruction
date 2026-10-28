@@ -1,7 +1,7 @@
 // The public pages: company strip, About Us, Services (with About), Why Us, Support. Rendered by the built Worker, read as a visitor would.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SERVICES, SUPPORT_EMAIL, CONSTRUCTION_URL, ENGINEERS_URL } from "../app/site/site-content.ts";
+import { SERVICES, SUPPORT_EMAIL, CONSTRUCTION_URL, ENGINEERS_URL, PRODUCT_NAME } from "../app/site/site-content.ts";
 
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("site", `${process.pid}-${Date.now()}`);
@@ -21,7 +21,7 @@ test("site: every page has the company strip, the same navigation and a footer; 
     const strip = html.match(/<nav class="company-bar"[\s\S]*?<\/nav>/)?.[0] ?? "";
     assert.match(strip, new RegExp(`href="${CONSTRUCTION_URL}"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|rel="noopener noreferrer"[^>]*href="${CONSTRUCTION_URL}"`), `${path}: Alert Construction`);
     assert.match(strip, new RegExp(`href="${ENGINEERS_URL}"`), `${path}: Alert Engineers`);
-    assert.match(strip, /href="\/"[^>]*>Alert 3D Pro</, `${path}: Alert 3D Pro stays on our own site`);
+    assert.match(strip, new RegExp(`href="/"[^>]*>${PRODUCT_NAME}<`), `${path}: ${PRODUCT_NAME} stays on our own site`);
     for (const label of ["Home", "About Us", "Services", "Why Us", "Customer Sign In", "Team Sign In", "Support", "Request a Job"]) assert.ok(html.includes(`>${label}</`), `${path}: ${label}`);
     for (const href of ["/about", "/services", "/why-us", "/support"]) assert.ok(html.includes(`href="${href}"`), `${path}: link to ${href}`);
     assert.match(html, /<footer/, path);
@@ -33,12 +33,12 @@ test("site: every page has the company strip, the same navigation and a footer; 
   }
 });
 
-test("site: About Us explains what Alert 3D Pro is, what the two companies do, how a customer signs in and follows a project", async () => {
+test("site: About Us explains what Alert Tradie Pro is, what the two companies do, how a customer signs in and follows a project", async () => {
   const { html, response } = await page("/about");
   const words = text(html);
   assert.match(html, /<title>About Us \| /);
   assert.match(html, /<link rel="canonical" href="\/about"|rel="canonical"[^>]*\/about/);
-  assert.match(words, /About Alert 3D Pro/);
+  assert.match(words, /About Alert Tradie Pro/);
   assert.match(words, /part of Alert Construction/);
   assert.match(words, /Alert Construction takes its engineering from Alert Engineers/);
   assert.match(words, /Register your project/);
@@ -69,7 +69,7 @@ test("site: Services lists every service with Request this Service and About, an
 test("site: Why Us speaks to the customer — what they get, in plain words — and answers the usual questions", async () => {
   const { html } = await page("/why-us");
   const words = text(html);
-  assert.match(html, /<title>Why Alert 3D Pro \| /);
+  assert.match(html, /<title>Why Alert Tradie Pro \| /);
   for (const phrase of ["One place for your whole project", "You always know what is happening", "Builder and engineer under one roof", "Written before it is built", "Your information stays yours", "Quality is checked, not assumed", "A real person to talk to", "Do I need to create an account?", "I lost my reference. What now?"]) assert.ok(words.includes(phrase), phrase);
   // written for the customer, not for the Owner: none of the Owner/manager tools are sold here
   for (const inside of ["Jarvis", "Owner dashboard", "payroll", "Team Code", "timesheet", "finance entries"]) assert.ok(!words.includes(inside), `${inside} is not customer-facing`);
@@ -78,6 +78,7 @@ test("site: Why Us speaks to the customer — what they get, in plain words — 
 test("site: Support has the email address and says the team replies as fast as it can; the address is only on this page", async () => {
   const { html } = await page("/support");
   const words = text(html);
+  assert.equal(SUPPORT_EMAIL, "mamobiniali@gmail.com", "the address the Owner gave");
   assert.ok(words.includes(SUPPORT_EMAIL));
   assert.ok(html.includes(`href="mailto:${SUPPORT_EMAIL}?subject=`), "a ready-to-send email");
   assert.match(words, /Any problem or issue/);

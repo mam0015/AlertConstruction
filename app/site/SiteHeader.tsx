@@ -9,7 +9,7 @@ export type NavKey = "home" | "about" | "services" | "why" | "support";
 type Theme = "light" | "dark";
 const THEME_KEY = "alert-tradie-pro-theme";
 
-// The strip at the very top ("Alert Construction · Alert Engineers · Alert 3D Pro") and the main navigation. The home page passes the two sign-in
+// The strip at the very top ("Alert Construction · Alert Engineers · Alert Tradie Pro") and the main navigation. The home page passes the two sign-in
 // callbacks (its sign-in windows live on that page); every other page leaves them out and the buttons send the visitor to the home page, which opens them.
 export default function SiteHeader({ active, onCustomerSignIn, onTeamSignIn }: { active: NavKey | null; onCustomerSignIn?: () => void; onTeamSignIn?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
