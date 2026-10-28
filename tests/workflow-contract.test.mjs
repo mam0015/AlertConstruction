@@ -55,7 +55,7 @@ test("customer intake saves all displayed fields and securely stores selected fi
   assert.match(store, /Other —/);
   assert.match(store, /customer_request/);
   assert.match(publicFiles, /application\/pdf/);
-  assert.match(publicFiles, /signatureMatches/);
+  assert.match(publicFiles, /fileSignatureMatches/);
   assert.match(publicFiles, /5 \* 1024 \* 1024/);
   assert.match(publicFiles, /env\.BUCKET\.put/);
   assert.match(home, /\/api\/workflow\/public\/files/);

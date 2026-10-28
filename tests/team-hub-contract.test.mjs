@@ -47,7 +47,7 @@ test("calendar assignments are limited to Owner, Admin and Manager and show who 
 
 test("team chat supports private files and a whole-team channel", () => {
   assert.match(teamStore, /recipient === CHANNEL \|\| row\.sender === me/);
-  assert.match(chatApi, /signatureMatches/);
+  assert.match(chatApi, /fileSignatureMatches/);
 });
 
 test("only the Owner reviews end-of-day reports of every other position", () => {

@@ -29,3 +29,20 @@ export function downloadHeaders(mimeType: string, fileName: string, options: { i
     "Cache-Control": "private, no-store",
   };
 }
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+// Reads the first bytes of an upload and checks it really is what it claims to be (a picture or a PDF). A file shorter than any real picture or PDF
+// header (an empty or cut-off file) is never accepted: it would otherwise count as "a photo" wherever a rule demands photo evidence.
+export async function fileSignatureMatches(file: File): Promise<boolean> {
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (bytes.length < 12) return false;
+  const text = (from: number, to: number) => new TextDecoder().decode(bytes.slice(from, to));
+  const type = String(file.type || "").toLowerCase();
+  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte);
+  if (type === "image/webp") return text(0, 4) === "RIFF" && text(8, 12) === "WEBP";
+  if (type === "image/heic" || type === "image/heif") return text(4, 8) === "ftyp";
+  if (type === "application/pdf") return text(0, 5) === "%PDF-";
+  return false;
+}

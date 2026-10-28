@@ -1,0 +1,12 @@
+# Added to every file the site serves straight from its asset store (scripts, styles, images, fonts). Pages and the API get the same headers (and more) from worker/index.ts.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Scripts and styles carry a hash of their content in the name, so they may be kept for a year (the rule the build adds when this file is absent).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
