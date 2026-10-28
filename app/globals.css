@@ -987,7 +987,7 @@ html[data-theme="dark"] .theme-logo-dark {
 }
 
 .upload-field small {
-  color: #7e8184;
+  color: #5d6165;
   font-size: 10px;
 }
 
@@ -2392,9 +2392,7 @@ html[data-theme="dark"] .support-steps strong {
 
 /* Audit UI-02 / A11Y-01 */
 .request-form .terms-consent span,.terms-consent span{color:#2b2f33!important}
-html[data-theme="dark"] .terms-consent span{color:#e6e6e6!important}
 .request-form .terms-consent a,.request-form .terms-consent button{color:#8a5a00;text-decoration:underline}
-html[data-theme="dark"] .request-form .terms-consent a,html[data-theme="dark"] .request-form .terms-consent button{color:#f3c96a}
 .portal-modal,.portal-modal.team-access-modal,.portal-modal.customer-access-modal{max-height:calc(100dvh - 24px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
 @media(max-height:700px),(max-width:900px){.portal-modal .team-access-layout,.portal-modal .customer-access-layout{grid-template-columns:1fr}}
 
@@ -2511,6 +2509,11 @@ html[data-theme="dark"] .compact-heading > .section-kicker { color: #f2b705; }
   }
 }
 
-html[data-theme="dark"] .form-title-row p {
-  color: #b9bdc0;
+/* The request form is a light card on the dark section in BOTH themes, so its text keeps the light-theme colours (it used to turn near-white on near-white in dark mode). */
+html[data-theme="dark"] .request-form {
+  --ink: #111315;
+  --muted: #62666b;
+  --line: #dedbd4;
+  --body-copy: #505358;
+  color: #111315;
 }
