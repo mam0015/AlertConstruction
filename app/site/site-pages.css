@@ -1,8 +1,13 @@
 /* The public content pages: About Us, Services, Why Us, Support. They use the same colours as the home page (light and dark), phone first. */
 
 .pg {
+  --pg-gold-text: #7d5a00; /* gold that is readable as text on the light page (5:1 or better) */
   background: var(--page-bg);
   color: var(--ink);
+}
+
+html[data-theme="dark"] .pg {
+  --pg-gold-text: #f2b705;
 }
 
 .pg-wrap {
@@ -27,7 +32,7 @@
 .pg-kicker,
 .pg-eyebrow {
   margin: 0 0 14px;
-  color: #d39d00;
+  color: var(--pg-gold-text);
   font-size: 12px;
   font-weight: 770;
   letter-spacing: 0.15em;
@@ -302,7 +307,7 @@
 
 .pg-reasons li > span {
   flex: 0 0 auto;
-  color: #d39d00;
+  color: var(--pg-gold-text);
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -351,7 +356,7 @@
   top: 50%;
   right: 4px;
   content: "+";
-  color: #d39d00;
+  color: var(--pg-gold-text);
   font-size: 22px;
   transform: translateY(-50%);
 }
@@ -480,6 +485,26 @@
   box-shadow: 0 15px 32px rgba(37, 32, 21, 0.11);
 }
 
+/* An opened card takes the whole row so its text has room; its picture keeps a sensible size instead of stretching with the text. */
+.svc-card.is-open {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr);
+}
+
+.svc-card.is-open .svc-image {
+  background: var(--card-bg);
+}
+
+.svc-card.is-open .svc-image img {
+  height: 300px;
+  min-height: 0;
+}
+
+.pg-contact > .pg-eyebrow {
+  color: var(--pg-gold-text);
+  font-size: 12px;
+}
+
 .svc-image {
   min-height: 100%;
   overflow: hidden;
@@ -601,6 +626,14 @@ html[data-theme="dark"] .svc-body small {
 }
 
 @media (max-width: 680px) {
+  .svc-card.is-open {
+    grid-template-columns: 1fr;
+  }
+
+  .svc-card.is-open .svc-image img {
+    height: 190px;
+  }
+
   .pg-steps,
   .pg-reasons {
     grid-template-columns: 1fr;

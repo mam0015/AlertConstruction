@@ -11,6 +11,7 @@
 import { abandonAction, beginAction, finishAction, noteAsk } from "./audit.mjs";
 import { proofread } from "./proofread.mjs";
 import { JarvisAccessError } from "./policy.mjs";
+import { niceName } from "./commands.mjs";
 import { clipText, oneLine, sha256Hex } from "./text.mjs";
 
 export const ACTION_TYPES = Object.freeze(["send_message", "add_calendar", "create_task", "add_finance"]);
@@ -82,7 +83,7 @@ export function validateProposal(raw, { people = [], projects, today, ownerEmail
   const title = clipText(raw.title, 160);
   const text = clipText(raw.text, type === "send_message" ? MESSAGE_CHARS : 1000);
   const id = typeof raw.id === "string" && ACTION_ID.test(raw.id) ? raw.id : makeId();
-  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(person.name, 120), personRole: oneLine(person.role, 40) };
+  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(niceName(person), 120), personRole: oneLine(person.role, 40) };
 
   if (type === "send_message") {
     if (text.length < 2) return { problem: "The message is empty." };
@@ -121,7 +122,10 @@ export function describeAction(action) {
   }
   const who = action.personName || action.personEmail;
   if (action.type === "send_message") return `Send an in-app message to ${who}.`;
-  if (action.type === "create_task") return `Give ${who} a ${action.priority.toLowerCase()}-priority task: ${action.title}.`;
+  if (action.type === "create_task") {
+    const priority = action.priority.toLowerCase();
+    return `Give ${who} ${/^[aeiou]/.test(priority) ? "an" : "a"} ${priority}-priority task: ${action.title}.`;
+  }
   const when = action.dates.length === 1 ? dayWithWeekday(action.dates[0]) : `${action.dates.length} days (${action.dates[0]} to ${action.dates.at(-1)})`;
   return `Add “${action.title}” to the calendar of ${who} on ${when}${action.startTime ? ` at ${action.startTime}` : ""}.`;
 }

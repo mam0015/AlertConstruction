@@ -71,13 +71,17 @@ function roleWords(person) {
   return fold(`${person.role} ${trade}`).split(/[^\p{L}]+/u).filter((word) => word.length >= 4 && !NAME_STOP.has(word));
 }
 
+// Everyday Persian words that merely SOUND like a short Latin name once vowels are dropped ("چیه" and "Shah", "سه" and "Sue"). They are never taken for a person.
+const PERSIAN_COMMON = new Set(`چیه چی چه کی کو کجا باز بسته سه دو یک یه این آن اون همه هر هم هیچ کار کن کرد شد بود هست نیست هستن هستند برای رو را که تا از در با و به من ما شما او اون ساعت فردا امروز دیروز تقویم تسک پیام پروژه مالی پول هزینه درآمد دلار چند چقدر کدام کدوم خبر اخبار تیم لیست وضعیت چطور چطوره آیا نه بله آره باشه خوب بد`.split(/\s+/));
+
 // One word of the Owner's text against the team: the first or last name or login word, then (Persian letters) the consonant key, then a job title ("the tiler").
 function matchWord(word, people) {
   const exact = people.filter((person) => personWords(person).includes(word));
   if (exact.length) return { people: exact, how: "name" };
   if (word.length >= 2) {
-    const key = nameKey(word);
-    if (key) {
+    const key = PERSIAN_COMMON.has(word) ? "" : nameKey(word);
+    // A one-letter key ("S" for Sue) is too weak to trust unless both names are very short.
+    if (key && (key.length >= 2 || word.length <= 3)) {
       // Persian letters against a Latin team list (or the reverse) by sound; two Latin spellings only when both are long enough not to confuse "Ali" with "Eli".
       const loose = people.filter((person) => personWords(person).some((candidate) => nameKey(candidate) === key && (hasPersianLetters(word) || hasPersianLetters(candidate) || (word.length >= 5 && candidate.length >= 5))));
       if (loose.length) return { people: loose, how: "sound" };
@@ -302,7 +306,7 @@ function projectWords(project) {
   }
   return [...words];
 }
-const projectLabel = (project) => `${project.code} — ${project.name || project.customer}${project.suburb ? ` (${project.suburb})` : ""}`;
+const projectLabel = (project) => `${project.code} — ${project.name || project.customer}${project.stage ? `, ${project.stage}` : ""}`;
 
 // Which project does the sentence mean? A code is exact. Otherwise a customer's, project's or suburb's name must appear and one project must stand out.
 // { project, words } | { ambiguous: [...] } | { unknown: "CODE" } | { general: true } | null (none mentioned)

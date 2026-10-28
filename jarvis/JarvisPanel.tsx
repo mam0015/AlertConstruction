@@ -107,6 +107,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const sendingRef = useRef(false);
   const runningRef = useRef(new Set<string>());
   const chatRef = useRef<HTMLElement>(null);
+  const lastTurnRef = useRef<HTMLDivElement>(null);
   const focusKey = useRef("");
   const voice = useVoice();
   // The microphone finishes seconds after it was pressed; these keep the latest versions for that moment.
@@ -305,6 +306,13 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
   const total = Object.keys(data?.sources ?? {}).length;
   const lastJarvis = turns.map((turn, index) => (turn.role === "jarvis" ? index : -1)).filter((index) => index >= 0).at(-1);
 
+  // A new answer (with its card and button) is brought into view, so the Owner never has to hunt for it below the fold.
+  useEffect(() => {
+    if (turns.length === 0 || turns[turns.length - 1].role !== "jarvis") return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    lastTurnRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  }, [turns]);
+
   const { setOffline } = voice;
   useEffect(() => { setOffline(offline); }, [offline, setOffline]);
   useEffect(() => { latest.current = { ask, voice, asking, text }; focusKey.current = focus ? `${focus.mailbox}:${focus.messageId}` : ""; });
@@ -389,7 +397,7 @@ export default function JarvisPanel({ preview = false }: { preview?: boolean }) 
 
       <div className={styles.turns} aria-live="polite">
         {turns.length === 0 && <p className={styles.hint}>{focus ? "Say what the reply should say, in your own words (any language). Jarvis drafts it, you check it." : "Try “What’s the news?”, “Set a task for Ali: check the tiles”, “Enter an expense of $320 for tiles on ATP-2026-00124”, or “What tasks are open?”. Persian works too."}</p>}
-        {turns.map((turn, index) => <div key={index} className={`${turn.role === "owner" ? styles.turnOwner : styles.turnJarvis} ${index === lastJarvis ? styles.turnLatest : ""}`}>
+        {turns.map((turn, index) => <div key={index} ref={index === turns.length - 1 ? lastTurnRef : undefined} className={`${turn.role === "owner" ? styles.turnOwner : styles.turnJarvis} ${index === lastJarvis ? styles.turnLatest : ""}`}>
           <div className={styles.turnHead}>
             <b>{turn.role === "owner" ? "you" : "jarvis"}{turn.brainName ? <small className={styles.turnBrain}> · {turn.brainName}</small> : null}</b>
             {voice.canSpeak && <button className={styles.listenButton} type="button" aria-pressed={voice.speakingId === `turn-${index}`}

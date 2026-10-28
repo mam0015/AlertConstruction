@@ -98,8 +98,16 @@ To disconnect a mailbox, remove its entry — or revoke access at <https://myacc
 
 * **Briefing:** choose a time window (24 hours to 30 days), filter by source, or search by keyword.
 * **Ask:** type in the command line ("What's the news?", "What is coming up?", "Any complaints?"). On a computer **Enter** runs it (Shift+Enter adds a line); on a phone use **Run**.
-* **Prepare an action:** say "Message Ali: be on site at 7 tomorrow", "Put the council inspection in Sue's calendar on Friday at 1pm" or "Give Tom a task: order grout, urgent". Jarvis shows a card; press its button to do it.
-  **Prepare by hand** gives the same cards from a small form, so it works even in basic mode.
+* **Prepare an action:** say "Message Ali: be on site at 7 tomorrow", "Put the council inspection in Sue's calendar on Friday at 1pm", "Give Tom a task: order grout, urgent" or
+  "Enter an expense of $320 for tiles on ATP-2026-00124". Jarvis shows a card; press its button to do it. A money entry is recorded in the same table as the Finance page (whole cents),
+  only for a project that exists (or "Business / General"), once per button press, and it is logged.
+  **Prepare by hand** gives the same cards from a small form (message, calendar, task, money), so it works even in basic mode.
+* **Basic mode understands sentences too (no AI, no key, no internet):** tasks, messages, calendar entries and money entries in English, Persian and Persian-in-Latin-letters (`commands.mjs`). If something is missing
+  ("set a task for Ali") Jarvis asks one short question and keeps what it understood, so the next sentence only supplies the missing piece. It reads **open tasks** ("what tasks does Ali have?"),
+  **money** ("how is the money?", "how much have we spent on the Smith kitchen?"), **one project** ("how is the Smith kitchen going?") and the **team**, straight from the database (`lookups.mjs`), not only from the last few days.
+  With an AI brain the same actions come from the model (including money entries), checked by the same rules; if the AI is down, the rules answer instead.
+* **Advice:** with Jarvis 1 or 2 connected, ask for ideas (a dispute with a customer, a late payment, a delayed job): it reads the records and answers like an experienced builder-manager, with steps and wording you can use
+  (not legal advice). Without an AI, basic mode gives a fixed practical checklist (`playbook.mjs`).
 * **Proofread:** **Check 3×** on a draft shows the three passes and what was fixed; **Proofread 3× & send** checks it again and sends.
 * **Reply:** on an email press **Reply with Jarvis**, type what the reply should say, check the draft (To / From / Subject
   are shown), edit the text if you like, press **Send reply**, then confirm **Yes, send it**. The reply stays in the same Gmail
@@ -159,7 +167,11 @@ jarvis/
   brains.mjs            Jarvis 1 / Jarvis 2: which brain answers, and each brain's Online / Offline switch (Offline = no AI call at all)
   openjarvis.mjs        Jarvis 2: the translator to OpenJarvis's API, and "Test connection"
   proofread.mjs         three-pass proofreading (AI or rules) with the drift guard
-  actions.mjs           message / calendar entry / task: validation, confirmation, once-only execution
+  actions.mjs           message / calendar entry / task / money entry: validation, confirmation, once-only execution
+  commands.mjs          basic mode: reads a sentence (English, Persian, Finglish) into a task / message / calendar / money proposal, or a read; asks back what is missing
+  basic.mjs             basic mode glue: commands + database answers + the cards
+  lookups.mjs           read-only answers: open tasks, money, one project, the team (cents shown as dollars)
+  playbook.mjs          the fixed dispute checklist used when no AI is connected
   executors.ts          carries an action out through the app's own functions, as the Owner
   reply.mjs             reading an email to answer it, and the one place mail is sent
   audit.mjs             send and action log, once-only claims, rate limits

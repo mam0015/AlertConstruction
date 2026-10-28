@@ -417,3 +417,29 @@ test("dates: the weekday names used in cards are the real weekday of the real da
   assert.equal(melbDate(0).length, 10);
   assert.equal(new Date(`${TODAY}T12:00:00Z`).getUTCDay(), 3, "2026-10-28 is a Wednesday");
 });
+
+test("commands: nothing the Owner (or a hostile page) types can hang or crash the reader — long and odd input is read in a blink", () => {
+  const samples = [
+    "set a task for " + "ali ".repeat(500), "$" + "1,".repeat(990), "1".repeat(2000), ":".repeat(2000), "a: ".repeat(660), " ".repeat(1999) + "x",
+    "tell ali " + "to ".repeat(650), "enter an expense " + "of $5 ".repeat(300), "1/".repeat(1000), "12:".repeat(660) + "pm", "فردا ".repeat(380), "ATP-2026-" + "1".repeat(1900),
+    "put in calendar " + "friday at 1pm ".repeat(140), "‌".repeat(2000), "ali".repeat(660), "what tasks " + "does ali have ".repeat(140), "a".repeat(1990) + " urgent",
+    "set a task for ali: " + "urgent, ".repeat(240), "'".repeat(2000), "(((".repeat(660) + "task for ali", "😀".repeat(900), "\u0000\u0001\u0002".repeat(600),
+  ];
+  for (const sample of samples) {
+    const started = performance.now();
+    assert.doesNotThrow(() => interpret(sample.slice(0, 2000), ctx()), sample.slice(0, 30));
+    assert.ok(performance.now() - started < 250, `too slow: ${sample.slice(0, 30)}`);
+  }
+  // random sentences built from the words the rules care about never throw and never produce an action with a person who is not on the team
+  const words = ["set", "a", "task", "for", "Ali", "Reza", "Fred", "tell", "to", "calendar", "friday", "1pm", "$320", "expense", "income", "ATP-2026-00124", "ZZZ-1-1", "my", "me", "برای", "علی", "تسک", "بذار", "فردا", ":", "urgent", "about", "the", "tiles"];
+  let seed = 7;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let round = 0; round < 1500; round += 1) {
+    const sentence = Array.from({ length: 2 + Math.floor(next() * 9) }, () => words[Math.floor(next() * words.length)]).join(" ");
+    const out = interpret(sentence, ctx());
+    if (out?.kind === "actions") for (const action of out.actions) {
+      if (action.type === "add_finance") assert.ok(Number.isInteger(action.amountCents) && action.amountCents > 0, sentence);
+      else assert.ok(people.some((person) => person.email === action.person), `${sentence} → ${action.person}`);
+    }
+  }
+});
