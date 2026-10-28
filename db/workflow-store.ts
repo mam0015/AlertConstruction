@@ -1,5 +1,6 @@
 import { estimatorStages, type WorkflowRole, type WorkflowSnapshot, type WorkflowStage } from "../app/workflow/types";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
+import { sha256Hex } from "./throttle";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 
@@ -113,6 +114,9 @@ async function ensureWorkflowDatabaseOnce() {
       PRIMARY KEY (case_id, kind)
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS customer_contact_lookup_idx ON customer_contact_index(kind, contact_hash)"),
+    // One row per request: a fingerprint of "who asked for what, where", so the same request sent twice is recognised (see createPublicWorkflowRequest).
+    db.prepare("CREATE TABLE IF NOT EXISTS request_fingerprints (case_id INTEGER PRIMARY KEY, fingerprint TEXT NOT NULL, created_at TEXT NOT NULL)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS request_fingerprints_idx ON request_fingerprints(fingerprint)"),
   ]);
 
   const missing = await db.prepare(`SELECT wc.id,wc.customer_email AS customerEmail,wc.customer_phone AS customerPhone,wc.created_at AS createdAt
@@ -170,20 +174,30 @@ export type CustomerProjectAccess = {
   updatedAt: string;
 };
 
+// Words that say nothing about WHERE a place is (street types, directions, "Melbourne"): typing only these is not a second proof of who you are.
+const GENERIC_PLACE_WORDS = new Set(["street", "st", "road", "rd", "avenue", "ave", "drive", "dr", "court", "ct", "place", "pl", "lane", "ln", "crescent", "cres", "close", "cl", "parade", "pde", "boulevard", "blvd", "highway", "hwy", "way", "terrace", "tce", "circuit", "cct", "grove", "gr", "unit", "apt", "apartment", "suite", "level", "the", "and", "north", "south", "east", "west", "nth", "sth", "melbourne", "victoria", "vic", "australia", "aus"]);
+const placeWords = (text: string) => String(text ?? "").normalize("NFKC").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+// The words of a typed address that really identify it: not street types or directions, at least three letters.
+export function distinctivePlaceWords(text: string) {
+  return [...new Set(placeWords(text).filter((word) => word.length >= 3 && !GENERIC_PLACE_WORDS.has(word)))];
+}
+
+// The second proof when a customer looks a project up by e-mail or phone: every distinctive word they typed must be a whole word of the address
+// they gave us (a few letters such as "stre", or only "road" or "Melbourne", prove nothing and match nobody).
 export async function findCustomerProjectsByContact(kind: CustomerContactKind, value: string, location: string): Promise<CustomerProjectAccess[]> {
   await ensureWorkflowDatabase();
   await removeLegacyWorkflowDemo();
   const normalised = normaliseCustomerContact(kind, value);
-  const place = location.trim().toLowerCase();
-  if (!normalised || place.length < 4) return [];
+  const wanted = distinctivePlaceWords(location);
+  if (!normalised || !wanted.length) return [];
   const db = await database();
   const hash = await customerContactHash(kind, normalised);
   const result = await db.prepare(`SELECT wc.request_code AS requestCode,wc.service,wc.suburb,wc.updated_at AS updatedAt
     FROM customer_contact_index ci
     INNER JOIN workflow_cases wc ON wc.id=ci.case_id
-    WHERE ci.kind=? AND ci.contact_hash=? AND INSTR(LOWER(wc.suburb),?)>0
-    ORDER BY wc.updated_at DESC,wc.id DESC LIMIT 5`).bind(kind, hash, place).all<CustomerProjectAccess>();
-  return result.results;
+    WHERE ci.kind=? AND ci.contact_hash=?
+    ORDER BY wc.updated_at DESC,wc.id DESC LIMIT 50`).bind(kind, hash).all<CustomerProjectAccess>();
+  return result.results.filter((row) => { const words = new Set(placeWords(row.suburb)); return wanted.every((word) => words.has(word)); }).slice(0, 5);
 }
 
 export async function getWorkflowSnapshot(role: WorkflowRole, actorEmail: string): Promise<WorkflowSnapshot> {
@@ -495,7 +509,31 @@ export async function performWorkflowAction(role: WorkflowRole, actorEmail: stri
   }
 }
 
-export async function createPublicWorkflowRequest(payload: Record<string, unknown>) {
+// The same words, however they were typed: capitals, spacing and invisible characters do not make a request different.
+function sameWording(value: unknown) {
+  return String(value ?? "").normalize("NFKC").replace(/[\u200b-\u200f\u202a-\u202e\u2060\ufeff]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// An earlier request that is still open and was sent by the same e-mail address for the same service, at the same place, in the same words.
+// A request that is closed or complete never blocks a new one, and any difference at all (another word, another address) makes a separate request.
+async function earlierOpenRequest(db: D1, fingerprint: string) {
+  return db.prepare(`SELECT wc.id,wc.request_code AS code,wc.stage,wc.created_at AS createdAt
+    FROM request_fingerprints f INNER JOIN workflow_cases wc ON wc.id=f.case_id
+    WHERE f.fingerprint=? AND wc.stage NOT IN ('closed','complete') ORDER BY wc.id ASC LIMIT 1`).bind(fingerprint).first<{ id: number; code: string; stage: string; createdAt: string }>();
+}
+
+// What the customer is told about a duplicate. The private reference of the earlier request is handed back ONLY to a sender who is plainly the same person
+// retrying (a double click or a refresh: within three minutes, and nothing has happened to the request yet). Later, e-mail and wording alone are not proof of
+// who is asking, so nothing is revealed: the customer is pointed to the sign-in that asks for e-mail and address.
+const DUPLICATE_RETRY_MS = 3 * 60_000;
+function duplicateAnswer(earlier: { id: number; code: string; stage: string; createdAt: string }) {
+  const recent = Date.now() - new Date(earlier.createdAt).getTime() <= DUPLICATE_RETRY_MS;
+  return recent && earlier.stage === "request_submitted" ? { duplicate: true as const, caseId: Number(earlier.id), code: String(earlier.code) } : { duplicate: true as const };
+}
+
+export type PublicRequestResult = { duplicate?: false; caseId: number; code: string } | { duplicate: true; caseId?: number; code?: string };
+
+export async function createPublicWorkflowRequest(payload: Record<string, unknown>): Promise<PublicRequestResult> {
   await ensureWorkflowDatabase();
   const db = await database();
   const now = new Date().toISOString();
@@ -513,14 +551,35 @@ export async function createPublicWorkflowRequest(payload: Record<string, unknow
   const details = bounded(payload.details, "Project details", 6000);
   const description = material ? `${details}\n\nMaterial preference: ${material}`.slice(0, 6000) : details;
   const phone = bounded(payload.phone, "Phone", 40);
+  const name = bounded(payload.name, "Full name", 120);
+  const location = bounded(payload.location, "Project location", 240);
+
+  // The same e-mail, service, address and words as a request that is still open: one request, not two.
+  const fingerprint = await sha256Hex(["request-v1", email, sameWording(service), sameWording(location), sameWording(details)].join("\n"));
+  const already = await earlierOpenRequest(db, fingerprint);
+  if (already) return duplicateAnswer(already);
+
   const created = await db.prepare("INSERT INTO workflow_cases (request_code,customer_name,customer_email,customer_phone,service,suburb,description,timeframe,budget,stage,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'request_submitted',?,?)")
-    .bind(code, bounded(payload.name, "Full name", 120), email, phone, service, bounded(payload.location, "Project location", 240), description, clean(payload.timeframe).slice(0, 120), clean(payload.budget).slice(0, 120), now, now).run();
+    .bind(code, name, email, phone, service, location, description, clean(payload.timeframe).slice(0, 120), clean(payload.budget).slice(0, 120), now, now).run();
   const caseId = Number(created.meta.last_row_id);
   await db.batch([
     db.prepare("INSERT INTO request_consents (case_id,terms_version,accepted_at) VALUES (?,?,?)").bind(caseId, "VIC-2026-08-17", now),
     db.prepare("INSERT INTO customer_contact_index (case_id,kind,contact_hash,created_at) VALUES (?,'email',?,?)").bind(caseId, await customerContactHash("email", email), now),
     db.prepare("INSERT INTO customer_contact_index (case_id,kind,contact_hash,created_at) VALUES (?,'phone',?,?)").bind(caseId, await customerContactHash("phone", phone), now),
+    db.prepare("INSERT INTO request_fingerprints (case_id,fingerprint,created_at) VALUES (?,?,?)").bind(caseId, fingerprint, now),
   ]);
+  // Two identical requests that arrive at the same moment both pass the look above. Now that both are saved, the one with the lowest number stays and
+  // every other takes its own rows back, so the answer is the same however the race went.
+  const first = await earlierOpenRequest(db, fingerprint);
+  if (first && Number(first.id) !== caseId) {
+    await db.batch([
+      db.prepare("DELETE FROM request_fingerprints WHERE case_id=?").bind(caseId),
+      db.prepare("DELETE FROM customer_contact_index WHERE case_id=?").bind(caseId),
+      db.prepare("DELETE FROM request_consents WHERE case_id=?").bind(caseId),
+      db.prepare("DELETE FROM workflow_cases WHERE id=?").bind(caseId),
+    ]);
+    return duplicateAnswer(first);
+  }
   await event(db, caseId, "Customer", clean(payload.email), "request_submitted", "Customer submitted a new project request", `${clean(payload.service)} · ${clean(payload.location)}`);
   return { caseId, code };
 }
@@ -549,8 +608,12 @@ export async function getCustomerUploadTarget(caseId: number, code: string) {
 export async function addCustomerRequestFile(caseId: number, objectKey: string, file: File, customerEmail: string) {
   await ensureWorkflowDatabase();
   const db = await database();
-  const created = await db.prepare("INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at) VALUES (?,'customer_request',?,?,?,?,?,'internal',?)")
+  // The limit of twenty is part of the saving statement itself, so a burst of parallel uploads cannot all pass a "fewer than twenty so far" look.
+  const created = await db.prepare(`INSERT INTO workflow_files (case_id,category,object_key,file_name,mime_type,size_bytes,uploaded_by,visibility,uploaded_at)
+    SELECT ?1,'customer_request',?2,?3,?4,?5,?6,'internal',?7
+    WHERE (SELECT COUNT(*) FROM workflow_files WHERE case_id=?1 AND category='customer_request') < 20`)
     .bind(caseId, objectKey, file.name, file.type, file.size, customerEmail, new Date().toISOString()).run();
+  if (Number(created.meta.changes) !== 1) throw new Error("This request already has the maximum of twenty customer files.");
   const id = Number(created.meta.last_row_id);
   try {
     await event(db, caseId, "Customer", customerEmail, "customer_file_uploaded", "Customer supplied an intake document", file.name);

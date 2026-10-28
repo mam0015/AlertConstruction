@@ -2,20 +2,16 @@ import { addCustomerRequestFile, getCustomerUploadTarget } from "../../../../../
 import { requestIsSameOrigin } from "../../../../owner-auth";
 import { runtimeBindings } from "../../../../../db/runtime";
 import { assertStorageRoom, isStorageFull } from "../../../../../db/storage-usage";
+import { fileSignatureMatches } from "../../../../file-safety";
+import { clientAddress, sha256Hex, throttleHit, tooManyRequests } from "../../../../../db/throttle";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
-async function signatureMatches(file: File) {
-  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  if (file.type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (file.type === "image/png") return bytes.slice(0, 8).every((byte, index) => byte === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index]);
-  if (file.type === "image/webp") return new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
-  if (file.type === "application/pdf") return new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
-  return false;
-}
-
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
+  // A stranger can send a file here without signing in, so each address has an hourly allowance (taken in one atomic statement before anything is read).
+  const slot = await throttleHit(await sha256Hex(`customer-upload|${clientAddress(request)}`), 60, 60 * 60 * 1000);
+  if (!slot.allowed) return tooManyRequests("Too many uploads. Try again later.", slot.retryAfterSeconds);
   let objectKey = "";
   try {
     const form = await request.formData();
@@ -25,7 +21,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File) || !Number.isInteger(caseId) || caseId < 1 || !code) throw new Error("Choose a valid customer document.");
     if (!allowedTypes.has(file.type.toLowerCase())) throw new Error("Only JPG, PNG, WebP and PDF files are accepted.");
     if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new Error("Each customer file must be 5 MB or smaller.");
-    if (!await signatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
+    if (!await fileSignatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
 
     const target = await getCustomerUploadTarget(caseId, code);
     const env = await runtimeBindings();

@@ -79,13 +79,15 @@ export async function loginGuard(request: Request, email: string, scope: string)
   const emailFailKey = await sha256Hex(`login-fail|${scope}|${email.toLowerCase()}|${address}`);
   const attempt = await throttleHit(attemptKey, 60, LOGIN_WINDOW);
   if (!attempt.allowed) return { blocked: tooManyRequests("Too many attempts. Try again in 15 minutes.", attempt.retryAfterSeconds), failed: async () => undefined, passed: async () => undefined };
-  const [byAddress, byEmail] = await Promise.all([throttleExceeded(addressFailKey, 15, LOGIN_WINDOW), throttleExceeded(emailFailKey, 8, LOGIN_WINDOW)]);
-  if (byAddress.exceeded || byEmail.exceeded) {
+  // Every attempt takes its slot in the failure counters FIRST (one atomic statement each), so a burst of parallel guesses cannot all pass a
+  // "not over the limit yet" look. A correct sign-in gives its slot back, so only wrong answers use up the allowance.
+  const [byAddress, byEmail] = await Promise.all([throttleHit(addressFailKey, 15, LOGIN_WINDOW), throttleHit(emailFailKey, 8, LOGIN_WINDOW)]);
+  if (!byAddress.allowed || !byEmail.allowed) {
     return { blocked: tooManyRequests("Too many attempts. Try again in 15 minutes.", Math.max(byAddress.retryAfterSeconds, byEmail.retryAfterSeconds)), failed: async () => undefined, passed: async () => undefined };
   }
   return {
     blocked: null as Response | null,
-    failed: async () => { await Promise.all([throttleHit(addressFailKey, 15, LOGIN_WINDOW), throttleHit(emailFailKey, 8, LOGIN_WINDOW)]); },
-    passed: async () => { await throttleReset(emailFailKey); },
+    failed: async () => undefined, // already counted above
+    passed: async () => { await Promise.all([throttleRefund(addressFailKey), throttleReset(emailFailKey)]); },
   };
 }

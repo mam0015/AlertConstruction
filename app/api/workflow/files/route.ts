@@ -4,17 +4,7 @@ import { addWorkflowFile, canAccessWorkflowCase, getWorkflowFile, getWorkflowSna
 import type { WorkflowRole } from "../../../workflow/types";
 import { runtimeBindings } from "../../../../db/runtime";
 import { assertStorageRoom } from "../../../../db/storage-usage";
-import { downloadHeaders } from "../../../file-safety";
-
-async function imageSignatureMatches(file: File) {
-  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  if (file.type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (file.type === "image/png") return bytes.slice(0, 8).every((byte, index) => byte === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index]);
-  if (file.type === "image/webp") return new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
-  if (file.type === "image/heic" || file.type === "image/heif") return new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
-  if (file.type === "application/pdf") return new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
-  return false;
-}
+import { downloadHeaders, fileSignatureMatches } from "../../../file-safety";
 
 async function actor(request: Request): Promise<{ role: WorkflowRole; email: string } | null> {
   const owner = await ownerSessionFromRequest(request);
@@ -44,7 +34,7 @@ export async function POST(request: Request) {
     const safeImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     const safeTypes = category === "document" ? new Set([...safeImageTypes, "application/pdf"]) : safeImageTypes;
     if (!safeTypes.has(file.type.toLowerCase())) throw new Error(category === "document" ? "Only JPEG, PNG, WebP, HEIC or PDF files are accepted." : "Only JPEG, PNG, WebP or HEIC site photos are accepted.");
-    if (!await imageSignatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
+    if (!await fileSignatureMatches(file)) throw new Error("The uploaded file content does not match its file type.");
     const maxSize = category === "document" ? 20 * 1024 * 1024 : 12 * 1024 * 1024;
     if (file.size > maxSize) throw new Error(`Each file must be ${category === "document" ? 20 : 12} MB or smaller.`);
     const snapshot = await getWorkflowSnapshot(identity.role, identity.email);

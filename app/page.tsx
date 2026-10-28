@@ -103,6 +103,7 @@ export default function Home() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [requestError, setRequestError] = useState("");
   const [requestUploadWarning, setRequestUploadWarning] = useState("");
+  const [requestDuplicate, setRequestDuplicate] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [trackingCode, setTrackingCode] = useState("");
@@ -226,6 +227,7 @@ export default function Home() {
     setRequestBusy(true);
     setRequestError("");
     setRequestUploadWarning("");
+    setRequestDuplicate(false);
     const form = new FormData(requestForm);
     const files = form.getAll("files").filter((value): value is File => value instanceof File && value.size > 0);
     if (files.length > 5) {
@@ -241,8 +243,13 @@ export default function Home() {
     const payload = Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === "string"));
     try {
       const response = await fetch("/api/workflow/public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await readApiResult<{ data?: { caseId: number; code: string }; error?: string }>(response);
+      const result = await readApiResult<{ data?: { caseId?: number; code?: string; duplicate?: boolean }; error?: string }>(response);
       if (!response.ok || !result.data) throw new Error(result.error ?? "Your request could not be submitted.");
+      // The same request (same e-mail, address and words) is already with us: nothing was saved again. A quick retry gets its reference back and carries on as normal.
+      if (!result.data.code || typeof result.data.caseId !== "number") {
+        setRequestDuplicate(true);
+        return;
+      }
 
       const uploads = [] as Array<Promise<{ ok: boolean; fileName: string }>>;
       for (const file of files) {
@@ -613,6 +620,7 @@ export default function Home() {
                 <span>Keep this reference to follow Admin review, Site Visit, estimate and approved project updates.</span>
               </div>
             )}
+            {requestDuplicate && <div className="preview-notice" role="status"><strong>We already have this request</strong><span>We found an earlier request from you with the same details, so we did not save a second one. To follow it, use Customer Sign In with your email and the suburb you gave us.</span></div>}
             {requestUploadWarning && <div className="preview-notice warning-notice" role="alert"><strong>Request saved with an upload warning</strong><span>{requestUploadWarning}</span></div>}
             {requestError && <div className="preview-notice" role="alert"><strong>Request not submitted</strong><span>{requestError}</span></div>}
           </form>

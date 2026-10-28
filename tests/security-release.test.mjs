@@ -108,7 +108,7 @@ test("customer references are high entropy and tracking cannot enumerate public 
 test("uploads reject active content and verify image signatures", async () => {
   const route = await read("app/api/workflow/files/route.ts");
   assert.match(route, /safeImageTypes/);
-  assert.match(route, /imageSignatureMatches/);
+  assert.match(route, /fileSignatureMatches/);
   assert.doesNotMatch(route, /image\/svg\+xml/);
   assert.match(route, /\["site_visit", "progress", "quality", "document"\]/);
   assert.match(route, /category === "document" && !\["admin", "owner"\]\.includes\(identity\.role\)/);

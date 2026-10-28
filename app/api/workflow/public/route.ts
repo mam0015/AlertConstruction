@@ -46,7 +46,8 @@ export async function POST(request: Request) {
       await throttleRefund(key);
       throw error;
     }
-    return Response.json({ data: created }, { status: 201 });
+    // 201 for a new request; 200 when it was recognised as one already sent (a duplicate is not saved again).
+    return Response.json({ data: created }, { status: created.duplicate ? 200 : 201 });
   } catch (error) {
     return failed(error);
   }

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  /* The Geist font files were never actually served (the page pointed at folders of the build machine, which also showed those folders to every visitor),
+     so the site has always been drawn in the device's own sans-serif. These two lines say exactly that, so nothing looks different and nothing is requested in vain. */
+  --font-geist-sans: sans-serif;
+  --font-geist-mono: sans-serif;
   --ink: #111315;
   --muted: #62666b;
   --line: #dedbd4;
