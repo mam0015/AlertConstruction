@@ -492,12 +492,10 @@ html[data-theme="dark"] .pg {
 }
 
 .svc-card.is-open .svc-image {
-  background: var(--card-bg);
-}
-
-.svc-card.is-open .svc-image img {
+  align-self: start;
   height: 300px;
   min-height: 0;
+  background: var(--card-bg);
 }
 
 .pg-contact > .pg-eyebrow {
@@ -505,17 +503,21 @@ html[data-theme="dark"] .pg {
   font-size: 12px;
 }
 
+/* The picture fills its box from the inside (absolute), so its size never feeds back into the card's height. A percentage height here made Safari
+   keep the opened card's height after About was closed. */
 .svc-image {
-  min-height: 100%;
+  position: relative;
+  min-height: 220px;
   overflow: hidden;
   background: #d7d4ce;
 }
 
 .svc-image img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 220px;
   object-fit: cover;
 }
 
@@ -630,7 +632,7 @@ html[data-theme="dark"] .svc-body small {
     grid-template-columns: 1fr;
   }
 
-  .svc-card.is-open .svc-image img {
+  .svc-card.is-open .svc-image {
     height: 190px;
   }
 
@@ -643,7 +645,7 @@ html[data-theme="dark"] .svc-body small {
     grid-template-columns: 1fr;
   }
 
-  .svc-image img {
+  .svc-image {
     height: 190px;
     min-height: 0;
   }

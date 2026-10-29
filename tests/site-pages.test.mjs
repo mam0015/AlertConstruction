@@ -1,6 +1,7 @@
 // The public pages: company strip, About Us, Services (with About), Why Us, Support. Rendered by the built Worker, read as a visitor would.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { SERVICES, SUPPORT_EMAIL, CONSTRUCTION_URL, ENGINEERS_URL } from "../app/site/site-content.ts";
 
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -114,4 +115,15 @@ test("site: the new pages send the same security headers as the rest of the site
     assert.ok(response.status < 500, `${path} → ${response.status}`);
   }
   assert.equal((await get("/about/../../etc/passwd")).status < 500, true);
+});
+
+test("services: a card's picture is laid out from the inside, so closing About cannot leave the card as tall as it was when open (seen in Safari)", () => {
+  const css = readFileSync(new URL("../app/site/site-pages.css", import.meta.url), "utf8");
+  const block = (selector) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+  const box = block(".svc-image");
+  const picture = block(".svc-image img");
+  assert.match(box, /position:\s*relative/, "the picture's box is the positioning parent");
+  assert.ok(!/(?:min-)?height:\s*\d+%/.test(box), "the box takes no percentage height from the card");
+  assert.match(picture, /position:\s*absolute/, "the picture fills the box without adding to the card's height");
+  assert.ok(!/min-height/.test(picture), "no height of its own that could stick");
 });
