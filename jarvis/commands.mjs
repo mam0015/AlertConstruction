@@ -109,8 +109,14 @@ const bare = (raw) => stripPossessive(raw.replace(/^[\s"'(\[{.,:;!?\-]+|[\s"')\]
 const STRONG = new Set(`set give assign create add make put enter record log book schedule send write post tell message messages msg text notify remind ping inform let know
 task tasks todo todos assignment assigned allocate hand ask please pls kindly can could would will you i we
 calendar diary entry reminder
-تسک وظیفه بذار بگذار بده بدی بساز ایجاد ست کن تعریف ثبت اضافه وارد بنویس بفرست بگو بگیر پیام خبر اطلاع یادآوری تقویم لطفا خواهشا بکن بکنی بزن
-task bezar bezari bede bedi bokon kon bego begoo peyam yadavari sabt vared ezafe lotfan`.split(/\s+/));
+تسک وظیفه بذار بگذار بده بدی بساز ایجاد ست کن تعریف ثبت اضافه وارد بنویس بفرست بگو بگیر پیام خبر اطلاع یادآوری تقویم لطفا خواهشا بکن بکنی بزن یادم بنداز
+task bezar bezari bede bedi bokon kon bego begoo peyam yadavari sabt vared ezafe lotfan yadam bendaz`.split(/\s+/));
+// Words that only say how important a task is. Before the word "task" ("set an urgent task for Sue") they are part of the frame, not the Owner's words.
+const PRIORITY_LEAD = new Set("urgent urgently important priority high low normal top asap critical emergency فوری مهم اولویت بالا پایین fori mohem".split(" "));
+const MAX_GROUP = 5;
+// "everyone", "the whole team": a message goes to the team channel in one card; tasks and calendar entries become one card each for up to five people.
+const TEAM_PERSON = { email: "*", name: "The whole team", role: "Team" };
+const GROUP = /(?<![\p{L}])(?:everyone|everybody|all (?:the )?(?:staff|workers|guys|team|crew|employees)|the whole (?:team|crew|staff)|whole team|the (?:team|crew|staff)|all of them)(?![\p{L}])|همه(?:‌| )?ی? (?:تیم|بچه‌?ها|بچه ها|افراد|کارکنان)|همگی|(?<![\p{L}])همه(?![\p{L}])/u;
 const CONNECT = new Set(`to for of on in at into by from with about regarding that as and then so also now just them him her his their it
 برای به را رو که تا از در با و هم ام است`.split(/\s+/));
 // "be", "ro", "ke" … are Persian-in-Latin-letters words but also plain English ("to be on site"): they count as frame words only in a sentence that is clearly Finglish.
@@ -139,6 +145,31 @@ function nextWeekday(today, weekday) {
   if (delta === 0) delta = 7;
   return addDays(today, delta);
 }
+const mondayOf = (date) => addDays(date, -((weekdayOf(date) + 6) % 7));
+// "the 5th": the next 5th (this month's if it has not passed); for a bill already paid, the most recent one.
+function dayOfMonth(today, day, past) {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  for (let step = 0; step < 14; step += 1) {
+    const offset = past ? -step : step;
+    const index = month - 1 + offset;
+    const found = realDate(year + Math.floor(index / 12), ((index % 12) + 12) % 12 + 1, day);
+    if (found && (past ? found <= addDays(today, 1) : found >= today)) return found;
+  }
+  return "";
+}
+// A weekday with the little words people put round it. "next Friday" said on a Thursday is the Friday of NEXT week, not tomorrow; "last Monday" is in the past;
+// "Friday next week" is the Friday of next week; a bill already paid ("on Monday") is the most recent Monday.
+function weekdayDate(today, weekday, { modifier = "", nextWeek = false, past = false } = {}) {
+  const todayDow = weekdayOf(today);
+  if (nextWeek) return addDays(addDays(mondayOf(today), 7), (weekday + 6) % 7);
+  if (modifier === "last") return addDays(today, -(((todayDow - weekday + 7) % 7) || 7));
+  if (modifier === "next") { const coming = nextWeekday(today, weekday); return mondayOf(coming) === mondayOf(today) ? addDays(coming, 7) : coming; }
+  if (modifier === "this" && weekday === todayDow) return today;
+  if (past) return addDays(today, -((todayDow - weekday + 7) % 7));
+  return nextWeekday(today, weekday);
+}
+const COUNT_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
 // A date without a year means the next time it comes round.
 function yearless(today, month, day, past = false) {
   const year = Number(today.slice(0, 4));
@@ -180,31 +211,108 @@ export function parseDate(f, today, { past = false } = {}) {
     if (date) return { date, start: m.index, end: m.index + m[0].length };
   }
   const relative = [
+    [new RegExp(`day before yesterday|پریروز`, "u"), -2],
+    [new RegExp(`${NOT_LETTER_BEFORE}(?:yesterday|dirooz)${NOT_LETTER_AFTER}|دیروز`, "u"), -1],
     [new RegExp(`day after tomorrow|پس ?فردا|${NOT_LETTER_BEFORE}pas ?farda${NOT_LETTER_AFTER}`, "u"), 2],
     [new RegExp(`${NOT_LETTER_BEFORE}(?:tomorrow|tmrw|tmw|farda|فردا)${NOT_LETTER_AFTER}`, "u"), 1],
     [new RegExp(`${NOT_LETTER_BEFORE}(?:today|tonight|emrooz|امروز|امشب)${NOT_LETTER_AFTER}`, "u"), 0],
   ];
   for (const [pattern, days] of relative) if ((m = pattern.exec(f))) return { date: addDays(today, days), start: m.index, end: m.index + m[0].length };
+  // "in 3 days", "in two weeks"
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}in\\s+(\\d{1,3}|${Object.keys(COUNT_WORDS).join("|")})\\s+(day|days|week|weeks)${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    const count = COUNT_WORDS[m[1]] ?? Number(m[1]);
+    const days = /^week/.test(m[2]) ? count * 7 : count;
+    if (days >= 0 && days <= 400) return { date: addDays(today, days), start: m.index, end: m.index + m[0].length };
+  }
+  // "end of the month"
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}end of (?:the |this )?month${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    const year = Number(today.slice(0, 4));
+    const month = Number(today.slice(5, 7));
+    return { date: addDays(realDate(year + (month === 12 ? 1 : 0), month === 12 ? 1 : month + 1, 1), -1), start: m.index, end: m.index + m[0].length };
+  }
+  // "on the 5th" (a day of the month; a month name next to it was read above)
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    const date = dayOfMonth(today, Number(m[1]), past);
+    if (date) return { date, start: m.index, end: m.index + m[0].length };
+  }
   for (const [name, weekday] of WEEKDAYS_FA) {
-    const found = new RegExp(`${NOT_LETTER_BEFORE}${name}${NOT_LETTER_AFTER}`, "u").exec(f);
-    if (found) return { date: nextWeekday(today, weekday), start: found.index, end: found.index + found[0].length };
+    const found = new RegExp(`${NOT_LETTER_BEFORE}${name}${NOT_LETTER_AFTER}(?:\\s+(آینده|بعدی|بعد))?`, "u").exec(f);
+    if (found) return { date: weekdayDate(today, weekday, { modifier: found[1] ? "next" : "", past }), start: found.index, end: found.index + found[0].length };
   }
   for (const [name, weekday] of Object.entries(WEEKDAYS_FINGLISH)) {
     const found = new RegExp(`${NOT_LETTER_BEFORE}${name}${NOT_LETTER_AFTER}`, "u").exec(f);
-    if (found) return { date: nextWeekday(today, weekday), start: found.index, end: found.index + found[0].length };
+    if (found) return { date: weekdayDate(today, weekday, { past }), start: found.index, end: found.index + found[0].length };
   }
-  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:(?:next|this|on|by|every)\\s+)?(${Object.keys(WEEKDAYS).join("|")})${NOT_LETTER_AFTER}`, "u").exec(f))) {
-    return { date: nextWeekday(today, WEEKDAYS[m[1]]), start: m.index, end: m.index + m[0].length };
+  const longNames = Object.keys(WEEKDAYS).join("|");
+  const shortNames = Object.keys(WEEKDAYS_SHORT).join("|");
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:(next|this|last|on|by|every|coming|upcoming)\\s+)?(next week\\s+)?(${longNames})${NOT_LETTER_AFTER}(\\s+(?:of\\s+)?next week${NOT_LETTER_AFTER})?`, "u").exec(f))) {
+    const modifier = ["next", "this", "last"].includes(m[1]) ? m[1] : "";
+    return { date: weekdayDate(today, WEEKDAYS[m[3]], { modifier, nextWeek: Boolean(m[2] || m[4]), past }), start: m.index, end: m.index + m[0].length };
   }
-  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:next|this|on|by)\\s+(${Object.keys(WEEKDAYS_SHORT).join("|")})${NOT_LETTER_AFTER}`, "u").exec(f))) {
-    return { date: nextWeekday(today, WEEKDAYS_SHORT[m[1]]), start: m.index, end: m.index + m[0].length };
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(next|this|last|on|by)\\s+(${shortNames})${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    const modifier = ["next", "this", "last"].includes(m[1]) ? m[1] : "";
+    return { date: weekdayDate(today, WEEKDAYS_SHORT[m[2]], { modifier, past }), start: m.index, end: m.index + m[0].length };
   }
   return null;
 }
 
+// "Friday and Monday", "Monday, Tuesday and Wednesday": every day named, joined by "and" / commas. The first is what parseDate finds; the others only count when they
+// follow it directly, so a stray date elsewhere in the sentence is not swallowed.
+export function parseDates(f, today, options = {}) {
+  const first = parseDate(f, today, options);
+  if (!first) return [];
+  if (first.jalali) return [first];
+  const hits = [];
+  let masked = f;
+  while (hits.length < 6) {
+    const hit = parseDate(masked, today, options);
+    if (!hit || hit.jalali) break;
+    hits.push(hit);
+    masked = masked.slice(0, hit.start) + " ".repeat(hit.end - hit.start) + masked.slice(hit.end);
+  }
+  hits.sort((x, y) => x.start - y.start);
+  // "from Monday to Wednesday", "between the 3rd and the 5th", "تا": every day in between (at most 31) is one entry's days, and the whole phrase is claimed as the date.
+  for (let at = 0; at + 1 < hits.length; at += 1) {
+    const left = hits[at];
+    const right = hits[at + 1];
+    const lead = /(?:^|[\s,])(from|between|از)\s*$/u.exec(f.slice(0, left.start));
+    const between = lead?.[1] === "between";
+    const gap = f.slice(left.end, right.start);
+    if (!(between ? /^\s*(?:and|&|-|to)\s*$/u : /^\s*(?:to|until|till|through|thru|-|تا|الی)\s*$/u).test(gap)) continue;
+    const span = (Date.parse(`${right.date}T00:00:00Z`) - Date.parse(`${left.date}T00:00:00Z`)) / dayMs;
+    if (!Number.isInteger(span) || span < 1 || span > 365) continue;
+    const days = Array.from({ length: span + 1 }, (_, index) => addDays(left.date, index));
+    hits.splice(at, 2, { date: left.date, days, start: lead ? lead.index + lead[0].lastIndexOf(lead[1]) : left.start, end: right.end });
+  }
+  const joined = (left, right) => /^\s*(?:,|&|and|و|،)?\s*(?:,|&|and|و|،)?\s*$/u.test(f.slice(left.end, right.start));
+  let best = [hits.find((hit) => hit.start <= first.start && hit.end >= first.end) ?? first];
+  for (let at = 0; at < hits.length; at += 1) {
+    const chain = [hits[at]];
+    while (hits[at + chain.length] && joined(chain.at(-1), hits[at + chain.length]) && chain.length < 5) chain.push(hits[at + chain.length]);
+    if (chain.length > best.length) best = chain;
+  }
+  return best;
+}
+
 // "1pm", "13:30", "at 9am", "ساعت ۱۰ صبح". Returns { time: "HH:MM", start, end } or null.
+const HOUR_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+// A time without am/pm: 1 to 6 is the afternoon ("meeting at 3"), 7 to 11 the morning ("start at 7"), 12 is noon. Whatever is chosen is shown on the card.
+const guessHour = (hour) => (hour >= 1 && hour <= 6 ? hour + 12 : hour);
+const clock = (hour, minute) => `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 export function parseTime(f) {
   let m;
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:at\\s+)?(noon|midday|midnight)${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    return { time: m[1] === "midnight" ? "00:00" : "12:00", start: m.index, end: m.index + m[0].length };
+  }
+  if ((m = new RegExp(`${NOT_LETTER_BEFORE}(?:at\\s+)?(half|quarter)\\s+(past|to)\\s+(\\d{1,2}|${Object.keys(HOUR_WORDS).join("|")})(?:\\s*(am|pm))?${NOT_LETTER_AFTER}`, "u").exec(f))) {
+    let hour = HOUR_WORDS[m[3]] ?? Number(m[3]);
+    if (hour >= 1 && hour <= 12 && !(m[1] === "half" && m[2] === "to")) {
+      const minute = m[1] === "half" ? 30 : m[2] === "past" ? 15 : 45;
+      if (m[2] === "to") hour = hour === 1 ? 12 : hour - 1;
+      hour = m[4] ? (m[4] === "pm" ? (hour === 12 ? 12 : hour + 12) : hour === 12 ? 0 : hour) : guessHour(hour);
+      return { time: clock(hour % 24, minute), start: m.index, end: m.index + m[0].length };
+    }
+  }
   if ((m = /(?:\bat\s+|@\s*)?(?<![\d:.])(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)(?![\p{L}])/u.exec(f))) {
     let hour = Number(m[1]);
     if (hour >= 1 && hour <= 12) {
@@ -213,19 +321,33 @@ export function parseTime(f) {
       return { time: `${String(hour).padStart(2, "0")}:${m[2] ?? "00"}`, start: m.index, end: m.index + m[0].length };
     }
   }
-  if ((m = /(?<![\d.:/])([01]?\d|2[0-3]):([0-5]\d)(?![\d:/])/.exec(f))) {
-    return { time: `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`, start: m.index, end: m.index + m[0].length };
+  if ((m = /(?<![\d.:/])(0?\d|1\d|2[0-3]):([0-5]\d)(?![\d/]|:\d)/.exec(f))) {
+    // "8:00" is 8 in the morning, "2:30" is half past two in the afternoon; a leading zero or an hour above 12 is the 24-hour clock as written.
+    const hour = m[1].startsWith("0") || Number(m[1]) >= 10 ? Number(m[1]) : guessHour(Number(m[1]));
+    return { time: clock(hour % 24, Number(m[2])), start: m.index, end: m.index + m[0].length };
   }
-  if ((m = /(?:ساعت|\bsaat\b|\bat\b)\s*(\d{1,2})(?::(\d{2}))?(?:\s*(صبح|ظهر|بعد ?از ?ظهر|عصر|شب|morning|afternoon|evening|night))?/u.exec(f))) {
+  if ((m = /(?:ساعت|\bsaat\b|\bat\b)\s*(\d{1,2})(?::(\d{2}))?(?:\s*o'?clock)?(?:\s*(صبح|ظهر|بعد ?از ?ظهر|عصر|شب|morning|afternoon|evening|night))?/u.exec(f))) {
     let hour = Number(m[1]);
     if (hour > 23) return null;
     const part = m[3] ?? "";
     if (/بعد|عصر|شب|afternoon|evening|night/.test(part) && hour < 12) hour += 12;
     else if (/ظهر/.test(part) && hour < 11) hour += 12;
+    else if (!part && !m[2] && hour >= 1 && hour <= 6) hour += 12;
+    else if (!part && m[2] && hour >= 1 && hour <= 6) hour += 12;
     return { time: `${String(hour).padStart(2, "0")}:${m[2] ?? "00"}`, start: m.index, end: m.index + m[0].length };
   }
   return null;
 }
+
+// A clock time that cannot exist ("25:00", "at 99") is not dropped silently: the caller asks. { text, start, end } or null.
+export function findBadTime(f) {
+  const colon = /(?<![\d.:/])(\d{1,2}):(\d{2})(?![\d/]|:\d)/.exec(f);
+  if (colon && (Number(colon[1]) > 23 || Number(colon[2]) > 59)) return { text: colon[0], start: colon.index, end: colon.index + colon[0].length };
+  const at = /(?:ساعت|\bsaat\b|\bat\b)\s*(\d{2,3})(?![\d:])/u.exec(f);
+  if (at && Number(at[1]) > 23) return { text: at[0].trim(), start: at.index, end: at.index + at[0].length };
+  return null;
+}
+export const badTime = (f) => findBadTime(f)?.text ?? "";
 
 // ---------- Money ----------
 
@@ -233,7 +355,29 @@ const LARGE = 10_000_000_000; // cents: $100,000,000, the same ceiling the finan
 const UNIT = "(k|grand|thousand|هزار|hezar|m|million|میلیون|milion)";
 
 // "$320", "320 dollars", "1,250.50", "5k", "2.5 grand", "۵ هزار دلار"; a bare number ("5000") counts only when allowBare. Returns { cents, start, end } or null.
+const NUMBER_UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const NUMBER_TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const NUMBER_WORD = [...Object.keys(NUMBER_UNITS), ...Object.keys(NUMBER_TENS), "hundred", "thousand", "million", "grand"].join("|");
+// "five hundred", "two thousand five hundred", "twenty five", "a grand" (spoken amounts)
+function wordsToNumber(text) {
+  let total = 0;
+  let current = 0;
+  let seen = false;
+  for (const word of text.split(/[\s-]+/)) {
+    if (word === "and" || word === "a") continue;
+    if (word in NUMBER_UNITS) { current += NUMBER_UNITS[word]; seen = true; }
+    else if (word in NUMBER_TENS) { current += NUMBER_TENS[word]; seen = true; }
+    else if (word === "hundred") { current = (current || 1) * 100; seen = true; }
+    else if (word === "thousand" || word === "grand") { total += (current || 1) * 1000; current = 0; seen = true; }
+    else if (word === "million") { total += (current || 1) * 1_000_000; current = 0; seen = true; }
+    else return NaN;
+  }
+  return seen ? total + current : NaN;
+}
+
 export function parseAmount(f, { allowBare = false } = {}) {
+  // More than two decimals ("$320.456") is not an amount of dollars and cents: it is never rounded or cut, the caller asks.
+  if (/\$\s*\d[\d,]*\.\d{3,}|(?<![\d.])\d[\d,]*\.\d{3,}\s*(?:dollars?|aud|bucks|k|grand)(?![\p{L}])/u.test(f)) return { invalid: true, cents: NaN };
   const scale = (value, unit) => {
     const number = Number(String(value).replace(/,/g, ""));
     if (!Number.isFinite(number)) return NaN;
@@ -245,6 +389,7 @@ export function parseAmount(f, { allowBare = false } = {}) {
     new RegExp(`(?:aud\\s*)?\\$\\s*(\\d[\\d,]*(?:\\.\\d{1,2})?)\\s*${UNIT}?${NOT_LETTER_AFTER}`, "u"),
     new RegExp(`${NOT_LETTER_BEFORE}(\\d[\\d,]*(?:\\.\\d{1,2})?)\\s*${UNIT}?\\s*(?:dollars?|aud|bucks|\\$|دلاری?|dolar)${NOT_LETTER_AFTER}`, "u"),
     new RegExp(`${NOT_LETTER_BEFORE}(\\d[\\d,]*(?:\\.\\d{1,2})?)\\s*(k|grand)${NOT_LETTER_AFTER}`, "u"),
+    new RegExp(`${NOT_LETTER_BEFORE}aud\\s*(\\d[\\d,]*(?:\\.\\d{1,2})?)\\s*${UNIT}?${NOT_LETTER_AFTER}`, "u"),
   ];
   for (const pattern of candidates) {
     const m = pattern.exec(f);
@@ -252,6 +397,12 @@ export function parseAmount(f, { allowBare = false } = {}) {
       const value = scale(m[1], m[2]);
       if (Number.isFinite(value)) return { cents: Math.round(value * 100), start: m.index, end: m.index + m[0].length };
     }
+  }
+  const spoken = new RegExp(`${NOT_LETTER_BEFORE}((?:(?:a|and|${NUMBER_WORD})[\\s-]+)*(?:${NUMBER_WORD}))(?:\\s+(?:dollars?|bucks|aud))?${NOT_LETTER_AFTER}`, "u").exec(f);
+  // Words without a currency ("two thousand bricks") count only where the sentence is already a money entry (allowBare).
+  if (spoken && (allowBare || /(?:dollars?|bucks|aud|grand)\s*$/.test(spoken[0]) || /grand/.test(spoken[1]))) {
+    const value = wordsToNumber(spoken[1]);
+    if (Number.isFinite(value) && value > 0) return { cents: Math.round(value * 100), start: spoken.index, end: spoken.index + spoken[0].length };
   }
   if (allowBare) {
     const m = /(?<![\p{L}\d.\-/:$])(\d[\d,]*(?:\.\d{1,2})?)(?![\p{L}\d.\-/:])/u.exec(f);
@@ -267,11 +418,11 @@ export function parseAmount(f, { allowBare = false } = {}) {
 export const formatMoney = (cents) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: Number(cents ?? 0) % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(Number(cents ?? 0) / 100);
 
 const CATEGORY_WORDS = [
-  ["Materials", /(?<![\p{L}])(?:materials?|tiles?|timber|paint|grout|cement|concrete|bricks?|plaster\w*|gyprock|insulation|steel|pipes?|cable|wiring|supplies|hardware|lumber|glass|flooring|cabinets?|benchtops?|bunnings|مصالح|کاشی|رنگ|سیمان|چوب|لوله|مواد)(?![\p{L}])/u],
-  ["Labour", /(?<![\p{L}])(?:labou?r|wages?|payroll|salary|salaries|casuals?|overtime|دستمزد|حقوق|کارگر)(?![\p{L}])/u],
+  ["Materials", /(?<![\p{L}])(?:materials?|tiles?|timber|paint|grout|cement|concrete|bricks?|plaster\w*|gyprock|insulation|steel|pipes?|cable|wiring|supplies|hardware|lumber|glass|flooring|cabinets?|benchtops?|bunnings|مصالح|کاشی|رنگ|سیمان|چوب|لوله|مواد|kashi|siman|choob|lule)(?![\p{L}])/u],
+  ["Labour", /(?<![\p{L}])(?:labou?r|wages?|payroll|salary|salaries|casuals?|overtime|دستمزد|حقوق|کارگر|dastmozd|hoghoogh|hoghugh)(?![\p{L}])/u],
   ["Subcontractors", /(?<![\p{L}])(?:sub-?contract\w*|plumber|plumbing|electrician|electrical|tiler|carpenter|roofer|painter|concreter|bricklayer|پیمانکار)(?![\p{L}])/u],
   ["Equipment hire", /(?<![\p{L}])(?:hire|rental|equipment|scaffold\w*|skip bin|excavator|machinery|tools?|ابزار|اجاره)(?![\p{L}])/u],
-  ["Fuel", /(?<![\p{L}])(?:fuel|petrol|diesel|servo|بنزین|گازوئیل|سوخت)(?![\p{L}])/u],
+  ["Fuel", /(?<![\p{L}])(?:fuel|petrol|diesel|servo|بنزین|گازوئیل|سوخت|benzin)(?![\p{L}])/u],
   ["Permits and fees", /(?<![\p{L}])(?:permits?|council|fees?|insurance|licen[cs]e|engineer|engineering|مجوز|شهرداری|بیمه|عوارض)(?![\p{L}])/u],
   ["Deposit", /(?<![\p{L}])(?:deposits?|down ?payment|پیش ?پرداخت|بیعانه)(?![\p{L}])/u],
   ["Progress payment", /(?<![\p{L}])(?:progress (?:payment|claim)|stage payment|claim)(?![\p{L}])/u],
@@ -290,7 +441,11 @@ function guessCategory(f, known = []) {
 
 const INCOME = /(?<![\p{L}])(?:income|revenue|received|receive|deposits?|payment from|paid by|paid us|(?:client|customer) paid|progress payment|final payment|got paid|invoice paid|درآمد|دریافت(?:ی)?|واریز|بیعانه|پیش ?پرداخت|daramad|daryaft|variz)(?![\p{L}])/u;
 const EXPENSE = /(?<![\p{L}])(?:expenses?|expenditure|outcome|spent|spend|cost|costs|bought|buy|purchase[ds]?|paid for|paid to|paid|bill|supplier|wages?|هزینه|خرج|خرید|پرداخت|hazine|kharj|kharid|pardakht)(?![\p{L}])/u;
-const FINANCE_NOUN = /(?<![\p{L}])(?:finance|financial|money|ledger|expenses?|income|outcome|revenue|costs?|spent|deposits?|payments?|invoices?|paid|bought|مالی|پول|هزینه|درآمد|دریافت|واریز|پرداخت|فاکتور|خرید)(?![\p{L}])/u;
+const FINANCE_NOUN = /(?<![\p{L}])(?:finance|financial|money|ledger|expenses?|income|outcome|revenue|costs?|spent|deposits?|payments?|invoices?|paid|bought|refund(?:ed|s)?|مالی|پول|هزینه|درآمد|دریافت|واریز|پرداخت|فاکتور|خرید)(?![\p{L}])/u;
+// "customer paid", "paid by", "invoice paid" mean money IN even though they contain "paid"; without them "paid" is money OUT.
+const INCOME_PAID = /(?<![\p{L}])(?:(?:client|customer|invoice|got) paid|paid (?:by|us)|payment from)(?![\p{L}])/gu;
+const EXPENSE_CATEGORIES = new Set(["Materials", "Labour", "Subcontractors", "Equipment hire", "Fuel", "Permits and fees"]);
+const INCOME_CATEGORIES = new Set(["Deposit", "Progress payment", "Final payment"]);
 // The words that only say income-or-expense; they are not part of the note. (Words like "wages" or "fuel" say WHAT it was and stay in the note.)
 const TYPE_ONLY = /^(?:income|revenue|received|receive|expenses?|expenditure|outcome|spent|spend|costs?|paid|bought|purchased?|درآمد|هزینه|دریافت|واریز|پرداخت|خرج|خرید|daramad|hazine)$/u;
 const ENTER_VERB = /(?<![\p{L}])(?:enter|add|log|record|put|book|post|register|note|create|make|input|save|insert|set|spent|paid|bought|received)(?![\p{L}])|ثبت|وارد|اضافه|بنویس|بزن|بذار|بگذار|بساز|(?<![\p{L}])(?:sabt|vared|ezafe|benevis)(?![\p{L}])/u;
@@ -310,14 +465,14 @@ const projectLabel = (project) => `${project.code} — ${project.name || project
 
 // Which project does the sentence mean? A code is exact. Otherwise a customer's, project's or suburb's name must appear and one project must stand out.
 // { project, words } | { ambiguous: [...] } | { unknown: "CODE" } | { general: true } | null (none mentioned)
-export function findProject(f, projects, { skip = new Set() } = {}) {
+export function findProject(f, projects, { skip = new Set(), skipWord = null } = {}) {
   const code = CODE_SHAPE.exec(f);
   if (code) {
     const exact = projects.find((project) => fold(project.code) === code[0] || (project.requestCode && fold(project.requestCode) === code[0]));
     return exact ? { project: exact, words: [], span: [code.index, code.index + code[0].length] } : { unknown: code[0].toUpperCase() };
   }
   if (/(?<![\p{L}])(?:business\s*\/?\s*general|general (?:expenses?|business|overheads?)|overheads?|company (?:expense|cost)s?)(?![\p{L}])|هزینه (?:های )?(?:شرکت|عمومی)|(?<![\p{L}])عمومی(?![\p{L}])/u.test(f)) return { general: true };
-  const words = (f.match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => word.length >= 3 && !PROJECT_STOP.has(word) && !skip.has(word));
+  const words = (f.match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => word.length >= 3 && !PROJECT_STOP.has(word) && !skip.has(word) && !(skipWord && skipWord(word)));
   if (!words.length || !projects.length) return null;
   const scored = projects.map((project) => {
     const known = projectWords(project);
@@ -333,7 +488,7 @@ export function findProject(f, projects, { skip = new Set() } = {}) {
 
 // The sentence is "frame + the Owner's own words (+ frame)". The frame is made of command words, little linking words, team members' names, dates, times and the project.
 // It is peeled off both ends; what is left is returned exactly as the Owner wrote it. People found in the frame are the recipients.
-function peel(original, folded, ctx, { claimed = [], strong = STRONG, owner, people: findPeople = true } = {}) {
+function peel(original, folded, ctx, { claimed = [], strong = STRONG, owner, people: findPeople = true, leadFrame = null } = {}) {
   const tokens = tokenize(folded);
   const finglish = FINGLISH_MARK.test(folded);
   const inClaim = (token) => claimed.some(([a, b]) => token.start >= a && token.end <= b);
@@ -364,7 +519,7 @@ function peel(original, folded, ctx, { claimed = [], strong = STRONG, owner, peo
   const consumed = [];
   let seenPerson = false;
   while (first <= last) {
-    const kind = classify(tokens[first], first);
+    const kind = classify(tokens[first], first) ?? (leadFrame?.has(bare(tokens[first].raw)) ? "frame" : null);
     if (!kind) break;
     consumed.push([first, kind]);
     if (kind === "person" || kind === "self" || kind === "ambiguous") seenPerson = true;
@@ -372,11 +527,23 @@ function peel(original, folded, ctx, { claimed = [], strong = STRONG, owner, peo
     // "tell Sara TO send the invoices", "set a task for Ali THAT …": after the person, these words end the frame, so a verb that follows is the Owner's own.
     if (seenPerson && kind === "frame" && STOPPERS.has(bare(tokens[first - 1].raw))) break;
   }
+  // "tell Ben, Tom and Sue …" where Tom is not on the team: the list stops at Tom, and Tom would silently end up in the words of the message. Said instead.
+  let unknownInList = "";
+  if (seenPerson && first <= last && findPeople) {
+    const before = tokens[first - 1];
+    const here = tokens[first];
+    const next = tokens[first + 1];
+    const listed = /,$/.test(before.raw) || (/^(?:and|&|و)$/.test(bare(before.raw)) && first >= 2 && ["person", "ambiguous", "self"].includes(classify(tokens[first - 2], first - 2) ?? ""));
+    const looksLikeName = /^[\p{Lu}][\p{L}'.-]{1,24},?$/u.test(original.slice(here.start, here.end));
+    if (listed && looksLikeName && (/,$/.test(here.raw) || (next && /^(?:and|&|و)$/.test(bare(next.raw))))) unknownInList = original.slice(here.start, here.end).replace(/,$/, "");
+  }
   // A run of articles right before the Owner's own words belongs to those words.
   while (first > 0 && classify(tokens[first - 1], first - 1) === "article" && first <= last) first -= 1;
   while (last >= first) {
     const kind = classify(tokens[last], last);
     if (!kind) break;
+    // Once the recipient is named in front ("tell Ben to call Ali"), a name at the end is part of what is said, not another recipient.
+    if (seenPerson && (kind === "person" || kind === "ambiguous" || kind === "self")) break;
     consumed.push([last, kind]);
     last -= 1;
   }
@@ -386,7 +553,7 @@ function peel(original, folded, ctx, { claimed = [], strong = STRONG, owner, peo
   const quoted = /^(["'«“‘])([\s\S]*)(["'»”’])$/u.exec(content);
   if (quoted && !/["'«»“”‘’]/u.test(quoted[2])) content = quoted[2].trim();
   // `before` is the frame word right in front of the Owner's words ("about", "to" …): "tell Ali about Thursday" names a topic, "tell Ali to come at 7" gives words.
-  return { content, people: [...people.values()], ambiguous, before: first > 0 ? bare(tokens[first - 1].raw) : "", frame };
+  return { content, people: [...people.values()], ambiguous, before: first > 0 ? bare(tokens[first - 1].raw) : "", frame, unknownInList };
 }
 
 function sentenceCase(text) {
@@ -461,17 +628,25 @@ function fresh(originalFull, foldedFull, ctx) {
   const hasCalendar = CALENDAR_WORD.test(colon ? colon.headFolded : folded);
   const create = CREATE_VERB.test(colon ? colon.headFolded : folded);
   const money = parseAmount(folded);
-  const financeish = FINANCE_NOUN.test(folded) || INCOME.test(folded) || EXPENSE.test(folded);
+  // "fuel $85 yesterday", "300 aud tiles Kew": an amount with a currency and a thing bought is a money entry even without "enter" or "expense".
+  const financeish = FINANCE_NOUN.test(folded) || INCOME.test(folded) || EXPENSE.test(folded) || Boolean(money && !money.invalid && guessCategory(folded, ctx.categories ?? []));
 
-  if (question) return readIntent(folded, ctx);
+  if (question) return readIntent(folded, ctx, original);
+  // Jarvis records money, it does not move it.
+  if (/^(?:pay|transfer|wire)(?![\p{L}])|^send (?:money|payment|\$)|پرداخت کن|واریز کن|انتقال بده/u.test(folded)) {
+    return { kind: "say", say: { en: "I can't pay anyone or move money. I can only record that it was paid, for example “I paid $4,000 to the supplier”.", fa: "من نمی‌توانم پرداخت کنم یا پول جابه‌جا کنم. فقط می‌توانم ثبت کنم که پرداخت شده، مثلاً «۴۰۰۰ دلار به تأمین‌کننده پرداخت کردم»." } };
+  }
 
+  if (isSelfReminder(folded, ctx)) return selfReminder(original, folded, ctx, persian);
   if (hasTask && (create || colon)) return buildPerson("task", original, folded, ctx, persian);
   if (hasCalendar && !hasMessage && (create || parseDate(folded, ctx.today) || colon)) return buildPerson("calendar", original, folded, ctx, persian);
+  // "schedule a site visit on Monday at 9", "book Sue for Friday 10am": no word "calendar" needed.
+  if (!hasMessage && !money && /^(?:please\s+)?(?:schedule|arrange|organi[sz]e|set up|book(?: in)?)(?![\p{L}])/u.test(folded)) return buildPerson("calendar", original, folded, ctx, persian);
   if (hasMessage) return buildPerson("message", original, folded, ctx, persian);
   if (financeish && (money || (ENTER_VERB.test(folded) && parseAmount(maskCodes(folded), { allowBare: true })))) return buildFinance(original, folded, ctx, persian);
   if (money && /(?<![\p{L}])(?:enter|add|log|record|register)(?![\p{L}])|ثبت کن/u.test(folded)) return buildFinance(original, folded, ctx, persian);
   if (financeish && ENTER_VERB.test(folded) && /(?<![\p{L}])(?:entry|entries|expense|income)(?![\p{L}])|ثبت/u.test(folded) && !hasTask) return buildFinance(original, folded, ctx, persian);
-  return readIntent(folded, ctx);
+  return readIntent(folded, ctx, original);
 }
 
 // ---- task / message / calendar: a person, plus what to say ----
@@ -513,24 +688,59 @@ function projectClaims(folded, projectHit) {
   return spans;
 }
 
+// "remind me …": a day in it makes a calendar entry for the Owner, no day a task for the Owner. (A reminder for someone else is a message.)
+const REMIND_ME = /^(?:please\s+)?remind me(?![\p{L}])|^(?:please\s+)?set (?:me )?a reminder(?![\p{L}])|^یادم بنداز|^yadam bendaz/u;
+function isSelfReminder(folded, ctx) {
+  if (REMIND_ME.test(folded)) return true;
+  // Persian "یادآوری کن فردا ساعت ۹ به بانک زنگ بزنم" has no "me": it is a reminder for the Owner unless it names a team member.
+  if (/^(?:لطفا\s+)?یادآوری کن/u.test(folded)) { const named = peelNames(folded, ctx); return named.people.length === 0 && named.ambiguous.length === 0; }
+  return false;
+}
+function selfReminder(original, folded, ctx, persian) {
+  const when = parseDate(folded, ctx.today);
+  return buildPerson(when ? "calendar" : "task", original, folded, ctx, persian, { people: [ctx.owner], ownCalendar: Boolean(when) });
+}
+
 function buildPerson(intent, original, folded, ctx, persian, preset = {}) {
   const colon = splitAtColon(original, folded);
-  const dateHit = intent === "calendar" ? parseDate(folded, ctx.today) : null;
+  const dateHits = intent === "calendar" ? parseDates(folded, ctx.today) : [];
+  const dateHit = dateHits[0] ?? null;
   const clock = intent === "calendar" ? parseTime(folded) : null;
-  const projectHit = findProject(folded, ctx.projects, { skip: new Set(ctx.people.flatMap(personWords)) });
-  const claimed = [...projectClaims(folded, projectHit)];
-  if (dateHit && !dateHit.jalali) claimed.push([dateHit.start, dateHit.end]);
-  if (dateHit?.jalali) claimed.push([dateHit.start, dateHit.end]);
+  // A message says exactly what the Owner said: a project's name in it is part of the words, not a project to attach.
+  const projectHit = intent === "message" ? null : findProject(folded, ctx.projects, { skip: new Set(ctx.people.flatMap(personWords)), skipWord: (word) => Boolean(matchWord(word, ctx.people)) });
+  const claimed = intent === "message" ? [] : [...projectClaims(folded, projectHit)];
+  for (const hit of dateHits) claimed.push([hit.start, hit.end]);
   if (clock) claimed.push([clock.start, clock.end]);
+  // A time that cannot exist (25:00) is asked about below; its words are still part of the time, not of the title or the name of anyone.
+  const badClock = intent === "calendar" && !clock ? findBadTime(folded) : null;
+  if (badClock) claimed.push([badClock.start, badClock.end]);
+  const named = preset.people?.length ? null : peelNames(folded, ctx);
+  const groupHit = named && !named.people.length && !named.ambiguous.length ? GROUP.exec(folded) : null;
+  if (groupHit) claimed.push([groupHit.index, groupHit.index + groupHit[0].length]);
   const strong = intent === "calendar" ? CALENDAR_FRAME : STRONG;
+  const leadFrame = intent === "task" ? PRIORITY_LEAD : null;
   const peeled = colon
-    ? { ...peel(colon.headOriginal, colon.headFolded, ctx, { claimed, strong, owner: ctx.owner }), content: colon.tail, before: ":" }
-    : peel(original, folded, ctx, { claimed, strong, owner: ctx.owner });
+    ? { ...peel(colon.headOriginal, colon.headFolded, ctx, { claimed, strong, owner: ctx.owner, leadFrame }), content: colon.tail, before: ":" }
+    : peel(original, folded, ctx, { claimed, strong, owner: ctx.owner, leadFrame });
 
-  const recipients = preset.people?.length ? preset.people.map((person) => ({ person, self: person.email === ctx.owner.email })) : peeled.people;
+  let recipients = preset.people?.length ? preset.people.map((person) => ({ person, self: person.email === ctx.owner.email })) : peeled.people;
+  const calendarDates = intent === "calendar" ? (preset.dates?.length ? preset.dates : preset.date ? [preset.date] : dateHits.filter((hit) => !hit.jalali).flatMap((hit) => hit.days ?? [hit.date])) : [];
   const projectCode = preset.projectCode ?? (projectHit?.project?.code ?? "");
-  const slotsBase = { original, persian, projectCode, priority: preset.priority ?? priorityOf(folded), date: preset.date ?? (dateHit?.jalali ? "" : dateHit?.date ?? ""), time: preset.time ?? clock?.time ?? "", text: preset.text };
+  const slotsBase = { original, persian, projectCode, priority: preset.priority ?? priorityOf(folded), date: calendarDates[0] ?? preset.date ?? "", dates: calendarDates, time: preset.noTime ? "" : preset.time ?? clock?.time ?? "", text: preset.text };
 
+  if (peeled.unknownInList && !preset.people?.length) {
+    const list = names(ctx.people.filter((person) => person.role !== "Owner").slice(0, 12));
+    return ask("person", intent, slotsBase, { en: `I don't know anyone called “${peeled.unknownInList}” on the approved team.${list ? ` The team is: ${list}.` : ""} Tell me who it is for (the whole list again).`, fa: `کسی به اسم «${peeled.unknownInList}» در تیم تأییدشده نیست.${list ? ` تیم: ${list}.` : ""} بگویید برای چه کسانی است (کل فهرست را دوباره بگویید).` });
+  }
+
+  if (!recipients.length && groupHit) {
+    const members = ctx.people.filter((person) => person.role !== "Owner" && person.email !== ctx.owner.email);
+    if (intent === "message") recipients = [{ person: TEAM_PERSON, self: false }];
+    else if (members.length && members.length <= MAX_GROUP) recipients = members.map((person) => ({ person, self: false }));
+    else {
+      return ask("person", intent, slotsBase, { en: `I can prepare up to ${MAX_GROUP} ${intent === "task" ? "tasks" : "entries"} at a time, and the team has ${members.length} people. Tell me who it is for, for example “Ben, Tom and Sue”.`, fa: `هر بار حداکثر ${MAX_GROUP} مورد آماده می‌کنم و تیم ${members.length} نفر است. بگویید برای چه کسانی است، مثلاً «بن، تام و سو».` });
+    }
+  }
   if (!recipients.length) {
     if (peeled.ambiguous.length) {
       const options = peeled.ambiguous[0].options;
@@ -538,8 +748,18 @@ function buildPerson(intent, original, folded, ctx, persian, preset = {}) {
     }
     const name = unknownName(folded, original, claimed);
     const list = names(ctx.people.filter((person) => person.role !== "Owner").slice(0, 12));
-    // A calendar entry with no name at all is the Owner's own.
-    if (intent === "calendar" && !name) return buildPerson(intent, original, folded, ctx, persian, { ...preset, people: [ctx.owner], ownCalendar: true });
+    // A calendar entry with no name at all is the Owner's own. But if a team member is named somewhere in the sentence, "no name" is wrong: ask rather than
+    // quietly use the Owner's calendar.
+    if (intent === "calendar" && !name) {
+      const masked = folded.replace(/[^\s]+/gu, (word, at) => (claimed.some(([a, b]) => at >= a && at + word.length <= b) ? " ".repeat(word.length) : word));
+      const mentioned = peelNames(masked, ctx);
+      const others = mentioned.people.filter((person) => person.email !== ctx.owner.email);
+      if (others.length || mentioned.ambiguous.length) {
+        const seen = names(others.length ? others : mentioned.ambiguous[0].slice(0, 3));
+        return ask("person", intent, slotsBase, { en: `Whose calendar should this go in? I saw ${seen} in your sentence. Say a name, or “mine” for your own.`, fa: `در تقویم چه کسی بگذارم؟ در جمله‌ی شما ${seen} را دیدم. یک اسم بگویید، یا «مال خودم» برای تقویم خودتان.` });
+      }
+      return buildPerson(intent, original, folded, ctx, persian, { ...preset, people: [ctx.owner], ownCalendar: true });
+    }
     return ask("person", intent, slotsBase, {
       en: name ? `I don't know anyone called “${name}” on the approved team.${list ? ` The team is: ${list}.` : ""} Who did you mean?` : `Who should I ${VERB[intent]}?${list ? ` The team is: ${list}.` : ""}`,
       fa: name ? `کسی به اسم «${name}» در تیم تأییدشده نیست.${list ? ` تیم: ${list}.` : ""} منظورتان کیست؟` : `برای چه کسی؟${list ? ` تیم: ${list}.` : ""}`,
@@ -555,12 +775,17 @@ function buildPerson(intent, original, folded, ctx, persian, preset = {}) {
     if (colon) {
       const tailFolded = fold(colon.tail);
       const tailClaims = [];
-      const tailDate = parseDate(tailFolded, ctx.today);
+      for (const tailDate of parseDates(tailFolded, ctx.today)) tailClaims.push([tailDate.start, tailDate.end]);
       const tailTime = parseTime(tailFolded);
-      if (tailDate) tailClaims.push([tailDate.start, tailDate.end]);
       if (tailTime) tailClaims.push([tailTime.start, tailTime.end]);
       content = peel(colon.tail, tailFolded, ctx, { claimed: tailClaims, strong: CALENDAR_FRAME, people: false }).content || colon.tail;
-    } else content = calendarTitle(original, folded, ctx, claimed);
+      content = withoutSpans(content, colon.tail, tailClaims);
+    } else content = withoutSpans(calendarTitle(original, folded, ctx, claimed), original, [...dateHits, ...(clock ? [clock] : [])].map((hit) => [hit.start, hit.end]));
+  }
+  // "give Ali a task to price the Kew job": with the project taken out only "price" would be left; then the project's words stay in the task.
+  if (intent === "task" && preset.text === undefined && !colon && projectHit?.project && tokenize(content ?? "").length < 2) {
+    const whole = peel(original, folded, ctx, { claimed: [], strong, owner: ctx.owner, leadFrame }).content;
+    if (tokenize(whole).length > tokenize(content ?? "").length) content = whole;
   }
   const wasReminder = intent === "message" && preset.text === undefined && /(?<![\p{L}])remind(?![\p{L}])|یادآوری کن/u.test(folded);
   const topicOnly = intent === "message" && preset.text === undefined && !wasReminder && ["about", "regarding"].includes(peeled.before);
@@ -577,14 +802,19 @@ function buildPerson(intent, original, folded, ctx, persian, preset = {}) {
 
   if (intent === "calendar") {
     if (dateHit?.jalali && !preset.date) return ask("date", intent, { ...withPeople, text: content }, { en: "I can't read Persian-calendar dates. Give the date as day/month (for example 3/11) or say tomorrow or Friday.", fa: "تاریخ شمسی را نمی‌خوانم. تاریخ را به صورت روز/ماه میلادی (مثلاً ۳/۱۱) بگویید، یا بگویید فردا یا جمعه." });
-    if (!slotsBase.date) return ask("date", intent, { ...withPeople, text: content }, { en: `Which day is “${shortTitle(content)}”? Say for example tomorrow, Friday or 3 November.`, fa: `«${shortTitle(content)}» چه روزی است؟ مثلاً بگویید فردا، جمعه یا ۳ نوامبر.` });
-    return { kind: "actions", persian, own: Boolean(preset.ownCalendar), actions: recipients.map((entry) => ({ type: "add_calendar", person: entry.person.email, title: shortTitle(content), text: "", dates: [slotsBase.date], startTime: slotsBase.time, projectCode, priority: "Normal" })) };
+    if (!slotsBase.dates.length) return ask("date", intent, { ...withPeople, text: content }, { en: `Which day is “${shortTitle(content)}”? Say for example tomorrow, Friday or 3 November.`, fa: `«${shortTitle(content)}» چه روزی است؟ مثلاً بگویید فردا، جمعه یا ۳ نوامبر.` });
+    const bad = badTime(folded);
+    if (bad && !preset.time && !preset.noTime) return ask("time", intent, { ...withPeople, text: content }, { en: `I can't read “${bad}” as a time. What time should it be? For example 9am or 14:30, or say “no time”.`, fa: `«${bad}» ساعت معتبری نیست. چه ساعتی باشد؟ مثلاً ۹ صبح یا ۱۴:۳۰، یا بگویید «بدون ساعت».` });
+    return { kind: "actions", persian, own: Boolean(preset.ownCalendar), actions: recipients.map((entry) => ({ type: "add_calendar", person: entry.person.email, title: shortTitle(content), text: "", dates: slotsBase.dates, startTime: slotsBase.time, projectCode, priority: "Normal" })) };
   }
   if (intent === "task") {
     return { kind: "actions", persian, actions: recipients.map((entry) => ({ type: "create_task", person: entry.person.email, title: shortTitle(content), text: sentenceCase(content), dates: [], startTime: "", projectCode, priority: slotsBase.priority })) };
   }
   const others = recipients.filter((entry) => !entry.self && entry.person.email !== ctx.owner.email);
-  if (!others.length) return { kind: "say", say: { en: "A message can't be sent to yourself. Who should I send it to?", fa: "پیام را نمی‌شود برای خودتان فرستاد. برای چه کسی بفرستم؟" } };
+  if (!others.length) {
+    if (wasReminder) return selfReminder(original, folded, ctx, persian);
+    return { kind: "say", say: { en: "A message can't be sent to yourself. Who should I send it to?", fa: "پیام را نمی‌شود برای خودتان فرستاد. برای چه کسی بفرستم؟" } };
+  }
   const text = wasReminder ? `Reminder: ${content}` : content;
   return { kind: "actions", persian, actions: others.map((entry) => ({ type: "send_message", person: entry.person.email, title: "", text: sentenceCase(text), dates: [], startTime: "", projectCode: "", priority: "Normal" })) };
 }
@@ -601,6 +831,20 @@ function unknownName(folded, original, claimed = []) {
   return original.slice(at, at + match[1].length).replace(/'s$/i, "");
 }
 
+// Days and times said in the middle of a title ("tiling starts Monday 7am at Kew") are on the card already; they are cut out of the title.
+function withoutSpans(content, source, spans) {
+  const at = source.indexOf(content);
+  if (!content || at < 0) return content;
+  let out = content;
+  for (const [start, end] of [...spans].sort((a, b) => b[0] - a[0])) {
+    const from = start - at;
+    const to = end - at;
+    if (from > 0 && to < out.length) out = `${out.slice(0, from)} ${out.slice(to)}`;
+  }
+  const cleaned = out.replace(/\s+/g, " ").trim();
+  return cleaned.length >= 2 ? cleaned : content;
+}
+
 const CALENDAR_FRAME = new Set([...STRONG, "on", "at", "in", "into", "to", "for", "by", "next", "this", "every", "calendar", "calendars", "diary", "agenda", "تقویم", "taghvim", "تو", "توی"]);
 function calendarTitle(original, folded, ctx, claimed) {
   return peel(original, folded, ctx, { claimed, strong: CALENDAR_FRAME, owner: ctx.owner }).content;
@@ -612,7 +856,7 @@ const FINANCE_FRAME = new Set([...STRONG, ...`expense expenses expenditure incom
 cost costs entry entries finance financial amount dollars dollar aud received receive got bought purchase purchased
 for on of from to at in by as the a an and project job site general business with towards toward
 ثبت وارد هزینه درآمد دلار خرج پرداخت واریز دریافت مالی بابت برای به از در با و را رو پروژه یک یه
-hazine daramad sabt vared proje pool`.split(/\s+/)]);
+hazine daramad sabt vared proje pool dated date ago last this`.split(/\s+/)]);
 
 function buildFinance(original, folded, ctx, persian, preset = {}) {
   const projectHit = findProject(folded, ctx.projects, { skip: new Set(ctx.people.flatMap(personWords)) });
@@ -623,12 +867,19 @@ function buildFinance(original, folded, ctx, persian, preset = {}) {
   const word = /(?<![\p{L}])(?:yesterday|dirooz)(?![\p{L}])|دیروز/u.exec(masked);
   const yesterday = word ? addDays(ctx.today, -1) : "";
   const isIncome = INCOME.test(folded);
-  const isExpense = EXPENSE.test(folded);
-  const financeType = preset.financeType || (isIncome && !isExpense ? "Income" : isExpense && !isIncome ? "Outcome" : "");
+  const isExpense = EXPENSE.test(folded.replace(INCOME_PAID, " "));
   const category = preset.category || guessCategory(folded, ctx.categories ?? []);
+  // "fuel $85" has no verb, but fuel is money out; "deposit $2000" is money in. Only when nothing in the sentence says it outright.
+  const byCategory = !isIncome && !isExpense ? (EXPENSE_CATEGORIES.has(category) ? "Outcome" : INCOME_CATEGORIES.has(category) ? "Income" : "") : "";
+  const financeType = preset.financeType || (isIncome && !isExpense ? "Income" : isExpense && !isIncome ? "Outcome" : byCategory);
   const entryDate = preset.date || yesterday || (dateHit && !dateHit.jalali ? dateHit.date : "") || ctx.today;
 
   const claimed = [...projectClaims(folded, projectHit)];
+  // The customer's own name is how the Owner pointed at the project ("from Jo Smith"), not part of the note.
+  if (projectHit?.project?.customer) {
+    const customerWords = new Set(fold(projectHit.project.customer).split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 2 && !PROJECT_STOP.has(word)));
+    for (const token of tokenize(folded)) if (customerWords.has(bare(token.raw))) claimed.push([token.start, token.end]);
+  }
   if (amount?.start !== undefined) claimed.push([amount.start, amount.end]);
   if (dateHit) claimed.push([dateHit.start, dateHit.end]);
   if (word) claimed.push([word.index, word.index + word[0].length]);
@@ -649,6 +900,7 @@ function buildFinance(original, folded, ctx, persian, preset = {}) {
   const note = clipText(noteText ?? "", 500);
 
   const carried = { original, persian, note, category, financeType, date: preset.date || yesterday || (dateHit && !dateHit.jalali ? dateHit.date : ""), cents: amount?.cents, projectCode: preset.projectCode ?? projectHit?.project?.code ?? "", general: preset.general ?? Boolean(projectHit?.general) };
+  if (amount?.invalid) return ask("amount", "finance", { ...carried, cents: undefined }, { en: "I can only record dollars and cents (two decimals at most), for example $320.45. What is the amount?", fa: "فقط دلار و سنت (حداکثر دو رقم اعشار) را ثبت می‌کنم، مثلاً ۳۲۰٫۴۵ دلار. مبلغ چقدر است؟" });
   if (!amount || !Number.isFinite(amount.cents) || amount.cents < 1) return ask("amount", "finance", carried, { en: "How much is it? Say the amount in dollars, for example $320.", fa: "چقدر است؟ مبلغ را به دلار بگویید، مثلاً ۳۲۰ دلار." });
   if (amount.cents > LARGE) return ask("amount", "finance", { ...carried, cents: undefined }, { en: "That amount is above $100,000,000, which the finance form does not accept. What is the amount?", fa: "این مبلغ از ۱۰۰ میلیون دلار بیشتر است و فرم مالی نمی‌پذیرد. مبلغ چقدر است؟" });
   if (!financeType) return ask("type", "finance", carried, { en: "Is that money in (income) or money out (expense)?", fa: "این پول دریافتی است (درآمد) یا پرداختی (هزینه)؟" });
@@ -668,20 +920,61 @@ const maskCodes = (f) => f.replace(/(?<![\p{L}\d])[a-z]{2,6}-\d{4}-\d{3,6}(?![\p
 
 // ---- reads ----
 
-function readIntent(folded, ctx) {
+// A name in "what tasks does Zed have?" / "Zed's tasks" / "تسک‌های زد" that is not on the team: Jarvis says so instead of showing everyone's tasks.
+const READ_NOISE = new Set(`open closed done overdue urgent pending finished completed outstanding left today tomorrow yesterday this that these those any all every everyone everybody anyone someone
+the a an my our there it its new current active still now going happening on in at no not each other others one team staff crew whole what which who how when where why do does did is are was were has have had got get be been being
+tasks task todos workload work jobs job projects project money finance cash high low normal important priority assigned status summary please jarvis list show tell give know about we you i they them he she him her us me
+باز بسته امروز فردا فوری انجام شده ها های هایی هایی مونده باقی اینجا شرکت تیم همه ما من پروژه مالی داره دارد دارن دارند هست هستند هستن چیه است`.split(/\s+/));
+const NAME_WORD = "([\\p{L}][\\p{L}'.-]{1,30})";
+const UNKNOWN_NAME_PATTERNS = [
+  new RegExp(`(?<![\\p{L}])(?:tasks?|to-?dos?|workload|work|jobs?)\\s+(?:for|of|assigned to|given to|does|did)\\s+${NAME_WORD}`, "u"),
+  new RegExp(`(?<![\\p{L}])(?:does|did|has|is|was)\\s+${NAME_WORD}\\s+(?:have|got|get|finish\\w*|complet\\w*|do|doing|working|assigned|on|been)(?![\\p{L}])`, "u"),
+  new RegExp(`(?<![\\p{L}])${NAME_WORD}'s\\s+(?:tasks?|to-?dos?|workload|work|jobs?)`, "u"),
+  new RegExp(`(?:تسک|وظیفه|وظایف|کار) ?(?:ها|های|هایی)?\\s+${NAME_WORD}`, "u"),
+  new RegExp(`${NAME_WORD}\\s+(?:چه|چی|چند)\\s+(?:کار|تسک|وظیفه)`, "u"),
+];
+function unknownReadName(folded, original, ctx) {
+  const skip = new Set(ctx.projects.flatMap(projectWords));
+  for (const pattern of UNKNOWN_NAME_PATTERNS) {
+    const match = pattern.exec(folded);
+    if (!match) continue;
+    const word = stripPossessive(match[1]);
+    const at = match.index + match[0].lastIndexOf(match[1]);
+    if (word.length < 2 || isFrameWord(word) || SELF_WORDS.has(word) || READ_NOISE.has(word) || PERSIAN_COMMON.has(word) || skip.has(word)) continue;
+    if (matchWord(word, ctx.people) || parseDate(word, ctx.today) || /^\d/.test(word)) continue;
+    return original.slice(at, at + match[1].length).replace(/'s$/i, "");
+  }
+  return "";
+}
+
+const PROJECTS_WORD = /(?<![\p{L}])(?:projects|jobs|project list|job list|work in progress|wip)(?![\p{L}])|پروژه ?ها|پروژه های|لیست پروژه|همه پروژه|(?<![\p{L}])(?:projeha|proje ha|proje-ha)(?![\p{L}])/u;
+const TEAM_BARE = /^(?:(?:show|list|see|display|tell me|give me|who(?:'s| is| are)?|how many)\s+)*(?:(?:the|my|our|all|whole|of)\s+)*(?:team|staff|workers|crew|employees|members|people)(?:\s+(?:members|list|do we have|we have|i have|are there|do i have))*[\s?.!]*$/u;
+
+function readIntent(folded, ctx, original = folded) {
   const taskWord = /(?<![\p{L}])(?:tasks?|to-?dos?|assignments?|workload|working on|assigned|overdue|open items?|follow-?ups?)(?![\p{L}])|تسک|وظیفه|کارهای|کار های|کاراش|چه کار|(?<![\p{L}])taskha(?![\p{L}])/u.test(folded);
-  const moneyWord = /(?<![\p{L}])(?:money|finances?|financial|cash|cashflow|profit|margin|income|expenses?|spent|spend|spending|owe|owed|owing|balance|budget|revenue|takings|collect|receivable)(?![\p{L}])|پول|مالی|هزینه|درآمد|سود|مانده|بدهی|بدهکار|(?<![\p{L}])(?:hazine|daramad|pool)(?![\p{L}])/u.test(folded);
-  const teamWord = /(?<![\p{L}])(?:who(?:'s| is| are)? (?:on|in) the team|team list|staff list|roster|who works|our team|my team|team members|who do we have)(?![\p{L}])|لیست تیم|اعضای تیم|تیم ما|اعضای شرکت/u.test(folded);
-  const statusWord = /(?<![\p{L}])(?:status|how(?:'s| is| are)|progress|update on|summary|summari[sz]e|tell me about|what(?:'s| is) (?:happening|going on)|where are we|state of)(?![\p{L}])|وضعیت|چطور|چه خبر|پیشرفت|خلاصه|(?<![\p{L}])vazeiat(?![\p{L}])/u.test(folded);
+  const moneyWord = /(?<![\p{L}])(?:money|finances?|financial|cash|cashflow|profit|margin|income|expenses?|spent|spend|spending|costs?|outgoings|owe|owed|owing|balance|budget|revenue|takings|collect|receivable)(?![\p{L}])|پول|مالی|هزینه|درآمد|سود|مانده|بدهی|بدهکار|(?<![\p{L}])(?:hazine|daramad|pool|maali|mali)(?![\p{L}])/u.test(folded);
+  const teamWord = /(?<![\p{L}])(?:who(?:'s| is| are)? (?:on|in) the team|team list|staff list|roster|who works|our team|my team|team members|who do we have|how many (?:staff|workers|people|employees|team members|members))(?![\p{L}])|لیست تیم|اعضای تیم|تیم ما|اعضای شرکت|چند نفر|تیم کی(?:ا|ه| هستن| هستند)|کیا (?:تو|توی|در) تیم|چه کسانی (?:در|توی|تو) تیم|^(?:لیست )?(?:تیم|اعضا|کارکنان|همکاران)[\s?.!]*$|^(?:tim|team|tim ha|teamha)[\s?.!]*$/u.test(folded) || TEAM_BARE.test(folded);
+  const statusWord = /(?<![\p{L}])(?:status|how(?:'s| is| are)|progress|update on|summary|summari[sz]e|tell me about|show(?: me)?|display|details? (?:of|on|for)|info(?:rmation)? (?:on|about)|what about|how about|pull up|look up|what(?:'s| is) (?:happening|going on)|where are we|state of)(?![\p{L}])|وضعیت|چطور|چه خبر|پیشرفت|خلاصه|(?<![\p{L}])(?:vazeiat|vaziat|vazeiate|vaziate)(?![\p{L}])/u.test(folded);
   const named = peelNames(folded, ctx);
   const projectHit = findProject(folded, ctx.projects, { skip: new Set(ctx.people.flatMap(personWords)) });
   const open = !/(?<![\p{L}])(?:done|completed|finished|closed)(?![\p{L}])|انجام شده|تمام شده/u.test(folded);
 
   if (teamWord) return { kind: "read", what: "team" };
   if (taskWord && !moneyWord) {
-    return { kind: "read", what: "tasks", personEmails: named.people.map((person) => person.email), ambiguous: named.ambiguous[0]?.map((person) => person.name) ?? [], projectCode: projectHit?.project?.code ?? "", projectUnknown: projectHit?.unknown ?? "", open };
+    const unknownPerson = !named.people.length && !named.ambiguous.length && !projectHit?.project && !projectHit?.ambiguous ? unknownReadName(folded, original, ctx) : "";
+    return { kind: "read", what: "tasks", personEmails: named.people.map((person) => person.email), ambiguous: named.ambiguous[0]?.map((person) => person.name) ?? [], projectCode: projectHit?.project?.code ?? "", projectUnknown: projectHit?.unknown ?? "", unknownPerson, open };
   }
-  if (moneyWord) return { kind: "read", what: "money", projectCode: projectHit?.project?.code ?? "", general: Boolean(projectHit?.general), projectUnknown: projectHit?.unknown ?? "", options: projectHit?.ambiguous?.map((project) => project.code) ?? [] };
+  if (moneyWord) {
+    // "how much did we spend on materials?": a category is a filter. The project's own words are masked first, so a job called "Plumbing …" is not mistaken for a category.
+    const masked = projectHit?.words?.length ? folded.replace(/[\p{L}\p{N}]+/gu, (word) => (projectHit.words.includes(word) ? " ".repeat(word.length) : word)) : folded;
+    const category = guessCategory(masked, ctx.categories ?? []);
+    return { kind: "read", what: "money", projectCode: projectHit?.project?.code ?? "", general: Boolean(projectHit?.general), projectUnknown: projectHit?.unknown ?? "", options: projectHit?.ambiguous?.map((project) => project.code) ?? [], category };
+  }
+  // "what projects do we have?", "my jobs", "پروژه‌ها": the list of projects (a project named in the sentence is the status read below).
+  if (PROJECTS_WORD.test(folded) && !projectHit?.project && !projectHit?.ambiguous && !projectHit?.unknown) {
+    if (named.people.length === 1) return { kind: "read", what: "tasks", personEmails: [named.people[0].email], ambiguous: [], projectCode: "", projectUnknown: "", unknownPerson: "", open };
+    return { kind: "read", what: "projects", active: /(?<![\p{L}])(?:active|current|running|ongoing|open|in progress)(?![\p{L}])|فعال|جاری/u.test(folded) };
+  }
   // A bare project reference ("Jo Smith bathroom", "ATP-2026-00200") is a request for that project's status; so is anything with a status word in it.
   const onlyProject = (project) => {
     const known = new Set(fold(`${project.customer} ${project.name} ${project.suburb} ${project.code}`).split(/[^\p{L}\p{N}-]+/u).filter(Boolean));
@@ -716,6 +1009,7 @@ function sanitizeSlots(slots) {
   const out = {};
   for (const key of ["text", "projectCode", "date", "time", "priority", "original", "note", "category", "financeType"]) if (typeof slots[key] === "string") out[key] = slots[key].slice(0, 2000);
   if (Array.isArray(slots.people)) out.people = slots.people.filter((value) => typeof value === "string").slice(0, 5).map((value) => value.slice(0, 200));
+  if (Array.isArray(slots.dates)) out.dates = slots.dates.filter((value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(0, 5);
   if (Number.isInteger(slots.cents) && slots.cents > 0 && slots.cents <= LARGE) out.cents = slots.cents;
   if (typeof slots.persian === "boolean") out.persian = slots.persian;
   if (typeof slots.general === "boolean") out.general = slots.general;
@@ -726,7 +1020,7 @@ function sanitizeSlots(slots) {
 export function cleanPending(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   if (!["task", "message", "calendar", "finance"].includes(raw.intent)) return null;
-  if (!["person", "content", "date", "project", "amount", "type"].includes(raw.need)) return null;
+  if (!["person", "content", "date", "time", "project", "amount", "type"].includes(raw.need)) return null;
   return { intent: raw.intent, need: raw.need, slots: sanitizeSlots(raw.slots && typeof raw.slots === "object" ? raw.slots : {}) };
 }
 
@@ -745,12 +1039,12 @@ function resume(original, folded, ctx) {
   const newCommand = words > 3 && ((TASK_WORD.test(stripped.folded) && CREATE_VERB.test(stripped.folded)) || (MESSAGE_WORD.test(stripped.folded) && peelNames(stripped.folded, ctx).people.length > 0));
   if (newCommand) return null;
 
-  const people = (slots.people ?? []).map((email) => ctx.people.find((person) => person.email === email)).filter(Boolean);
+  const people = (slots.people ?? []).map((email) => (email === TEAM_PERSON.email ? TEAM_PERSON : ctx.people.find((person) => person.email === email))).filter(Boolean);
   if (intent === "finance") {
     const preset = { note: slots.note, category: slots.category || undefined, financeType: slots.financeType || undefined, date: slots.date || undefined, cents: slots.cents, projectCode: slots.projectCode || undefined, general: slots.general };
     if (need === "amount") {
       const money = parseAmount(stripped.folded) ?? parseAmount(stripped.folded, { allowBare: true });
-      if (!money) return ask("amount", "finance", slots, { en: "I couldn't read an amount. Say it like $320.", fa: "مبلغ را نتوانستم بخوانم. مثلاً بگویید ۳۲۰ دلار." });
+      if (!money || money.invalid) return ask("amount", "finance", slots, { en: "I couldn't read an amount. Say it like $320 (dollars and cents).", fa: "مبلغ را نتوانستم بخوانم. مثلاً بگویید ۳۲۰ دلار." });
       preset.cents = money.cents;
     } else if (need === "type") {
       if (INCOME.test(stripped.folded) || /^(?:in|yes)(?![\p{L}])/u.test(stripped.folded)) preset.financeType = "Income";
@@ -771,7 +1065,7 @@ function resume(original, folded, ctx) {
     return buildFinance(source, fold(source), ctx, persian, preset);
   }
 
-  const preset = { people: people.length ? people : undefined, text: slots.text || undefined, projectCode: slots.projectCode || undefined, priority: slots.priority || undefined, date: slots.date || undefined, time: slots.time || undefined };
+  const preset = { people: people.length ? people : undefined, text: slots.text || undefined, projectCode: slots.projectCode || undefined, priority: slots.priority || undefined, date: slots.date || undefined, dates: slots.dates?.length ? slots.dates : undefined, time: slots.time || undefined };
   if (need === "person") {
     const found = peelNames(stripped.folded, ctx);
     if (!found.people.length) {
@@ -780,6 +1074,8 @@ function resume(original, folded, ctx) {
     }
     preset.people = found.people;
   } else if (need === "content") {
+    // "???" or "..." is not words: ask again instead of making a card with an empty title.
+    if (!/[\p{L}\p{N}]/u.test(stripped.original)) return ask("content", intent, slots, { en: "I need a few words for it. Tell me in your own words.", fa: "چند کلمه لازم دارم. با حرف‌های خودتان بگویید." });
     preset.text = clipText(stripped.original, intent === "message" ? 2000 : 1000);
     if (priorityOf(stripped.folded) !== "Normal") preset.priority = priorityOf(stripped.folded);
     // "check the tiles on the Jo Smith job": the project can be named in the words that were just added.
@@ -788,12 +1084,19 @@ function resume(original, folded, ctx) {
       if (hit?.project) preset.projectCode = hit.project.code;
     }
   } else if (need === "date") {
-    const when = parseDate(stripped.folded, ctx.today);
+    const whens = parseDates(stripped.folded, ctx.today);
+    const when = whens[0];
     if (when?.jalali) return ask("date", intent, slots, { en: "I can't read Persian-calendar dates. Say the date as day/month, or tomorrow or Friday.", fa: "تاریخ شمسی را نمی‌خوانم. روز/ماه میلادی یا فردا یا جمعه را بگویید." });
     if (!when?.date) return ask("date", intent, slots, { en: "I couldn't read the date. Say for example tomorrow, Friday or 3 November.", fa: "تاریخ را نخواندم. مثلاً بگویید فردا، جمعه یا ۳ نوامبر." });
     preset.date = when.date;
+    preset.dates = whens.flatMap((hit) => hit.days ?? [hit.date]);
     const clock = parseTime(stripped.folded);
     if (clock) preset.time = clock.time;
+  } else if (need === "time") {
+    const clock = parseTime(stripped.folded);
+    if (clock) preset.time = clock.time;
+    else if (/(?<![\p{L}])(?:no time|none|all day|any ?time)(?![\p{L}])|بدون ساعت|تمام روز/u.test(stripped.folded)) preset.noTime = true;
+    else return ask("time", intent, slots, { en: "I couldn't read the time. Say for example 9am or 14:30, or “no time”.", fa: "ساعت را نخواندم. مثلاً بگویید ۹ صبح یا ۱۴:۳۰، یا «بدون ساعت»." });
   } else if (need === "project") {
     const hit = findProject(stripped.folded, ctx.projects, { skip: new Set(ctx.people.flatMap(personWords)) });
     if (!hit?.project) return ask("project", intent, slots, { en: "I couldn't tell which project. Say its code or the customer's name.", fa: "نفهمیدم کدام پروژه. کد پروژه یا اسم مشتری را بگویید." });

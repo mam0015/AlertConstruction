@@ -114,14 +114,14 @@ export function tasksAnswer({ tasks, people, projects, read, persian }) {
 
 // ---------- Money ----------
 
-export async function loadMoney(reader, { projectCode = "", general = false } = {}) {
+export async function loadMoney(reader, { projectCode = "", general = false, category = "" } = {}) {
   const scope = general ? "Business / General" : projectCode;
-  const totals = await safe(reader.all(scope
-    ? "SELECT project_code AS projectCode, type AS type, SUM(amount) AS total, COUNT(*) AS entries FROM finance_entries WHERE project_code = ? GROUP BY project_code, type"
-    : "SELECT project_code AS projectCode, type AS type, SUM(amount) AS total, COUNT(*) AS entries FROM finance_entries GROUP BY project_code, type", ...(scope ? [scope] : [])));
-  const recent = await safe(reader.all(scope
-    ? "SELECT type AS type, category AS category, project_code AS projectCode, amount AS amount, entry_date AS entryDate, note AS note FROM finance_entries WHERE project_code = ? ORDER BY entry_date DESC, id DESC LIMIT 6"
-    : "SELECT type AS type, category AS category, project_code AS projectCode, amount AS amount, entry_date AS entryDate, note AS note FROM finance_entries ORDER BY entry_date DESC, id DESC LIMIT 6", ...(scope ? [scope] : [])));
+  // A category is a filter on top of the project (or the whole company); it is matched without regard to capital letters.
+  const where = [scope ? "project_code = ?" : "", category ? "lower(category) = lower(?)" : ""].filter(Boolean);
+  const clause = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+  const args = [...(scope ? [scope] : []), ...(category ? [category] : [])];
+  const totals = await safe(reader.all(`SELECT project_code AS projectCode, type AS type, SUM(amount) AS total, COUNT(*) AS entries FROM finance_entries${clause} GROUP BY project_code, type`, ...args));
+  const recent = await safe(reader.all(`SELECT type AS type, category AS category, project_code AS projectCode, amount AS amount, entry_date AS entryDate, note AS note FROM finance_entries${clause} ORDER BY entry_date DESC, id DESC LIMIT 6`, ...args));
   return { totals, recent };
 }
 
@@ -133,6 +133,22 @@ export function moneyAnswer({ money, projects, read, persian }) {
   const label = (code) => (byCode.get(code) ? `${byCode.get(code).name || byCode.get(code).customer} (${code})` : code);
   const scope = read.general ? "Business / General" : read.projectCode;
   const lines = [];
+  const category = read.category ? String(read.category) : "";
+  if (category) {
+    // One category: only the sides that have entries are shown; "Materials: $0" for a category nobody used would look like an answer.
+    const where = persian ? (scope ? isolate(label(scope)) : "کل شرکت") : (scope ? label(scope) : "the whole company");
+    if (!entries) return persian ? `برای دسته‌ی «${isolate(category)}» (${where}) هیچ ثبت مالی‌ای پیدا نکردم.` : `I found no finance entries in the category “${category}” for ${where}.`;
+    lines.push(persian ? `مالی — ${isolate(category)} (${where}):` : `Money — ${category} (${where}):`);
+    if (outcome) lines.push(persian ? `• هزینه: ${formatMoney(outcome)}` : `• Expenses: ${formatMoney(outcome)}`);
+    if (income) lines.push(persian ? `• درآمد: ${formatMoney(income)}` : `• Income: ${formatMoney(income)}`);
+    lines.push(persian ? `• تعداد ثبت‌ها: ${entries}` : `• Entries: ${entries}`);
+    lines.push(persian ? "\nآخرین ثبت‌ها:" : "\nLatest entries:");
+    for (const row of money.recent) {
+      const sign = row.type === "Income" ? "+" : "−";
+      lines.push(`• ${row.entryDate} ${sign}${formatMoney(row.amount)}${scope ? "" : ` · ${row.projectCode}`}${row.note ? ` — ${persian ? isolate(clip(row.note, 60)) : clip(row.note, 60)}` : ""}`);
+    }
+    return lines.join("\n");
+  }
   if (persian) {
     lines.push(scope ? `مالی ${isolate(label(scope))}:` : "مالیِ کل شرکت:");
     lines.push(`• درآمد: ${formatMoney(income)}`, `• هزینه: ${formatMoney(outcome)}`, `• خالص: ${formatMoney(income - outcome)}`, `• تعداد ثبت‌ها: ${entries}`);
@@ -199,6 +215,29 @@ export function projectAnswer({ project, detail, money, persian }) {
     for (const event of detail.events) lines.push(`   – ${(persian ? fmtDayFa : fmtDay).format(new Date(event.at))}: ${persian ? isolate(clip(event.title, 70)) : clip(event.title, 70)}`);
   }
   return lines.join("\n");
+}
+
+const DONE_STAGES = /^(?:complete|completed|closed|cancelled|canceled|lost)$/i;
+// "What projects do we have?": running jobs first (by how recently they changed), finished ones after. At most 15 lines.
+export function projectsAnswer({ projects, read = {}, persian }) {
+  const running = projects.filter((project) => !DONE_STAGES.test(project.stage));
+  const finished = projects.filter((project) => DONE_STAGES.test(project.stage));
+  const list = read.active ? running : [...running, ...finished];
+  if (!projects.length) return persian ? "هنوز پروژه‌ای ثبت نشده است." : "There are no projects yet.";
+  if (!list.length) return persian ? `پروژه‌ی فعالی نیست. ${finished.length} پروژه تمام شده است.` : `There are no active projects. ${finished.length} ${finished.length === 1 ? "project is" : "projects are"} finished.`;
+  const shown = list.slice(0, 15);
+  const line = (project) => {
+    const name = project.name || project.customer || project.code;
+    const owing = project.balance > 0 ? (persian ? ` · مانده ${formatMoney(project.balance)}` : ` · ${formatMoney(project.balance)} to collect`) : "";
+    return persian
+      ? `• ${isolate(name)} (${project.code}) — ${isolate(project.stage || "—")}، ${project.progress}٪${owing}`
+      : `• ${name} (${project.code}) — ${project.stage || "—"}, ${project.progress}%${owing}`;
+  };
+  const head = persian
+    ? `${read.active ? "پروژه‌های فعال" : "پروژه‌ها"}: ${list.length} مورد${read.active ? "" : ` (${running.length} در جریان، ${finished.length} تمام‌شده)`}`
+    : `${read.active ? "Active projects" : "Projects"}: ${list.length}${read.active ? "" : ` (${running.length} running, ${finished.length} finished)`}`;
+  const more = list.length > shown.length ? (persian ? `\nو ${list.length - shown.length} مورد دیگر.` : `\nand ${list.length - shown.length} more.`) : "";
+  return `${head}\n${shown.map(line).join("\n")}${more}`;
 }
 
 export function teamAnswer({ people, persian }) {

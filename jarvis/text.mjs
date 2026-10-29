@@ -18,7 +18,8 @@ export function oneLine(value, max = 998) {
 
 // Untrusted text goes inside XML-ish tags in the AI prompt; escaping stops it from closing or forging those tags.
 export function xmlEscape(value) {
-  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Control characters (other than tab and line breaks) carry nothing a person wrote; they are dropped before the text goes into a prompt.
+  return String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function attrEscape(value) {

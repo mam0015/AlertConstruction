@@ -271,7 +271,8 @@
 .xClose{display:inline-grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;color:var(--j-ink);background:rgba(255,255,255,.08);cursor:pointer}
 
 /* Long unbroken names, subjects and Persian/Arabic text must wrap inside the cards and read in their own direction. */
-.feed h4,.who,.preview,.topicHead b,.draft dd,.advice span,.plans li span,.actionHead span{overflow-wrap:anywhere;unicode-bidi:plaintext}
+.feed h4,.who,.preview,.topicHead b,.draft dd,.advice span,.plans li span,.actionHead span,.briefing li b,.briefing li span,.briefing li em,.sentLog li b,.sentLog li span{overflow-wrap:anywhere;unicode-bidi:plaintext}
+.briefing li,.sentLog li{min-width:0}
 
 /* ---- Phones ---- */
 @media(max-width:640px){

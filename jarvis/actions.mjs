@@ -24,6 +24,7 @@ const ACTION_ID = /^[A-Za-z0-9-]{8,64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MESSAGE_CHARS = 2000;
+const TEAM_CHANNEL = "*"; // the team chat's "everyone" channel — the same value the chat store uses
 
 export const TYPE_LABEL = Object.freeze({ send_message: "Message", add_calendar: "Calendar", create_task: "Task", add_finance: "Money" });
 
@@ -40,6 +41,20 @@ function addDays(date, days) {
 const dollars = (cents) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
 const WEEKDAY = new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short" });
 const dayWithWeekday = (date) => `${WEEKDAY.format(new Date(`${date}T12:00:00Z`))} ${date}`;
+
+// "9:30", "9.30am", "9pm" and "09:30" are all a time of day. "" means no time was given; null means something was given that is not a time.
+function normalTime(value) {
+  const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (!text) return "";
+  const match = /^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/.exec(text);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2] ?? 0);
+  if (match[3]) { if (hour < 1 || hour > 12) return null; hour = hour % 12 + (match[3] === "pm" ? 12 : 0); }
+  else if (match[2] === undefined) return null; // a bare "9" is not clear enough
+  const out = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return TIME.test(out) ? out : null;
+}
 
 // A finance entry belongs to a real project (or to the business in general); it is never about a person, so it has no recipient.
 function validateFinance(raw, { projects, today, makeId }) {
@@ -76,14 +91,15 @@ export function validateProposal(raw, { people = [], projects, today, ownerEmail
   if (type === "add_finance") return validateFinance(raw, { projects, today, makeId });
 
   const email = oneLine(raw.person ?? raw.personEmail ?? "", 200).toLowerCase();
-  const person = people.find((entry) => entry.email.toLowerCase() === email);
+  // Only a message may go to the whole team; a task or a calendar entry always belongs to one real person.
+  const person = type === "send_message" && email === TEAM_CHANNEL ? { email: TEAM_CHANNEL, name: "The whole team", role: "Team" } : people.find((entry) => entry.email.toLowerCase() === email);
   if (!person) return { problem: "That person is not an approved member of the team." };
   if (type === "send_message" && person.email.toLowerCase() === String(ownerEmail).toLowerCase()) return { problem: "A message cannot be sent to yourself." };
 
   const title = clipText(raw.title, 160);
   const text = clipText(raw.text, type === "send_message" ? MESSAGE_CHARS : 1000);
   const id = typeof raw.id === "string" && ACTION_ID.test(raw.id) ? raw.id : makeId();
-  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(niceName(person), 120), personRole: oneLine(person.role, 40) };
+  const base = { id, type, personEmail: person.email.toLowerCase(), personName: person.email === TEAM_CHANNEL ? person.name : oneLine(niceName(person), 120), personRole: oneLine(person.role, 40) };
 
   if (type === "send_message") {
     if (text.length < 2) return { problem: "The message is empty." };
@@ -96,6 +112,9 @@ export function validateProposal(raw, { people = [], projects, today, ownerEmail
     return { problem: `There is no project with the code ${projectCode.slice(0, 40)}.` };
   }
   if (type === "create_task") {
+    // A task can only be given on a project that is running; the task store refuses the rest, so say so before the card is shown.
+    const chosen = projectCode && Array.isArray(projects) ? projects.find((entry) => entry.code === projectCode) : null;
+    if (chosen && chosen.active === false) return { problem: `${projectCode.slice(0, 40)} is not an active project, so it cannot be given a task.` };
     if (!title) return { problem: "The task needs a title." };
     if (!text) return { problem: "The task needs instructions." };
     const priority = PRIORITIES.includes(raw.priority) ? raw.priority : "Normal";
@@ -110,7 +129,9 @@ export function validateProposal(raw, { people = [], projects, today, ownerEmail
   if (dates.some((value) => !isRealDate(value))) return { problem: "One of the dates is not a real date." };
   if (dates.some((value) => value < today)) return { problem: "A calendar entry cannot be in the past." };
   if (dates.some((value) => value > addDays(today, 730))) return { problem: "That date is too far ahead." };
-  const startTime = typeof raw.startTime === "string" && TIME.test(raw.startTime.trim()) ? raw.startTime.trim() : "";
+  // A time that is not a real time of day (such as 25:00) is refused, never quietly turned into "all day".
+  const startTime = normalTime(raw.startTime);
+  if (startTime === null) return { problem: "The start time is not a real time of day." };
   return { action: { ...base, title, text, dates: dates.sort(), startTime, projectCode, priority: "Normal" } };
 }
 
@@ -121,7 +142,7 @@ export function describeAction(action) {
     return `Record ${what} of ${dollars(action.amountCents)} (${action.category}) for ${action.projectName || action.projectCode}${action.projectCode === GENERAL_PROJECT ? "" : ` (${action.projectCode})`}, dated ${dayWithWeekday(action.entryDate)}${action.text ? `. Note: ${action.text}` : ""}.`;
   }
   const who = action.personName || action.personEmail;
-  if (action.type === "send_message") return `Send an in-app message to ${who}.`;
+  if (action.type === "send_message") return action.personEmail === TEAM_CHANNEL ? "Send an in-app message to the whole team (the team chat)." : `Send an in-app message to ${who}.`;
   if (action.type === "create_task") {
     const priority = action.priority.toLowerCase();
     return `Give ${who} ${/^[aeiou]/.test(priority) ? "an" : "a"} ${priority}-priority task: ${action.title}.`;

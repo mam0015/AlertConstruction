@@ -7,7 +7,7 @@
 
 import { describeAction, validateProposals } from "./actions.mjs";
 import { cleanPending, formatMoney, interpret, niceName } from "./commands.mjs";
-import { loadCategories, loadMoney, loadProjectDetail, loadProjects, loadTasks, moneyAnswer, projectAnswer, tasksAnswer, teamAnswer } from "./lookups.mjs";
+import { loadCategories, loadMoney, loadProjectDetail, loadProjects, loadTasks, moneyAnswer, projectAnswer, projectsAnswer, tasksAnswer, teamAnswer } from "./lookups.mjs";
 import { hasPersianLetters, isolate, wantsPersian } from "./persian.mjs";
 import { createReader } from "./readonly-db.mjs";
 
@@ -47,7 +47,7 @@ export async function basicCommand({ db, message, people, owner, today, pending 
   const result = interpret(message, ctx);
   if (!result) return null;
   // "What's the news about Sam?" is a news question, not a request for the project's status.
-  if (result.kind === "read" && (result.what === "project" || result.what === "projectChoice") && isNewsOrPlans(message)) return null;
+  if (result.kind === "read" && (result.what === "project" || result.what === "projectChoice" || result.what === "projects") && isNewsOrPlans(message)) return null;
   const persian = wantsPersian(message) || hasPersianLetters(message) || Boolean(result.persian) || Boolean(clean?.slots?.persian) || Boolean(result.pending?.slots?.persian);
   const say = (en, fa) => (persian ? fa : en);
   const done = (reply, extra = {}) => ({ reply, actions: [], pending: null, persian, ...extra });
@@ -74,10 +74,15 @@ export async function basicCommand({ db, message, people, owner, today, pending 
   const reader = createReader(db);
   const byEmail = new Map(people.map((person) => [person.email.toLowerCase(), person]));
   if (result.what === "team") return done(teamAnswer({ people, persian }));
+  if (result.what === "projects") return done(projectsAnswer({ projects, read: result, persian }));
 
   if (result.what === "tasks") {
     if (result.ambiguous?.length) return done(say(`Which one do you mean: ${result.ambiguous.join(" or ")}?`, `کدام یک را می‌گویید: ${result.ambiguous.join(" یا ")}؟`));
     if (result.projectUnknown) return done(say(`I can't find a project with the code ${result.projectUnknown}.`, `پروژه‌ای با کد ${result.projectUnknown} پیدا نکردم.`));
+    if (result.unknownPerson) {
+      const list = people.filter((person) => person.role !== "Owner").slice(0, 12).map(niceName).join(", ");
+      return done(say(`I don't know anyone called “${result.unknownPerson}” on the approved team.${list ? ` The team is: ${list}.` : ""}`, `کسی به اسم «${result.unknownPerson}» در تیم تأییدشده نیست.${list ? ` تیم: ${list}.` : ""}`));
+    }
     const tasks = await loadTasks(reader, { open: result.open });
     return done(tasksAnswer({ tasks, people: [...byEmail.values()], projects, read: result, persian }));
   }
@@ -88,7 +93,7 @@ export async function basicCommand({ db, message, people, owner, today, pending 
       const list = result.options.map((code) => projects.find((project) => project.code === code)).filter(Boolean).map((project) => `${project.name || project.customer} (${project.code})`);
       return done(say(`Which project: ${list.join(" or ")}?`, `کدام پروژه: ${list.join(" یا ")}؟`));
     }
-    const money = await loadMoney(reader, { projectCode: result.projectCode, general: result.general });
+    const money = await loadMoney(reader, { projectCode: result.projectCode, general: result.general, category: result.category });
     return done(moneyAnswer({ money, projects, read: result, persian }));
   }
 

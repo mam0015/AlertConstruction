@@ -62,19 +62,31 @@ const PLANS_QUESTION = /\b(plans?|planned|upcoming|coming up|schedule|calendar|a
 // Things the rules can answer without an AI are looked up; things they cannot do are said plainly instead of being answered with an unrelated list.
 const GREETING = /^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening)|salam|salaam|سلام|درود)[\s!.,،؟?]*$/i;
 const THANKS = /^\s*(?:thanks|thank you|thx|cheers|great|ok|okay|cool|merci|ممنون|مرسی|متشکرم|تشکر|باشه|خوبه)[\s!.,،؟?]*$/i;
-const CANNOT = /^\s*(?:please\s+)?(?:delete|erase|wipe|destroy|remove|drop)\b|\bignore\b[^.?]*\b(?:rules|instructions|above|previous)\b|^\s*(?:please\s+)?email (?:everyone|all)\b|پاک کن|حذف کن|نادیده بگیر/i;
+const CANNOT = /^\s*(?:please\s+)?(?:delete|erase|wipe|destroy|remove|drop)\b|\bignore\b[^.?]*\b(?:rules|instructions|above|previous)\b|^\s*(?:please\s+)?email (?:everyone|all)\b|پاک کن|حذف کن|نادیده بگیر|^\s*(?:please\s+)?(?:call|phone|ring|dial|e-?mail)\b|\b(?:passwords?|passcode|team code|api key)\b|\b(?:change|reset|grant|revoke|give|make|promote|demote)\b[^.?]*\b(?:role|permission|access|admin rights?|an admin|the owner)\b|\b(?:approve|reject|hire|fire|sack|suspend|deactivate)\b[^.?]*\b(?:staff|workers?|members?|users?|accounts?)\b|^\s*(?:please\s+)?(?:undo|revert|unsend|take (?:that|it) back)\b|رمز|پسورد|کد تیم/i;
+// What each kind of "I can't" says, so the Owner hears WHY and what to do instead (the general sentence is the fallback).
+const CANNOT_REASONS = [
+  [/^\s*(?:please\s+)?(?:call|phone|ring|dial|e-?mail)\b(?!\s+(?:everyone|all)\b)/i, "I can't make phone calls or start an email. I can send an in-app message to a team member, put something in the calendar, give a task, or write a reply to an email you open in Jarvis.", "من نمی‌توانم تماس بگیرم یا ایمیل تازه بفرستم. می‌توانم برای یکی از تیم پیام داخل برنامه بفرستم، چیزی را در تقویم بگذارم، تسک بدهم، یا جواب ایمیلی را که در Jarvis باز کرده‌اید بنویسم."],
+  [/\b(?:passwords?|passcode|team code|api key)\b|رمز|پسورد|کد تیم|\b(?:change|reset|grant|revoke|give|make|promote|demote)\b[^.?]*\b(?:role|permission|access|admin rights?|an admin|the owner)\b|\b(?:approve|reject|hire|fire|sack|suspend|deactivate)\b[^.?]*\b(?:staff|workers?|members?|users?|accounts?)\b/i, "I can't see or change passwords, the Team Code, roles or anyone's access, and I can't approve or remove staff. Do that on the Team pages.", "من رمزها، کد تیم، نقش‌ها و دسترسی‌ها را نمی‌بینم و عوض نمی‌کنم. این کار را در صفحه‌های تیم انجام دهید."],
+  [/^\s*(?:please\s+)?(?:undo|revert|unsend|take (?:that|it) back)\b/i, "I can't undo something that has already been done. Change or remove it on its own page (Tasks, Schedule, Finance or the team chat).", "نمی‌توانم کاری را که انجام شده برگردانم. آن را در صفحه‌ی خودش (تسک‌ها، برنامه، مالی یا چت تیم) عوض یا حذف کنید."],
+];
+const cannotReply = (message, persian) => { const hit = CANNOT_REASONS.find(([pattern]) => pattern.test(message)); return hit ? hit[persian ? 2 : 1] : null; };
+const HELP_QUESTION = /^\s*(?:help|help me|what can you do|what do you do|what are you able to do|how do (?:i|you) use (?:you|this)|how does this work|commands|examples|options|کمک|راهنما|راهنمایی|چه کار(?:هایی)? می ?کنی|چه کاری می ?توانی)[\s?.!؟]*$/i;
+// "cancel" with nothing waiting: said plainly instead of searching the records for the word "cancel".
+const CANCEL_NOTHING = /^\s*(?:cancel(?: that| it)?|never ?mind|forget it|stop|skip(?: it)?|no|nope|ولش کن|بیخیال|لغو|کنسل|نه)[\s.!]*$/i;
 const ACTION = /^\s*(?:please\s+)?(?:tell|message|text|remind|notify)\b(?!\s+(?:me|us)\b)|\b(?:add|put|create|make|set up|book|schedule)\b[^?]*\b(?:calendar|diary|task|reminder|appointment)\b|\b(?:give|assign)\b[^?]*\btask\b|\bsend\b[^?]*\b(?:message|text)\b|بگو|بگذار|بساز|بنویس|بفرست|یادآوری کن|اضافه کن|ثبت کن|پیام بده|خبر بده|اطلاع بده/i;
 // "What should I do first?" / "any complaints?": the quick buttons. Only these are answered with the list of what needs attention when nothing matches.
-const PRIORITY_QUESTION = /\b(first|urgent|urgently|priority|priorities|prioriti[sz]e|attention|important|should i|need to handle|need to do|to do|todo|complaints?|problems?|issues?|risks?|overdue|late|waiting|stuck|behind)\b|اول|فوری|مهم|اولویت|توجه|شکایت|مشکل|چه کار|چی کار|عقب/i;
+const PRIORITY_QUESTION = /\b(first|plate|urgent|urgently|priority|priorities|prioriti[sz]e|attention|important|should i|need to handle|need to do|to do|todo|complaints?|problems?|issues?|risks?|overdue|late|waiting|stuck|behind)\b|اول|فوری|مهم|اولویت|توجه|شکایت|مشکل|چه کار|چی کار|عقب/i;
 // What basic mode (no AI) understands. Said whenever a sentence is not one of those, so the Owner is never left with "I can't".
-const BASIC_EXAMPLES_EN = `I didn't understand that as a command. Without an AI I understand sentences like:
-• set a task for Ali: check the tiles on the Smith job
-• tell Ben to be on site at 7 tomorrow
-• put the council inspection in Sue's calendar on Friday at 1pm
+const EXAMPLE_LINES_EN = `• set a task for Ali: check the tiles on the Smith job
+• tell Ben to be on site at 7 tomorrow · tell the whole team the site is closed Friday
+• put the council inspection in Sue's calendar on Friday at 1pm · remind me to renew the licence
 • enter an expense of $320 for tiles on ATP-2026-00124
-• what tasks does Ali have? · how is the money? · how is the Smith kitchen?
-• what's the news? · what is coming up?
+• what tasks does Ali have? · how is the money? · how much did we spend on materials? · how is the Smith kitchen?
+• what projects do we have? · who is on the team?
+• what's the news? · what is coming up tomorrow?
 You can also press “Prepare by hand” under the command line. Connect an AI brain for anything more open-ended.`;
+const BASIC_EXAMPLES_EN = `I didn't understand that as a command. Without an AI I understand sentences like:\n${EXAMPLE_LINES_EN}`;
+const HELP_EN = `Here is what I can do, even without an AI:\n${EXAMPLE_LINES_EN}\nNothing is done until you press the button on a card.`;
 // A sentence that is clearly something else (news, plans, hello, thanks) is never taken for the answer to a question Jarvis asked.
 // (Plans words such as "tomorrow" or "calendar" are NOT counted here: they are exactly what the Owner says when asked "which day?".)
 const isOtherIntent = (text) => NEWS_QUESTION.test(text) || GREETING.test(text) || THANKS.test(text) || CANNOT.test(text);
@@ -137,10 +149,25 @@ function suggestionsFor(items, max = 6) {
   return out;
 }
 
+// "today", "tomorrow", "this week", "next week" in a plans question narrow the list to that day or week (Monday to Sunday). No such word: no narrowing.
+function planWindow(message, today) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return null;
+  const shift = (days) => new Date(Date.parse(`${today}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
+  const monday = shift(-((weekday + 6) % 7));
+  const text = String(message ?? "").toLowerCase();
+  const next = (/\bnext week\b|هفته (?:بعد|آینده)/.test(text));
+  if (next) return { from: new Date(Date.parse(`${monday}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10), to: new Date(Date.parse(`${monday}T00:00:00Z`) + 13 * 86_400_000).toISOString().slice(0, 10), en: "next week", fa: "هفته‌ی بعد" };
+  if (/\bthis week\b|این هفته/.test(text)) return { from: today, to: new Date(Date.parse(`${monday}T00:00:00Z`) + 6 * 86_400_000).toISOString().slice(0, 10), en: "this week", fa: "این هفته" };
+  if (/\btomorrow\b|فردا/.test(text)) return { from: shift(1), to: shift(1), en: "tomorrow", fa: "فردا" };
+  if (/\btoday\b|امروز/.test(text)) return { from: today, to: today, en: "today", fa: "امروز" };
+  return null;
+}
+
 // What Jarvis can do without AI: format the Owner's own words into a reply, or point at the matching records.
 // `reply` is ONLY the answer: it is what is read aloud and copied. Anything about the mode (basic, offline, not connected) goes in `notice`,
 // which the screen shows in small print and which is never spoken.
-function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false, persian = false, hours = 72 }) {
+function rulesAnswer({ message, items, plans = [], preview, owner, company, notice, incomplete = "", failedOpen = false, persian = false, hours = 72, today = "" }) {
   const note = notice || (persian ? FA.basicNote : "Basic mode: no AI is connected, so I searched your records.");
   if (preview) {
     return {
@@ -155,14 +182,19 @@ function rulesAnswer({ message, items, plans = [], preview, owner, company, noti
   }
   const period = periodText(hours, persian);
   const say = (reply) => ({ reply, notice: note, suggestions: [], draft: null });
-  if (CANNOT.test(message)) return say(persian ? FA.cannot : "I can't do that. I can read the app, give you the news and prepare messages, calendar entries and tasks for you to confirm. I never delete or change records, money or access.");
+  if (CANNOT.test(message)) return say(cannotReply(message, persian) ?? (persian ? FA.cannot : "I can't do that. I can read the app, give you the news and prepare messages, calendar entries and tasks for you to confirm. I never delete or change records, money or access."));
+  if (HELP_QUESTION.test(message)) return say(persian ? FA.help : HELP_EN);
+  if (CANCEL_NOTHING.test(message)) return say(persian ? FA.nothingWaiting : "Okay. Nothing is waiting for you.");
   if (ACTION.test(message)) return say(persian ? FA.needsAi : BASIC_EXAMPLES_EN);
   if (THANKS.test(message)) return say(persian ? FA.thanks : "You're welcome.");
   if (GREETING.test(message)) return say(persian ? FA.hello : "Hello. Ask me for the news or what is coming up, or name a client or a project and I will look.");
   if (PLANS_QUESTION.test(message) && !NEWS_QUESTION.test(message)) {
-    const header = persian ? FA.plansHeader : "This is what is planned, soonest first:";
-    const none = persian ? FA.plansNone(LIMITS.planDays) : `Nothing is planned in the next ${LIMITS.planDays} days.`;
-    return { reply: `${plans.length ? `${header}\n${plansText(plans, 12, { persian })}` : none}${incomplete ? `\n\n${incomplete}` : ""}`, notice: note, suggestions: [], draft: null };
+    // "what is on tomorrow?" is answered with tomorrow's plans, not the next three weeks.
+    const window = planWindow(message, today);
+    const shown = window ? plans.filter((plan) => { const day = /^(\d{4}-\d{2}-\d{2})/.exec(String(plan.title ?? ""))?.[1] ?? ""; return day >= window.from && day <= window.to; }) : plans;
+    const header = persian ? (window ? FA.plansHeaderFor(window.fa) : FA.plansHeader) : `This is what is planned${window ? ` ${window.en}` : ""}, soonest first:`;
+    const none = persian ? (window ? FA.plansNoneFor(window.fa) : FA.plansNone(LIMITS.planDays)) : (window ? `Nothing is planned ${window.en}.` : `Nothing is planned in the next ${LIMITS.planDays} days.`);
+    return { reply: `${shown.length ? `${header}\n${plansText(shown, 12, { persian })}` : none}${incomplete ? `\n\n${incomplete}` : ""}`, notice: note, suggestions: [], draft: null };
   }
   if (NEWS_QUESTION.test(message)) {
     const news = newsText(items, { persian });
@@ -306,7 +338,7 @@ export async function askJarvis({ db, config, fetchImpl, ai, owner, input, peopl
       console.error("Jarvis could not read the command:", error instanceof Error ? error.name : "unknown");
     }
   }
-  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: rulesNotice, incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian, hours: input.hours }) };
+  if (!outcome) outcome = { mode: "rules", ...rulesAnswer({ message: input.message, items, plans: briefing.plans, preview, owner, company, notice: rulesNotice, incomplete, failedOpen: Boolean(input.focus) && !preview && !replyProblem, persian, hours: input.hours, today }) };
   else if (incomplete && outcome.mode === "ai") outcome.reply = `${outcome.reply}\n\n${incomplete}`;
 
   // While an email is open, records outside its thread are kept from the AI. Say so, so "nothing else is new" is not taken to mean "nothing happened".

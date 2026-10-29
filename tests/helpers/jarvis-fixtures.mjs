@@ -33,7 +33,7 @@ export function createTables(d1) {
 
 export function seed(d1) {
   const q = d1.sqlite;
-  q.prepare("INSERT INTO workflow_cases (id,request_code,project_code,customer_name,customer_email,customer_phone,service,created_at,updated_at) VALUES (1,'REQ-2026-AAAA','ATP-2026-00124','Sam Customer','sam.private@example.com','0400 000 000','Kitchen',?,?)").run(ago(500), ago(500));
+  q.prepare("INSERT INTO workflow_cases (id,request_code,project_code,customer_name,customer_email,customer_phone,service,stage,created_at,updated_at) VALUES (1,'REQ-2026-AAAA','ATP-2026-00124','Sam Customer','sam.private@example.com','0400 000 000','Kitchen','active_project',?,?)").run(ago(500), ago(500));
   const message = q.prepare("INSERT INTO customer_messages (case_id,sender,sender_label,body,kind,created_at) VALUES (1,?,?,?,?,?)");
   message.run("Customer", "Sam Customer", "I am not happy with the delay on the kitchen, please call me.", "message", ago(1));
   message.run("Admin", "Alert Tradie Pro", "ADMIN-ONLY reply that must not appear as a client comment", "message", ago(1));

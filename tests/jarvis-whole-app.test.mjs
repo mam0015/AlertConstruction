@@ -210,7 +210,10 @@ test("actions: a proposal is accepted only for an approved team member and a rea
   assert.match(validateProposal({ ...calendar, dates: [] }, context).problem, /at least one date/);
   assert.match(validateProposal({ ...calendar, dates: [melbDate(900)] }, context).problem, /too far/);
   assert.match(validateProposal({ ...calendar, title: "" }, context).problem, /title/);
-  assert.equal(validateProposal({ ...calendar, startTime: "25:99" }, context).action.startTime, "", "a bad time is dropped, not guessed");
+  assert.match(validateProposal({ ...calendar, startTime: "25:99" }, context).problem, /real time of day/, "a bad time is refused, never turned into an all-day entry");
+  assert.equal(validateProposal({ ...calendar, startTime: "7:30" }, context).action.startTime, "07:30");
+  assert.equal(validateProposal({ ...calendar, startTime: "2.15pm" }, context).action.startTime, "14:15");
+  assert.equal(validateProposal({ ...calendar, startTime: "" }, context).action.startTime, "", "no time is an all-day entry");
   assert.match(validateProposal({ type: "create_task", person: "tiler@alert.test", title: "Order grout", text: "" }, context).problem, /instructions/);
   assert.equal(validateProposal({ type: "create_task", person: "tiler@alert.test", title: "Order grout", text: "10kg grey", priority: "Immediately" }, context).action.priority, "Normal");
 
