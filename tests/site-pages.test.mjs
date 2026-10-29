@@ -1,7 +1,7 @@
 // The public pages: company strip, About Us, Services (with About), Why Us, Support. Rendered by the built Worker, read as a visitor would.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SERVICES, SUPPORT_EMAIL, CONSTRUCTION_URL, ENGINEERS_URL, PRODUCT_NAME } from "../app/site/site-content.ts";
+import { SERVICES, SUPPORT_EMAIL, CONSTRUCTION_URL, ENGINEERS_URL } from "../app/site/site-content.ts";
 
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("site", `${process.pid}-${Date.now()}`);
@@ -14,23 +14,26 @@ const text = (html) => html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/
 
 const NAV = ["/", "/about", "/services", "/why-us", "/support"];
 
-test("site: every page has the company strip, the same navigation and a footer; the strip's links open the other companies' sites safely", async () => {
+test("site: every page has the same navigation and a footer; there is no company strip above the menu; every link to the other two companies' sites opens them safely", async () => {
   for (const path of NAV) {
     const { html } = await page(path);
-    assert.match(html, /aria-label="Our companies"/, path);
-    const strip = html.match(/<nav class="company-bar"[\s\S]*?<\/nav>/)?.[0] ?? "";
-    assert.match(strip, new RegExp(`href="${CONSTRUCTION_URL}"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|rel="noopener noreferrer"[^>]*href="${CONSTRUCTION_URL}"`), `${path}: Alert Construction`);
-    assert.match(strip, new RegExp(`href="${ENGINEERS_URL}"`), `${path}: Alert Engineers`);
-    assert.match(strip, new RegExp(`href="/"[^>]*>${PRODUCT_NAME}<`), `${path}: ${PRODUCT_NAME} stays on our own site`);
+    assert.ok(!html.includes("company-bar") && !html.includes("Our companies"), `${path}: the top strip is gone`);
     for (const label of ["Home", "About Us", "Services", "Why Us", "Customer Sign In", "Team Sign In", "Support", "Request a Job"]) assert.ok(html.includes(`>${label}</`), `${path}: ${label}`);
     for (const href of ["/about", "/services", "/why-us", "/support"]) assert.ok(html.includes(`href="${href}"`), `${path}: link to ${href}`);
     assert.match(html, /<footer/, path);
+    // the footer on every page links to both companies
+    const footer = html.match(/<footer[\s\S]*?<\/footer>/)?.[0] ?? "";
+    assert.ok(footer.includes(`href="${CONSTRUCTION_URL}"`) && footer.includes(`href="${ENGINEERS_URL}"`), `${path}: footer links to Alert Construction and Alert Engineers`);
     // every link that leaves the site opens in a new tab and cannot reach back into it
     for (const tag of html.match(/<a [^>]*href="https?:\/\/[^"]*"[^>]*>/g) ?? []) {
       assert.match(tag, /rel="noopener noreferrer"/, `${path}: ${tag}`);
       assert.match(tag, /target="_blank"/, `${path}: ${tag}`);
+      assert.ok(tag.includes(CONSTRUCTION_URL) || tag.includes(ENGINEERS_URL), `${path}: only the two company sites are linked: ${tag}`);
     }
   }
+  const home = (await page("/")).html.replace(/<!-- -->/g, "");
+  assert.ok(home.includes(`href="${CONSTRUCTION_URL}"`) && home.includes(`>Visit Alert Construction`), "home: the Alert Construction card opens its site");
+  assert.ok(home.includes(`href="${ENGINEERS_URL}"`) && home.includes(`>Visit Alert Engineers`), "home: the Alert Engineers card opens its site");
 });
 
 test("site: About Us explains what Alert Tradie Pro is, what the two companies do, how a customer signs in and follows a project", async () => {
@@ -93,7 +96,6 @@ test("site: the home page keeps its sign-in windows and request form, uses the s
   const about = html.match(/<a [^>]*service-about-link[^>]*>/g) ?? [];
   assert.equal(about.length, 8, "every service card on the home page has an About link");
   assert.ok(about.some((tag) => tag.includes('href="/services#kitchen-renovations"')));
-  assert.match(html, /<nav class="company-bar"/);
   assert.ok(!html.includes('id="support"'));
   assert.ok(!html.includes("How the app works."));
   assert.ok(html.includes('href="/support"'));

@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import BrandLogo from "../BrandLogo";
-import { CONSTRUCTION_NAME, CONSTRUCTION_URL, ENGINEERS_NAME, ENGINEERS_URL, PRODUCT_NAME } from "./site-content";
+import { PRODUCT_NAME } from "./site-content";
 
 export type NavKey = "home" | "about" | "services" | "why" | "support";
 type Theme = "light" | "dark";
 const THEME_KEY = "alert-tradie-pro-theme";
 
-// The strip at the very top ("Alert Construction · Alert Engineers · Alert Tradie Pro") and the main navigation. The home page passes the two sign-in
-// callbacks (its sign-in windows live on that page); every other page leaves them out and the buttons send the visitor to the home page, which opens them.
+// The main navigation (desktop bar and phone menu). The home page passes the two sign-in callbacks (its sign-in windows live on that page); every other page leaves them out and the buttons send the visitor to the home page, which opens them.
 export default function SiteHeader({ active, onCustomerSignIn, onTeamSignIn }: { active: NavKey | null; onCustomerSignIn?: () => void; onTeamSignIn?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
@@ -36,7 +35,7 @@ export default function SiteHeader({ active, onCustomerSignIn, onTeamSignIn }: {
 
   useEffect(() => {
     if (!menuOpen) return;
-    // The strip above the header scrolls away, so the open menu starts exactly where the header ends, wherever the page is scrolled to.
+    // The open menu starts exactly where the header ends.
     const place = () => setMenuTop(Math.max(0, Math.round(headerRef.current?.getBoundingClientRect().bottom ?? 68)));
     place();
     const previous = document.body.style.overflow;
@@ -63,13 +62,6 @@ export default function SiteHeader({ active, onCustomerSignIn, onTeamSignIn }: {
 
   return (
     <>
-      <nav className="company-bar" aria-label="Our companies">
-        <span className="company-bar-label">Our companies</span>
-        <a href={CONSTRUCTION_URL} target="_blank" rel="noopener noreferrer">{CONSTRUCTION_NAME}<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens the {CONSTRUCTION_NAME} website in a new tab)</span></a>
-        <a href={ENGINEERS_URL} target="_blank" rel="noopener noreferrer">{ENGINEERS_NAME}<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens the {ENGINEERS_NAME} website in a new tab)</span></a>
-        <Link href="/" className="is-current" aria-current="true">{PRODUCT_NAME}</Link>
-      </nav>
-
       <header className="site-header" ref={headerRef}>
         <Link className="header-brand" href="/" aria-label={`${PRODUCT_NAME} home`}>
           <BrandLogo kind="tradie" tone="dark" className="header-logo" />

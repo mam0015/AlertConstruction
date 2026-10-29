@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "./BrandLogo";
 import SiteHeader from "./site/SiteHeader";
-import { SERVICES } from "./site/site-content";
+import { CONSTRUCTION_URL, ENGINEERS_URL, SERVICES } from "./site/site-content";
 
 const services = [
   {
@@ -420,7 +420,14 @@ export default function Home() {
               <p>{brand.description}</p>
               {index === 2
                 ? <a href="#request">Request and track <span>→</span></a>
-                : <Link href={index === 0 ? "/services" : "/services#engineering-services"}>Explore services <span>→</span></Link>}
+                : (
+                  <div className="brand-links">
+                    <Link href={index === 0 ? "/services" : "/services#engineering-services"}>Explore services <span>→</span></Link>
+                    <a href={index === 0 ? CONSTRUCTION_URL : ENGINEERS_URL} target="_blank" rel="noopener noreferrer">
+                      Visit {brand.name}<span aria-hidden="true">↗</span><span className="sr-only"> (opens the website in a new tab)</span>
+                    </a>
+                  </div>
+                )}
             </article>
           ))}
         </div>
@@ -596,11 +603,11 @@ export default function Home() {
         <div className="footer-main">
           <div className="footer-brand">
             <BrandLogo kind="construction" tone="dark" className="footer-lockup" />
-            <a href="https://alertconstruction.com.au" target="_blank" rel="noopener noreferrer">alertconstruction.com.au</a>
+            <a href={CONSTRUCTION_URL} target="_blank" rel="noopener noreferrer">alertconstruction.com.au</a>
           </div>
           <div className="footer-brand">
             <BrandLogo kind="engineers" tone="dark" className="footer-lockup" />
-            <a href="https://alertengineers.com.au" target="_blank" rel="noopener noreferrer">alertengineers.com.au</a>
+            <a href={ENGINEERS_URL} target="_blank" rel="noopener noreferrer">alertengineers.com.au</a>
           </div>
           <div className="footer-brand">
             <BrandLogo kind="tradie" tone="dark" className="footer-lockup" />

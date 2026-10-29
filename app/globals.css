@@ -2412,7 +2412,7 @@ input[type="checkbox"],input[type="radio"]{accent-color:#f5b900}
 .compact-heading > .section-kicker { color: #8a6200; }
 html[data-theme="dark"] .compact-heading > .section-kicker { color: #f2b705; }
 
-/* ---- The strip above the header: Alert Construction · Alert Engineers · Alert Tradie Pro ---- */
+/* ---- Shared helpers for the content pages ---- */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2440,73 +2440,10 @@ html[data-theme="dark"] .compact-heading > .section-kicker { color: #f2b705; }
   transform: none;
 }
 
-.company-bar {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 clamp(12px, 3vw, 30px);
-  color: #cfd3d6;
-  background: #050607;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
-}
-
-.company-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.company-bar-label {
-  margin-right: 10px;
-  color: #8d9296;
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
-.company-bar a {
-  padding: 7px 14px;
-  border-radius: 99px;
-  color: #e8eaec;
-  transition: color 140ms ease, background 140ms ease;
-}
-
-.company-bar a:hover {
-  color: var(--gold-strong);
-}
-
-.company-bar a.is-current {
-  color: #090b0c;
-  background: var(--gold-strong);
-}
-
-.company-bar a:focus-visible,
 .site-header a:focus-visible,
 .site-header button:focus-visible {
   outline: 2px solid var(--gold-strong);
   outline-offset: 2px;
-}
-
-@media (max-width: 620px) {
-  .company-bar {
-    justify-content: center;
-    gap: 2px;
-    font-size: 11px;
-  }
-
-  .company-bar-label {
-    display: none;
-  }
-
-  .company-bar a {
-    padding: 7px 9px;
-  }
 }
 
 /* The request form is a light card on the dark section in BOTH themes, so its text keeps the light-theme colours (it used to turn near-white on near-white in dark mode). */
@@ -2516,4 +2453,16 @@ html[data-theme="dark"] .request-form {
   --line: #dedbd4;
   --body-copy: #505358;
   color: #111315;
+}
+
+/* ---- Links to the Alert Construction and Alert Engineers websites on the brand cards ---- */
+.brand-card .brand-links {
+  display: flex;
+  margin-top: auto;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.brand-card .brand-links a {
+  margin-top: 0;
 }
