@@ -50,6 +50,7 @@ test("commands: the Owner's words are read into a task for the right person, wit
     assert.ok(action.title && action.text, sentence);
   }
   assert.equal(one("give Reza a task to order grout, urgent").title, "order grout", "words that only say how important it is are not part of the task");
+  for (const said of ["give Reza a task to order grout, it is urgent", "give Reza a task to order grout, it's urgent", "give Reza a task to order grout, this is very urgent"]) assert.equal(one(said).title, "order grout", `"${said}": the filler before the priority word goes with it`);
   assert.equal(one("set a task for ALI: ring the council").priority, "Normal");
   // more than one person: one card each
   const both = run("set a task for Ben and Reza: clean up the site");

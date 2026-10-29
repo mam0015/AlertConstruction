@@ -491,8 +491,8 @@ export function niceName(person) {
 }
 const names = (list) => list.map(niceName).join(", ");
 
-// Words that only say how important it is ("urgent", "asap", "high priority") are not part of the task's text.
-const PRIORITY_NOISE = /(?:^|[\s,;(-])(?:urgent\w*|asap|high[- ]priority|top priority|important|فوری|مهم)(?=[\s,;).!]|$)[\s,;).!]*/giu;
+// Words that only say how important it is ("urgent", "asap", "it is urgent", "high priority") are not part of the task's text.
+const PRIORITY_NOISE = /(?:^|[\s,;(-])(?:(?:it(?:'s|\u2019s| is)|this(?:'s| is)|that(?:'s| is)|very|really|extremely)\s+)*(?:urgent\w*|asap|high[- ]priority|top priority|important|فوری|مهم)(?=[\s,;).!]|$)[\s,;).!]*/giu;
 function withoutPriority(text) {
   const cleaned = text.replace(PRIORITY_NOISE, " ").replace(/\s+/g, " ").replace(/^[\s,;:\-]+|[\s,;:\-]+$/g, "").trim();
   return cleaned.length >= 2 ? cleaned : text;
