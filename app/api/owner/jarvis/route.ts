@@ -1,6 +1,7 @@
 import { runtimeBindings } from "../../../../db/runtime";
 import { listPeople } from "../../../../db/team-store";
 import { teamPeople } from "../../../../jarvis/executors";
+import { loadCommandContext } from "../../../../jarvis/basic.mjs";
 import { describeBrains } from "../../../../jarvis/brains.mjs";
 import { recentActions, recentSends } from "../../../../jarvis/audit.mjs";
 import { runJarvis } from "../../../../jarvis/jarvis.mjs";
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     console.info(JSON.stringify({ jarvis: "read", scopes: result.scopes, items: result.items.length }));
     // The longer record text exists for the AI only; the screen gets the short preview.
     const items = result.items.map((item) => { const visible: Record<string, unknown> = { ...item }; delete visible.detail; return visible; });
-    return Response.json({ ...result, items, capabilities, sent: await recentSends(env.DB, 10), actionsDone: await recentActions(env.DB, 10), team: await teamPeople(listPeople) }, { headers });
+    return Response.json({ ...result, items, capabilities, sent: await recentSends(env.DB, 10), actionsDone: await recentActions(env.DB, 10), team: await teamPeople(listPeople), projects: (await loadCommandContext(env.DB)).projects.map(({ code, name, customer }: { code: string; name: string; customer: string }) => ({ code, name, customer })) }, { headers });
   } catch (error) {
     return fail(error, "Jarvis could not read the company records right now.");
   }

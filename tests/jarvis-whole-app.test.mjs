@@ -217,7 +217,7 @@ test("actions: a proposal is accepted only for an approved team member and a rea
   const { actions, dropped } = validateProposals([calendar, { ...calendar, person: "nobody@example.com" }, "junk", null], context);
   assert.equal(actions.length, 1);
   assert.equal(dropped.length, 3);
-  assert.match(actions[0].summary, /Add “Tiling” to the calendar of tiler · Tiler/);
+  assert.match(actions[0].summary, /Add “Tiling” to the calendar of Tiler on \w{3} \d{4}-\d{2}-\d{2} at 07:30/);
 });
 
 test("actions: the AI proposes with ids, the server turns them into real team members, and nothing happens until the Owner confirms", async () => {

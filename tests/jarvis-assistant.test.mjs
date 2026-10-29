@@ -344,7 +344,7 @@ test("ai: the model's answer is validated; it cannot invent record ids, actions 
   assert.equal(closed.draftDropped, true);
 
   for (const bad of [null, "text", [], 42]) assert.throws(() => validateAiResult(bad, { itemIds: new Set(), canDraft: true }), AiError);
-  assert.equal(validateAiResult({ reply: "x".repeat(9000), suggestions: "no", draft: null }, { itemIds: new Set(), canDraft: false }).reply.length, 3000);
+  assert.equal(validateAiResult({ reply: "x".repeat(9000), suggestions: "no", draft: null }, { itemIds: new Set(), canDraft: false }).reply.length, 4000);
 });
 
 test("ai: askAi sends the strict schema with effort and refusal fallbacks, and handles every outcome", async () => {

@@ -320,3 +320,17 @@
 .listening span{color:var(--j-ink);font-family:inherit}
 @media(max-width:640px){.chatForm{grid-template-columns:1fr;grid-template-areas:"prompt" "input" "run"}.runButtons .ask{flex:1}.voiceButton{flex:1 1 auto;justify-content:center}}
 @media(prefers-reduced-motion:reduce){.micOn{animation:none}}
+
+/* ---- Money card (an income / expense Jarvis has prepared) ---- */
+.moneyCard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 18px;margin:8px 0 2px;padding:10px 12px;border:1px solid var(--j-line);border-radius:3px;background:rgba(77,255,176,.04)}
+.moneyCard div{min-width:0}
+.moneyCard dt{font-family:var(--j-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--j-muted)}
+.moneyCard dd{margin:2px 0 0;font-size:14px;color:var(--j-ink);overflow-wrap:anywhere}
+.moneyCard .moneyIn,.moneyCard .moneyOut{font-family:var(--j-mono);font-size:18px;font-weight:700}
+.moneyCard .moneyIn{color:var(--j-neon)}
+.moneyCard .moneyOut{color:var(--j-warn)}
+.pendingChip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:7px 10px;border:1px dashed var(--j-line2);border-radius:3px;color:var(--j-soft);font-size:13px}
+.pendingChip button{border:0;background:transparent;color:var(--j-muted);font-size:18px;line-height:1;cursor:pointer;padding:2px 6px}
+.pendingChip button:hover{color:var(--j-ink)}
+
+.turnOwner,.turnJarvis{scroll-margin-top:96px}

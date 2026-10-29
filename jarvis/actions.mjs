@@ -1,5 +1,5 @@
 // What Jarvis can DO inside the app for the Owner: send an in-app message to a person, put something in the calendar,
-// give someone a task. It never does any of these on its own.
+// give someone a task, record an income or expense on a project. It never does any of these on its own.
 //
 //   1. The AI (or the Owner's own form) PROPOSES an action. validateProposal() checks it against the real team list and the
 //      calendar rules and returns a clean, complete description. Nothing has happened yet.
@@ -11,9 +11,13 @@
 import { abandonAction, beginAction, finishAction, noteAsk } from "./audit.mjs";
 import { proofread } from "./proofread.mjs";
 import { JarvisAccessError } from "./policy.mjs";
+import { niceName } from "./commands.mjs";
 import { clipText, oneLine, sha256Hex } from "./text.mjs";
 
-export const ACTION_TYPES = Object.freeze(["send_message", "add_calendar", "create_task"]);
+export const ACTION_TYPES = Object.freeze(["send_message", "add_calendar", "create_task", "add_finance"]);
+export const FINANCE_TYPES = Object.freeze(["Income", "Outcome"]);
+export const GENERAL_PROJECT = "Business / General";
+const MAX_CENTS = 10_000_000_000; // $100,000,000 — the same ceiling as the finance form
 export const PRIORITIES = Object.freeze(["Normal", "High", "Urgent"]);
 export const MAX_ACTIONS = 5;
 const ACTION_ID = /^[A-Za-z0-9-]{8,64}$/;
@@ -21,7 +25,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MESSAGE_CHARS = 2000;
 
-export const TYPE_LABEL = Object.freeze({ send_message: "Message", add_calendar: "Calendar", create_task: "Task" });
+export const TYPE_LABEL = Object.freeze({ send_message: "Message", add_calendar: "Calendar", create_task: "Task", add_finance: "Money" });
 
 function isRealDate(value) {
   if (!DATE.test(value)) return false;
@@ -33,12 +37,43 @@ function addDays(date, days) {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-// `people` is the approved team list ({ email, name, role }); `today` is the Melbourne date (YYYY-MM-DD); `ownerEmail` is the Owner.
+const dollars = (cents) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
+const WEEKDAY = new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short" });
+const dayWithWeekday = (date) => `${WEEKDAY.format(new Date(`${date}T12:00:00Z`))} ${date}`;
+
+// A finance entry belongs to a real project (or to the business in general); it is never about a person, so it has no recipient.
+function validateFinance(raw, { projects, today, makeId }) {
+  const financeType = FINANCE_TYPES.includes(raw.financeType) ? raw.financeType : "";
+  if (!financeType) return { problem: "The money entry must be Income or an Expense." };
+  const category = oneLine(raw.category ?? "", 80);
+  if (!category) return { problem: "The money entry needs a category (for example Materials)." };
+  const amountCents = Number(raw.amountCents);
+  if (!Number.isInteger(amountCents) || amountCents < 1 || amountCents > MAX_CENTS) return { problem: "The amount must be more than zero and under $100,000,000." };
+  const entryDate = typeof raw.entryDate === "string" && raw.entryDate.trim() ? raw.entryDate.trim() : today;
+  if (!isRealDate(entryDate)) return { problem: "The date of the money entry is not a real date." };
+  if (entryDate > addDays(today, 30)) return { problem: "A money entry cannot be dated more than 30 days ahead." };
+  if (entryDate < addDays(today, -1100)) return { problem: "A money entry cannot be dated more than 3 years back." };
+  const code = oneLine(raw.projectCode ?? "", 80) || GENERAL_PROJECT;
+  const known = Array.isArray(projects) ? projects : null;
+  const project = code === GENERAL_PROJECT ? null : known?.find((entry) => entry.code === code);
+  if (code !== GENERAL_PROJECT && !project) return { problem: known ? `There is no project with the code ${code.slice(0, 40)}.` : "Projects are not available right now, so the money entry cannot be checked." };
+  const projectName = project ? (project.name || project.customer || project.code) : "the business in general";
+  const id = typeof raw.id === "string" && ACTION_ID.test(raw.id) ? raw.id : makeId();
+  return {
+    action: {
+      id, type: "add_finance", personEmail: "", personName: "", personRole: "", title: category, text: clipText(raw.text ?? "", 500), dates: [entryDate], startTime: "",
+      projectCode: code, priority: "Normal", financeType, category, amountCents, entryDate, projectName,
+    },
+  };
+}
+
+// `people` is the approved team list ({ email, name, role }); `projects` the real projects ({ code, name, customer }); `today` is the Melbourne date (YYYY-MM-DD); `ownerEmail` is the Owner.
 // Returns { action } when the proposal is usable, or { problem } saying in plain words what is wrong.
-export function validateProposal(raw, { people = [], today, ownerEmail = "", makeId = () => crypto.randomUUID() }) {
+export function validateProposal(raw, { people = [], projects, today, ownerEmail = "", makeId = () => crypto.randomUUID() }) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { problem: "That is not a valid action." };
   const type = raw.type;
   if (!ACTION_TYPES.includes(type)) return { problem: "Jarvis does not know that kind of action." };
+  if (type === "add_finance") return validateFinance(raw, { projects, today, makeId });
 
   const email = oneLine(raw.person ?? raw.personEmail ?? "", 200).toLowerCase();
   const person = people.find((entry) => entry.email.toLowerCase() === email);
@@ -48,7 +83,7 @@ export function validateProposal(raw, { people = [], today, ownerEmail = "", mak
   const title = clipText(raw.title, 160);
   const text = clipText(raw.text, type === "send_message" ? MESSAGE_CHARS : 1000);
   const id = typeof raw.id === "string" && ACTION_ID.test(raw.id) ? raw.id : makeId();
-  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(person.name, 120), personRole: oneLine(person.role, 40) };
+  const base = { id, type, personEmail: person.email.toLowerCase(), personName: oneLine(niceName(person), 120), personRole: oneLine(person.role, 40) };
 
   if (type === "send_message") {
     if (text.length < 2) return { problem: "The message is empty." };
@@ -56,6 +91,10 @@ export function validateProposal(raw, { people = [], today, ownerEmail = "", mak
   }
 
   const projectCode = oneLine(raw.projectCode ?? "", 60);
+  // A code the AI made up is caught here, before the Owner is shown a card for a project that does not exist.
+  if (projectCode && projectCode !== GENERAL_PROJECT && Array.isArray(projects) && projects.length && !projects.some((entry) => entry.code === projectCode)) {
+    return { problem: `There is no project with the code ${projectCode.slice(0, 40)}.` };
+  }
   if (type === "create_task") {
     if (!title) return { problem: "The task needs a title." };
     if (!text) return { problem: "The task needs instructions." };
@@ -77,10 +116,17 @@ export function validateProposal(raw, { people = [], today, ownerEmail = "", mak
 
 // A one-line plain description of what pressing the button will do, built by Jarvis (never by the AI).
 export function describeAction(action) {
+  if (action.type === "add_finance") {
+    const what = action.financeType === "Income" ? "income" : "an expense";
+    return `Record ${what} of ${dollars(action.amountCents)} (${action.category}) for ${action.projectName || action.projectCode}${action.projectCode === GENERAL_PROJECT ? "" : ` (${action.projectCode})`}, dated ${dayWithWeekday(action.entryDate)}${action.text ? `. Note: ${action.text}` : ""}.`;
+  }
   const who = action.personName || action.personEmail;
   if (action.type === "send_message") return `Send an in-app message to ${who}.`;
-  if (action.type === "create_task") return `Give ${who} a ${action.priority.toLowerCase()}-priority task: ${action.title}.`;
-  const when = action.dates.length === 1 ? action.dates[0] : `${action.dates.length} days (${action.dates[0]} to ${action.dates.at(-1)})`;
+  if (action.type === "create_task") {
+    const priority = action.priority.toLowerCase();
+    return `Give ${who} ${/^[aeiou]/.test(priority) ? "an" : "a"} ${priority}-priority task: ${action.title}.`;
+  }
+  const when = action.dates.length === 1 ? dayWithWeekday(action.dates[0]) : `${action.dates.length} days (${action.dates[0]} to ${action.dates.at(-1)})`;
   return `Add “${action.title}” to the calendar of ${who} on ${when}${action.startTime ? ` at ${action.startTime}` : ""}.`;
 }
 
@@ -100,11 +146,12 @@ export function validateProposals(list, context) {
 
 // `executors` carry the action out through the app's own stores:
 //   sendMessage({ personEmail, text }), addCalendar({ personEmail, title, notes, dates, startTime, projectCode }),
-//   createTask({ personEmail, title, instructions, priority, projectCode })
-export async function performAction({ db, owner, input, people, today, executors, proofreadWith = /** @type {{ client?: any, model?: string }} */ ({}), now = Date.now() }) {
+//   createTask({ personEmail, title, instructions, priority, projectCode }),
+//   addFinance({ financeType, category, projectCode, amountCents, entryDate, note })
+export async function performAction({ db, owner, input, people, projects, today, executors, proofreadWith = /** @type {{ client?: any, model?: string }} */ ({}), now = Date.now() }) {
   if (!input || typeof input !== "object" || input.confirm !== true) throw new JarvisAccessError("Confirm before Jarvis does this.", 400);
   if (typeof input.id !== "string" || !ACTION_ID.test(input.id)) throw new JarvisAccessError("That action is not valid. Ask Jarvis again.", 400);
-  const checked = validateProposal(input.action ?? input, { people, today, ownerEmail: owner.email, makeId: () => input.id });
+  const checked = validateProposal(input.action ?? input, { people, projects, today, ownerEmail: owner.email, makeId: () => input.id });
   if (!checked.action) throw new JarvisAccessError(checked.problem, 400);
   const action = { ...checked.action, id: input.id };
 
@@ -118,11 +165,12 @@ export async function performAction({ db, owner, input, people, today, executors
   }
 
   const claim = await beginAction(db, {
-    ownerEmail: owner.email, actionId: action.id, type: action.type, recipient: action.personEmail, title: action.title || (action.type === "send_message" ? "Message" : ""),
-    bodySha256: await sha256Hex(`${action.title}\n${action.text}\n${action.dates.join(",")}\n${action.startTime}`), bodyChars: action.text.length,
+    ownerEmail: owner.email, actionId: action.id, type: action.type, recipient: action.type === "add_finance" ? action.projectCode : action.personEmail, title: action.title || (action.type === "send_message" ? "Message" : ""),
+    bodySha256: await sha256Hex(`${action.title}\n${action.text}\n${action.dates.join(",")}\n${action.startTime}\n${action.financeType ?? ""}\n${action.amountCents ?? ""}`), bodyChars: action.text.length,
   }, now);
   try {
-    if (action.type === "send_message") await executors.sendMessage({ personEmail: action.personEmail, text: action.text });
+    if (action.type === "add_finance") await executors.addFinance({ financeType: action.financeType, category: action.category, projectCode: action.projectCode, amountCents: action.amountCents, entryDate: action.entryDate, note: action.text });
+    else if (action.type === "send_message") await executors.sendMessage({ personEmail: action.personEmail, text: action.text });
     else if (action.type === "create_task") await executors.createTask({ personEmail: action.personEmail, title: action.title, instructions: action.text, priority: action.priority, projectCode: action.projectCode });
     else await executors.addCalendar({ personEmail: action.personEmail, title: action.title, notes: action.text, dates: action.dates, startTime: action.startTime, projectCode: action.projectCode });
   } catch (error) {
