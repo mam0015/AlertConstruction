@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CalendarEntry, ChatMessage, StaffReport, TeamPerson } from "../../../db/team-store";
 import styles from "./team-hub.module.css";
+import { requestSignOut } from "../sign-out";
 
 type Me = { email: string; role: string; name: string };
 type Tab = "calendar" | "messages" | "report" | "team";
@@ -51,8 +52,10 @@ export default function TeamHub({ me, home }: { me: Me; home: string }) {
   const flash = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(""), 3500); };
 
   async function signOut() {
-    await fetch(me.role === "Owner" ? "/api/owner/logout" : "/api/admin/logout", { method: "POST" }).catch(() => undefined);
-    window.location.href = "/";
+    setError("");
+    const problem = await requestSignOut(me.role === "Owner" ? "/api/owner/logout" : "/api/admin/logout");
+    if (problem) setError(problem);
+    else window.location.href = "/";
   }
 
   return <main className={styles.shell}>

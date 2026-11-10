@@ -1,5 +1,5 @@
 import { loginGuard } from "../../../../db/throttle";
-import { adminSessionCookie, createAdminSession, createPendingStaffSession, pendingStaffSessionCookie } from "../../../admin-auth";
+import { adminSessionCookie, clearPendingStaffSessionCookie, createAdminSession, createPendingStaffSession, pendingStaffSessionCookie } from "../../../admin-auth";
 import { requestIsSameOrigin } from "../../../owner-auth";
 import { processStaffSignIn, staffRedirect } from "../../../staff-access";
 
@@ -20,9 +20,12 @@ export async function POST(request: Request) {
   const secure = new URL(request.url).protocol === "https:";
   if (result.status === "rejected") return Response.json({ error: "This staff access request was not approved. Contact the Owner." }, { status: 403 });
   if (result.status === "pending") {
-    const token = await createPendingStaffSession(email);
+    const token = await createPendingStaffSession(email, result.proof);
     return Response.json({ ok: true, status: "pending", redirect: "/team/pending" }, { status: 202, headers: { "Set-Cookie": pendingStaffSessionCookie(token, secure), "Cache-Control": "no-store" } });
   }
-  const token = await createAdminSession(email, result.role);
-  return Response.json({ ok: true, status: "approved", role: result.role, redirect: staffRedirect(result.role) }, { headers: { "Set-Cookie": adminSessionCookie(token, secure), "Cache-Control": "no-store" } });
+  const token = await createAdminSession(email, result.role, result.proof);
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  headers.append("Set-Cookie", adminSessionCookie(token, secure));
+  headers.append("Set-Cookie", clearPendingStaffSessionCookie(secure));
+  return Response.json({ ok: true, status: "approved", role: result.role, redirect: staffRedirect(result.role) }, { headers });
 }

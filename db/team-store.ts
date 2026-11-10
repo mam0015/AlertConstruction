@@ -4,6 +4,10 @@ import { ensureOwnerDatabase } from "./owner-store";
 import { getPrimaryOwnerAccount } from "./access-settings-store";
 import { ensureStaffAccessTable, listStaffAccessRequests } from "./staff-store";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
+import { ensureWorkflowDatabase } from "./workflow-store";
+import { ensureWorkerDatabase } from "./worker-store";
+import { estimatorStages } from "../app/workflow/types";
+import { isWorkerRole } from "../app/staff-access";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -180,11 +184,30 @@ export async function listOwnStaffReports(identity: TeamIdentity): Promise<Staff
   return rows.results as unknown as StaffReport[];
 }
 
-export async function listProjectCodes() {
+// The project picker in the Team hub. Owner, Admin and Manager oversee every project; everyone else only gets the projects they are
+// actually working on (a Worker must never see the names of unassigned jobs).
+export async function listProjectCodes(identity: TeamIdentity) {
   await ensureTeamTables();
   const db = await database();
-  const rows = await db.prepare("SELECT code,name FROM projects ORDER BY updated_at DESC LIMIT 100").all<{ code: string; name: string }>();
-  return rows.results;
+  const columns = "SELECT p.code AS code,p.name AS name FROM projects p";
+  const me = identity.email.toLowerCase();
+  if (canPlan.has(identity.role)) {
+    return (await db.prepare(`${columns} ORDER BY p.updated_at DESC LIMIT 100`).all<{ code: string; name: string }>()).results;
+  }
+  if (identity.role === "Site Supervisor") {
+    await ensureWorkflowDatabase();
+    return (await db.prepare(`${columns} WHERE p.code IN (SELECT project_code FROM workflow_cases WHERE project_code!='' AND LOWER(assigned_supervisor_email)=?) ORDER BY p.updated_at DESC LIMIT 100`).bind(me).all<{ code: string; name: string }>()).results;
+  }
+  if (identity.role === "Estimator") {
+    await ensureWorkflowDatabase();
+    const stages = estimatorStages.map(() => "?").join(",");
+    return (await db.prepare(`${columns} WHERE p.code IN (SELECT project_code FROM workflow_cases WHERE project_code!='' AND stage IN (${stages})) ORDER BY p.updated_at DESC LIMIT 100`).bind(...estimatorStages).all<{ code: string; name: string }>()).results;
+  }
+  if (isWorkerRole(identity.role)) {
+    await ensureWorkerDatabase();
+    return (await db.prepare(`${columns} WHERE p.code IN (SELECT wc.project_code FROM worker_project_assignments a JOIN workflow_cases wc ON wc.id=a.case_id WHERE wc.project_code!='' AND a.worker_email=? AND a.status='active') ORDER BY p.updated_at DESC LIMIT 100`).bind(me).all<{ code: string; name: string }>()).results;
+  }
+  return [];
 }
 
 export const ensureTeamTables = memoizePerDatabase(ensureTeamTablesOnce);

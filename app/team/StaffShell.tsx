@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import BrandLogo from "../BrandLogo";
 import styles from "./hub/team-hub.module.css";
+import { requestSignOut } from "./sign-out";
 
 export default function StaffShell({ title, subtitle, role, children }: { title: string; subtitle: string; role: "Owner" | "Staff"; children: ReactNode }) {
+  const [signOutError, setSignOutError] = useState("");
   async function signOut() {
-    await fetch(role === "Owner" ? "/api/owner/logout" : "/api/admin/logout", { method: "POST" }).catch(() => undefined);
-    window.location.href = "/";
+    setSignOutError("");
+    const problem = await requestSignOut(role === "Owner" ? "/api/owner/logout" : "/api/admin/logout");
+    if (problem) setSignOutError(problem);
+    else window.location.href = "/";
   }
   return <main className={styles.shell}>
     <header className={styles.top}>
@@ -21,6 +25,7 @@ export default function StaffShell({ title, subtitle, role, children }: { title:
         <button className={styles.btn} onClick={() => void signOut()}>Sign out</button>
       </div>
     </header>
+    {signOutError && <p className={styles.error} role="alert">{signOutError}</p>}
     <div className={styles.body}>{children}</div>
   </main>;
 }

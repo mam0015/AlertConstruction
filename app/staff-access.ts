@@ -1,11 +1,11 @@
-import { hashStaffPassword, type StaffRole, verifyCompanyTeamCode, verifyStoredSecret } from "./admin-auth";
+import { hashStaffPassword, staffSessionProof, type StaffRole, type StaffSessionProof, verifyCompanyTeamCode, verifyStoredSecret } from "./admin-auth";
 import { isRegisteredOwnerEmail } from "./owner-auth";
 import { createStaffAccessRequest, getStaffAccessRequest, touchStaffAccessRequest } from "../db/staff-store";
 import { notifyOwnerOfStaffRequest } from "./team-access-notification";
 
 export type StaffSignInResult =
-  | { status: "pending"; email: string }
-  | { status: "approved"; email: string; role: StaffRole; tradeTitle: string }
+  | { status: "pending"; email: string; proof: StaffSessionProof }
+  | { status: "approved"; email: string; role: StaffRole; tradeTitle: string; proof: StaffSessionProof }
   | { status: "rejected"; email: string }
   | { status: "weak" }
   | { status: "invalid" };
@@ -33,6 +33,7 @@ async function invalidAfterCheck(password: string): Promise<StaffSignInResult> {
 }
 
 export async function processStaffSignIn(emailInput: string, password: string, teamCode: string): Promise<StaffSignInResult> {
+  const checkedAt = Date.now();
   const email = emailInput.trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email) || !password) return { status: "invalid" };
   if (await isRegisteredOwnerEmail(email)) return invalidAfterCheck(password);
@@ -44,14 +45,17 @@ export async function processStaffSignIn(emailInput: string, password: string, t
     if (!await verifyCompanyTeamCode(teamCode)) return { status: "invalid" };
     // Only someone who already holds the Team Code is told about the password rule, so this reveals nothing to a stranger.
     if (password.length < 10) return { status: "weak" };
-    await createStaffAccessRequest(email, await hashStaffPassword(password));
+    const passwordHash = await hashStaffPassword(password);
+    // Someone else created this e-mail's request a moment ago: their password stands, and this attempt is simply a wrong sign-in.
+    if (!await createStaffAccessRequest(email, passwordHash)) return { status: "invalid" };
     await notifyOwnerOfStaffRequest(email).catch(() => undefined);
-    return { status: "pending", email };
+    return { status: "pending", email, proof: await staffSessionProof(passwordHash, checkedAt) };
   }
 
   if (!await verifyStoredSecret(password, existing.passwordHash)) return { status: "invalid" };
+  const proof = await staffSessionProof(existing.passwordHash, checkedAt);
   await touchStaffAccessRequest(email);
   if (existing.status === "Rejected") return { status: "rejected", email };
-  if (existing.status !== "Approved" || existing.role === "Unassigned") return { status: "pending", email };
-  return { status: "approved", email, role: existing.role, tradeTitle: existing.tradeTitle };
+  if (existing.status !== "Approved" || existing.role === "Unassigned") return { status: "pending", email, proof };
+  return { status: "approved", email, role: existing.role, tradeTitle: existing.tradeTitle, proof };
 }
