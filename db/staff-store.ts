@@ -54,19 +54,17 @@ export async function listStaffAccessRequests() {
   return result.results;
 }
 
+// True only if this call created the request. Two people joining with one e-mail at the same moment must not replace each other's
+// password, and an account that already exists is never changed from here.
 export async function createStaffAccessRequest(email: string, passwordHash: string) {
   await ensureStaffAccessTable();
   const db = await database();
   const now = new Date().toISOString();
-  await db.prepare(`INSERT INTO staff_access_requests
+  const created = await db.prepare(`INSERT INTO staff_access_requests
     (email,password_hash,status,role,trade_title,requested_at,reviewed_at,last_seen_at)
     VALUES (?,?,'Pending','Unassigned','',?,'',?)
-    ON CONFLICT(email) DO UPDATE SET
-      password_hash=excluded.password_hash,
-      status=CASE WHEN staff_access_requests.status='Approved' THEN staff_access_requests.status ELSE 'Pending' END,
-      requested_at=CASE WHEN staff_access_requests.status='Approved' THEN staff_access_requests.requested_at ELSE excluded.requested_at END,
-      last_seen_at=excluded.last_seen_at`).bind(email.toLowerCase(), passwordHash, now, now).run();
-  return getStaffAccessRequest(email);
+    ON CONFLICT(email) DO NOTHING`).bind(email.toLowerCase(), passwordHash, now, now).run();
+  return Number(created.meta.changes) === 1;
 }
 
 export async function touchStaffAccessRequest(email: string) {

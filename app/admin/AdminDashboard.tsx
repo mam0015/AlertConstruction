@@ -12,6 +12,7 @@ import TaskManagementPanel from "../tasks/TaskManagementPanel";
 import TaskInbox from "../tasks/TaskInbox";
 import OperationsControlPanel from "../operations/OperationsControlPanel";
 import styles from "./admin.module.css";
+import { requestSignOut } from "../team/sign-out";
 
 type View = "overview" | "workflow" | "estimate" | "issues" | "followups" | "workers" | "tasks" | "projects" | "requests" | "schedule" | "messages";
 type Resource = "project" | "request" | "schedule" | "message";
@@ -164,8 +165,10 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
     if (await mutate("POST", "message", { recipient, body: draft.trim() }, undefined, `Message sent to ${recipient}.`)) setDraft("");
   }
   async function signOut() {
-    await fetch("/api/admin/logout", { method: "POST" });
-    router.refresh();
+    setError("");
+    const problem = await requestSignOut("/api/admin/logout");
+    if (problem) setError(problem);
+    else router.refresh();
   }
 
   const newRequests = data.requests.filter((request) => ["New", "Needs review"].includes(request.status));

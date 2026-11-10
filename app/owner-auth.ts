@@ -1,5 +1,5 @@
 import { getOwnerAccountByEmail } from "../db/access-settings-store";
-import { sessionsRevokedBefore } from "../db/session-store";
+import { ownerSessionState, sessionLineOf } from "../db/session-store";
 import { safeEqual, verifyPbkdf2 } from "./secret-utils";
 
 const OWNER_COOKIE = "atp_owner_session";
@@ -49,26 +49,34 @@ export async function ownerDisplayName(email: string) {
   return (await getOwnerAccountByEmail(email.trim().toLowerCase()))?.displayName ?? "Owner";
 }
 
-export async function verifyOwnerPassword(email: string, password: string) {
-  const normalised = email.trim().toLowerCase();
-  const account = await getOwnerAccountByEmail(normalised);
-  const fallbackHash = process.env.OWNER_PASSWORD_HASH?.trim() ?? "";
-  const valid = await verifyPbkdf2(password, account?.passwordHash ?? fallbackHash);
-  return Boolean(account && valid);
-}
+// What a session cookie is made from: the moment the sign-in was checked and the fingerprint of the exact password that was checked (see
+// app/admin-auth.ts). A refreshed cookie also keeps the expiry of the session it replaces, so it is the same session, not a longer one.
+// `sid` names the session line (see db/session-store.ts): new for every sign-in, kept when the cookie is refreshed.
+export type OwnerSessionProof = { iat: number; v: string; sid?: string; expires?: number };
 
-async function credentialFingerprint(passwordHash: string) {
+export async function ownerCredentialFingerprint(passwordHash: string) {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(`owner-session|${passwordHash}`)));
   return base64UrlEncode(digest.slice(0, 9));
 }
 
-export async function createOwnerSession(email: string, seconds = SESSION_SECONDS) {
-  const account = await getOwnerAccountByEmail(email.trim().toLowerCase());
+// The proof of a correct sign-in, or null. Takes the same time whether or not the e-mail is the Owner's.
+export async function verifyOwnerPassword(email: string, password: string): Promise<OwnerSessionProof | null> {
+  const checkedAt = Date.now();
+  const normalised = email.trim().toLowerCase();
+  const account = await getOwnerAccountByEmail(normalised);
+  const fallbackHash = process.env.OWNER_PASSWORD_HASH?.trim() ?? "";
+  const valid = await verifyPbkdf2(password, account?.passwordHash ?? fallbackHash);
+  if (!account || !valid) return null;
+  return { iat: checkedAt, v: await ownerCredentialFingerprint(account.passwordHash), sid: base64UrlEncode(crypto.getRandomValues(new Uint8Array(16))) };
+}
+
+export async function createOwnerSession(email: string, proof: OwnerSessionProof, seconds = SESSION_SECONDS) {
   const payload = base64UrlEncode(JSON.stringify({
     email: email.toLowerCase(),
-    v: await credentialFingerprint(account?.passwordHash ?? ""),
-    iat: Date.now(),
-    expires: Date.now() + seconds * 1000,
+    v: proof.v,
+    iat: proof.iat,
+    sid: proof.sid,
+    expires: proof.expires ?? Date.now() + seconds * 1000,
   }));
   return `${payload}.${base64UrlEncode(await hmac(payload))}`;
 }
@@ -79,17 +87,41 @@ export async function verifyOwnerSession(token?: string | null) {
   if (!payload || !signatureText || extra) return null;
   if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number; v?: string; iat?: number };
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as { email?: string; expires?: number; v?: string; iat?: number; sid?: string };
     if (!parsed.email || !parsed.expires || parsed.expires < Date.now()) return null;
     // Changing the Owner password changes the fingerprint and signs out every older session.
     const account = await getOwnerAccountByEmail(parsed.email.trim().toLowerCase());
-    if (!account || !parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await credentialFingerprint(account.passwordHash)))) return null;
+    if (!account || !parsed.v || !safeEqual(encoder.encode(parsed.v), encoder.encode(await ownerCredentialFingerprint(account.passwordHash)))) return null;
     // Signing out (or "sign out everywhere") ends every session issued before it.
-    if ((parsed.iat ?? 0) <= await sessionsRevokedBefore(`owner:${parsed.email.toLowerCase()}`)) return null;
-    return { email: parsed.email.toLowerCase(), expires: parsed.expires };
+    if (!parsed.iat) return null;
+    const state = await ownerSessionState(sessionLineOf({ sid: parsed.sid, iat: parsed.iat }));
+    if (parsed.iat <= state.revokedBefore || state.lineEnded) return null;
+    return { email: parsed.email.toLowerCase(), expires: parsed.expires, iat: parsed.iat, v: parsed.v, sid: parsed.sid };
   } catch {
     return null;
   }
+}
+
+// For sign-out: the Owner cookie, if it is genuine (signed here, not expired), and whether it is still current (made with the current
+// password and e-mail, issued after the last sign-out). A database failure is thrown, never read as "signed out", so sign-out can say it failed.
+export async function presentedOwnerCookie(token: string | null | undefined) {
+  if (!token) return null;
+  const [payload, signatureText, extra] = token.split(".");
+  if (!payload || !signatureText || extra) return null;
+  if (!safeEqual(await hmac(payload), base64UrlDecode(signatureText))) return null;
+  let parsed: { email?: string; expires?: number; v?: string; iat?: number; sid?: string };
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)));
+  } catch {
+    return null;
+  }
+  if (!parsed.email || !parsed.v || !parsed.iat || !parsed.expires || parsed.expires < Date.now()) return null;
+  const line = sessionLineOf({ sid: parsed.sid, iat: parsed.iat });
+  const account = await getOwnerAccountByEmail(parsed.email.trim().toLowerCase());
+  const state = await ownerSessionState(line);
+  const ended = state.lineEnded || parsed.iat <= state.revokedBefore;
+  const current = Boolean(account) && !ended && safeEqual(encoder.encode(parsed.v), encoder.encode(await ownerCredentialFingerprint(account?.passwordHash ?? "")));
+  return { iat: parsed.iat, current, line, ended };
 }
 
 export function ownerCookieName() { return OWNER_COOKIE; }

@@ -112,11 +112,15 @@ export async function updateOwnerProfile(currentEmail: string, email: string, di
   return getPrimaryOwnerAccount();
 }
 
+// Returns the hash it saved, so the caller's refreshed session is tied to exactly this password and not to whatever is saved later.
 export async function updateOwnerPassword(email: string, password: string) {
   await ensureAccessSettings();
   const db = await database();
-  await db.prepare("UPDATE owner_accounts SET password_hash=?,updated_at=? WHERE id=1 AND LOWER(email)=LOWER(?)")
-    .bind(await hashPbkdf2(password), new Date().toISOString(), email.trim()).run();
+  const passwordHash = await hashPbkdf2(password);
+  const updated = await db.prepare("UPDATE owner_accounts SET password_hash=?,updated_at=? WHERE id=1 AND LOWER(email)=LOWER(?)")
+    .bind(passwordHash, new Date().toISOString(), email.trim()).run();
+  if (Number(updated.meta.changes) !== 1) throw new Error("The Owner password could not be updated. Please sign in again and try once more.");
+  return passwordHash;
 }
 
 export async function verifyStoredOwnerPassword(email: string, password: string) {

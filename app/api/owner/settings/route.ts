@@ -9,6 +9,7 @@ import {
 import { storageSummary } from "../../../../db/storage-usage";
 import {
   createOwnerSession,
+  ownerCredentialFingerprint,
   ownerSessionCookie,
   ownerSessionFromRequest,
   requestIsSameOrigin,
@@ -54,12 +55,22 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Current password is incorrect." }, { status: 401 });
     }
 
+    // The new password changes the session fingerprint, which signs out every other device. This browser gets a refreshed cookie for the
+    // same session, so the Owner is not silently signed out by the next click. It keeps the original issue time and expiry, so a sign-out
+    // that lands while this change is in flight still ends it, and it never lasts longer than the session it replaces.
+    const secure = new URL(request.url).protocol === "https:";
+    const remainingSeconds = Math.max(1, Math.floor((session.expires - Date.now()) / 1000));
+    const sameSession = { iat: session.iat, sid: session.sid, expires: session.expires };
+
     if (body.action === "password") {
       if (!body.newPassword || body.newPassword.length < 10) {
         return Response.json({ error: "New password must be at least 10 characters." }, { status: 400 });
       }
-      await updateOwnerPassword(session.email, body.newPassword);
-      return Response.json({ data: await settingsPayload(), message: "Owner password updated." });
+      const passwordHash = await updateOwnerPassword(session.email, body.newPassword);
+      const token = await createOwnerSession(session.email, { ...sameSession, v: await ownerCredentialFingerprint(passwordHash) });
+      return Response.json({ data: await settingsPayload(), message: "Owner password updated. Other devices have been signed out." }, {
+        headers: { "Set-Cookie": ownerSessionCookie(token, secure, remainingSeconds), "Cache-Control": "no-store" },
+      });
     }
 
     if (body.action === "profile") {
@@ -67,10 +78,9 @@ export async function PATCH(request: Request) {
       if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Enter a valid Owner email." }, { status: 400 });
       const account = await updateOwnerProfile(session.email, email, body.displayName ?? "Owner");
       if (!account) throw new Error("Owner profile could not be updated.");
-      const secure = new URL(request.url).protocol === "https:";
-      const token = await createOwnerSession(account.email);
+      const token = await createOwnerSession(account.email, { ...sameSession, v: session.v });
       return Response.json({ data: await settingsPayload(), message: "Owner account updated." }, {
-        headers: { "Set-Cookie": ownerSessionCookie(token, secure), "Cache-Control": "no-store" },
+        headers: { "Set-Cookie": ownerSessionCookie(token, secure, remainingSeconds), "Cache-Control": "no-store" },
       });
     }
 

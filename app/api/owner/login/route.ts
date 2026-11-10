@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "The email or password is incorrect." }, { status: 401 });
   }
   await guard.passed();
-  const token = await createOwnerSession(email);
+  const token = await createOwnerSession(email, correct);
   const secure = new URL(request.url).protocol === "https:";
   return Response.json({ ok: true }, { headers: { "Set-Cookie": ownerSessionCookie(token, secure), "Cache-Control": "no-store" } });
 }

@@ -15,13 +15,14 @@ export async function POST(request: Request) {
   if (guard.blocked) return guard.blocked;
 
   if (await isRegisteredOwnerEmail(email)) {
-    if (!await verifyOwnerPassword(email, password)) {
+    const proof = await verifyOwnerPassword(email, password);
+    if (!proof) {
       await guard.failed();
       return Response.json({ error: "Username or password is incorrect." }, { status: 401 });
     }
     await guard.passed();
     const secure = new URL(request.url).protocol === "https:";
-    const token = await createOwnerSession(email, sessionSeconds);
+    const token = await createOwnerSession(email, proof, sessionSeconds);
     return Response.json({ ok: true, role: "Owner", redirect: "/owner" }, {
       headers: { "Set-Cookie": ownerSessionCookie(token, secure, sessionSeconds), "Cache-Control": "no-store" },
     });
@@ -37,13 +38,13 @@ export async function POST(request: Request) {
   const secure = new URL(request.url).protocol === "https:";
   if (result.status === "rejected") return Response.json({ error: "This access request was not approved. Contact the Owner." }, { status: 403 });
   if (result.status === "pending") {
-    const token = await createPendingStaffSession(email);
+    const token = await createPendingStaffSession(email, result.proof);
     return Response.json({ ok: true, status: "pending", redirect: "/team/pending" }, {
       status: 202,
       headers: { "Set-Cookie": pendingStaffSessionCookie(token, secure), "Cache-Control": "no-store" },
     });
   }
-  const token = await createAdminSession(email, result.role, sessionSeconds);
+  const token = await createAdminSession(email, result.role, result.proof, sessionSeconds);
   const headers = new Headers({ "Cache-Control": "no-store" });
   headers.append("Set-Cookie", adminSessionCookie(token, secure, sessionSeconds));
   headers.append("Set-Cookie", clearPendingStaffSessionCookie(secure));

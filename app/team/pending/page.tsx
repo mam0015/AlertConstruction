@@ -14,7 +14,8 @@ export default async function PendingStaffPage({ searchParams }: { searchParams:
     return <PendingAccess email="team.member.preview@example.invalid" preview />;
   }
   const cookieStore = await cookies();
-  const pending = await verifyPendingStaffSession(cookieStore.get(pendingStaffCookieName())?.value);
+  // If the database cannot be reached the page cannot confirm the waiting session; it sends the person home exactly as before.
+  const pending = await verifyPendingStaffSession(cookieStore.get(pendingStaffCookieName())?.value).catch(() => null);
   if (!pending) redirect("/");
   return <PendingAccess email={pending.email} />;
 }
