@@ -6,7 +6,8 @@ import styles from "./tasks.module.css";
 
 const empty: PersonalTaskSnapshot = { identity: { email: "", role: "", title: "" }, tasks: [] };
 
-export default function TaskInbox({ role, preview = false, tone = "dark", compact = false }: { role: string; preview?: boolean; tone?: "dark" | "light"; compact?: boolean }) {
+// emptyText: what an empty list says (a Worker whose project tasks are listed elsewhere must not read "No task assigned").
+export default function TaskInbox({ role, preview = false, tone = "dark", compact = false, emptyText }: { role: string; preview?: boolean; tone?: "dark" | "light"; compact?: boolean; emptyText?: { title: string; detail: string } }) {
   const [data, setData] = useState(empty);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(0);
@@ -25,11 +26,13 @@ export default function TaskInbox({ role, preview = false, tone = "dark", compac
 
   const open = useMemo(() => data.tasks.filter((task) => task.status !== "completed"), [data.tasks]);
 
-  async function status(taskId: number, next: string) {
+  // The card names the status it showed: a card opened before someone else completed the task never reopens it.
+  async function status(taskId: number, next: string, from: string) {
     setWorking(taskId); setError("");
     try {
-      const response = await fetch(`/api/tasks${query}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set_status", payload: { taskId, status: next } }) });
+      const response = await fetch(`/api/tasks${query}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set_status", payload: { taskId, status: next, from } }) });
       const result = await response.json() as { data?: PersonalTaskSnapshot; error?: string };
+      if (response.status === 409) void fetch(`/api/tasks${query}`, { cache: "no-store" }).then((fresh) => fresh.json()).then((fresh: { data?: PersonalTaskSnapshot }) => { if (fresh.data) setData(fresh.data); }).catch(() => undefined);
       if (!response.ok || !result.data) throw new Error(result.error ?? "The task could not be updated.");
       setData(result.data);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The task could not be updated."); }
@@ -43,9 +46,9 @@ export default function TaskInbox({ role, preview = false, tone = "dark", compac
       {data.tasks.map((task) => <article className={task.status === "completed" ? styles.complete : ""} key={task.id}>
         <div className={styles.taskTop}><i className={styles[`priority${task.priority}`]}>{task.priority}</i><span>{task.projectCode}</span><small>{task.status.replaceAll("_", " ")}</small></div>
         <h3>{task.title}</h3><p>{task.instructions}</p><small className={styles.creator}>Set by {task.createdByRole} · {task.siteLabel}</small>
-        <footer>{task.status === "assigned" && <button disabled={working === task.id} onClick={() => void status(task.id, "in_progress")}>Start task</button>}{task.status === "in_progress" && <button disabled={working === task.id} onClick={() => void status(task.id, "completed")}>Mark completed</button>}{task.status === "completed" && <button disabled={working === task.id} onClick={() => void status(task.id, "in_progress")}>Reopen</button>}</footer>
+        <footer>{task.status === "assigned" && <button disabled={working === task.id} onClick={() => void status(task.id, "in_progress", task.status)}>Start task</button>}{task.status === "in_progress" && <button disabled={working === task.id} onClick={() => void status(task.id, "completed", task.status)}>Mark completed</button>}{task.status === "completed" && <button disabled={working === task.id} onClick={() => void status(task.id, "in_progress", task.status)}>Reopen</button>}</footer>
       </article>)}
-      {!data.tasks.length && <div className={styles.empty}><strong>No task assigned.</strong><span>New directions from management will appear here.</span></div>}
+      {!data.tasks.length && <div className={styles.empty}><strong>{emptyText?.title ?? "No task assigned."}</strong><span>{emptyText?.detail ?? "New directions from management will appear here."}</span></div>}
     </div>}
   </section>;
 }

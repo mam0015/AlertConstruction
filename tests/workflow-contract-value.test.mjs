@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { startWorker } from "./helpers/worker-harness.mjs";
+import { asScreen, openedProject, sentVersion } from "./helpers/screen.mjs";
 
 const app = await startWorker("cv");
 const owner = await app.ownerCookie();
@@ -11,7 +12,7 @@ const supervisor = await app.staffCookie("sup.cv@alert.test", "Site Supervisor")
 const estimator = await app.staffCookie("est.cv@alert.test", "Estimator");
 const PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
 
-const flow = (cookie, action, caseId, payload = {}) => app.request("/api/workflow", app.json(cookie, { action, caseId, payload }));
+const flow = (cookie, action, caseId, payload = {}) => app.request("/api/workflow", app.json(cookie, { action, caseId, payload: asScreen(app.d1.sqlite, caseId, action, payload) }));
 
 // A request taken as far as "estimate accepted by the customer", priced at `amount` dollars.
 async function acceptedJob(name, amount) {
@@ -29,7 +30,7 @@ async function acceptedJob(name, amount) {
   assert.equal((await flow(admin, "review_site_visit", caseId, { decision: "approved" })).status, 200);
   assert.equal((await flow(estimator, "save_estimate", caseId, { amount, scope: "Strip out and rebuild." })).status, 200);
   assert.equal((await flow(admin, "send_estimate", caseId)).status, 200);
-  assert.equal((await app.request("/api/workflow/public", app.json(null, { code, decision: "accept" }, "PATCH"))).status, 200);
+  assert.equal((await app.request("/api/workflow/public", app.json(null, { code, decision: "accept", estimateVersion: sentVersion(app.d1.sqlite, caseId) }, "PATCH"))).status, 200);
   const projectCode = (await (await app.request("/api/workflow", { headers: { cookie: admin } })).json()).data.cases.find((entry) => entry.id === caseId).projectCode;
   return { caseId, code, projectCode };
 }
@@ -50,7 +51,7 @@ test("a contract value the Owner typed in earlier is never overwritten by activa
   const job = await acceptedJob("Noor Rahimi", 40000);
   const mine = await project(job.projectCode);
   const edit = { code: mine.code, name: mine.name, service: mine.service, stage: mine.stage, progress: mine.progress, contractValue: 4200000, balance: 0, customerName: mine.customerName, suburb: mine.suburb, startDate: "", notes: "Agreed on the phone" };
-  assert.equal((await app.request("/api/owner/data", app.json(owner, { resource: "project", id: mine.id, payload: edit }, "PATCH"))).status, 200);
+  assert.equal((await app.request("/api/owner/data", app.json(owner, { resource: "project", id: mine.id, payload: { ...edit, opened: openedProject(app.d1.sqlite, mine.id) } }, "PATCH"))).status, 200);
   assert.equal((await flow(admin, "activate_project", job.caseId)).status, 200);
   assert.equal((await project(job.projectCode)).contractValue, 4200000, "the Owner's figure stays");
 });

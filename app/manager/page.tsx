@@ -5,6 +5,7 @@ import TaskInbox from "../tasks/TaskInbox";
 import { adminCookieName, verifyAdminSession } from "../admin-auth";
 import { ownerCookieName, verifyOwnerSession } from "../owner-auth";
 import ManagerOverview from "./ManagerOverview";
+import CustomerConversations from "./CustomerConversations";
 
 // Private area: its own tab title, and never listed by search engines.
 export const metadata = { title: "Manager", robots: { index: false, follow: false } };
@@ -18,6 +19,7 @@ export default async function ManagerPage() {
   if (!owner && staff?.role !== "Manager") redirect("/#team-sign-in");
   return <StaffShell title="Manager workspace" subtitle={owner ? "Owner view" : staff?.email ?? ""} role={owner ? "Owner" : "Staff"}>
     <ManagerOverview />
+    <CustomerConversations />
     {staff && <TaskInbox role="Manager" />}
   </StaffShell>;
 }

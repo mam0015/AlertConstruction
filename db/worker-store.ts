@@ -2,6 +2,7 @@ import { ensureWorkflowDatabase } from "./workflow-store";
 import type { WorkerManagementSnapshot, WorkerSnapshot } from "../app/workers/types";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
 import { assertStorageRoom } from "./storage-usage";
+import { assertProjectAccess, clearPortfolioSaved, ConflictError, ensureCaseViewTables, markPortfolioSaved } from "./case-view-store";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -54,6 +55,14 @@ async function ensureWorkerDatabaseOnce() {
     db.prepare("CREATE INDEX IF NOT EXISTS worker_reports_email_idx ON worker_reports(worker_email,work_date)"),
   ]);
 }
+
+// The history line of a change, written in the same batch as the change and only if the statement just before it changed a row
+// (SQLite changes()): a change is never saved without its line, and a refused change never gets one.
+function eventIfChanged(db: D1, caseId: number, actorRole: string, actorEmail: string, eventType: string, title: string, detail: string, now: string) {
+  return db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) SELECT ?,?,?,?,?,?,'internal',? WHERE changes() > 0")
+    .bind(caseId, actorRole, actorEmail, eventType, title, detail, now);
+}
+const changed = (result: unknown) => Number((result as { meta?: { changes?: number } })?.meta?.changes ?? 0);
 
 async function workflowEvent(db: D1, caseId: number, actorRole: string, actorEmail: string, eventType: string, title: string, detail = "") {
   await db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) VALUES (?,?,?,?,?,?,'internal',?)")
@@ -127,13 +136,14 @@ export async function getWorkerSnapshot(workerEmailInput: string, role: string):
   await ensureWorkerDatabase();
   const db = await database();
   const workerEmail = workerEmailInput.toLowerCase();
+  await ensureCaseViewTables();
   await markWorkerSignIn(workerEmail);
   const today = melbourneDate();
   const results = await db.batch([
     db.prepare("SELECT assignment.case_id AS caseId,workflow.project_code AS projectCode,workflow.suburb AS siteLabel,assignment.trade_title AS tradeTitle,assignment.assigned_at AS assignedAt FROM worker_project_assignments assignment JOIN workflow_cases workflow ON workflow.id=assignment.case_id WHERE assignment.worker_email=? AND assignment.status='active' AND workflow.stage='active_project' ORDER BY assignment.assigned_at DESC").bind(workerEmail),
     db.prepare("SELECT task.id,task.case_id AS caseId,workflow.project_code AS projectCode,task.worker_email AS workerEmail,task.title,task.instructions,task.status,task.created_at AS createdAt,task.updated_at AS updatedAt,task.completed_at AS completedAt FROM worker_tasks task JOIN workflow_cases workflow ON workflow.id=task.case_id JOIN worker_project_assignments assignment ON assignment.case_id=task.case_id AND assignment.worker_email=task.worker_email AND assignment.status='active' WHERE task.worker_email=? ORDER BY CASE task.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,task.updated_at DESC").bind(workerEmail),
     db.prepare("SELECT file.id,file.case_id AS caseId,workflow.project_code AS projectCode,file.file_name AS fileName,file.mime_type AS mimeType,file.size_bytes AS sizeBytes,file.uploaded_at AS uploadedAt FROM worker_file_access access JOIN workflow_files file ON file.id=access.file_id JOIN workflow_cases workflow ON workflow.id=file.case_id JOIN worker_project_assignments assignment ON assignment.case_id=access.case_id AND assignment.worker_email=access.worker_email AND assignment.status='active' WHERE access.worker_email=? AND file.category='worker_document' ORDER BY file.uploaded_at DESC").bind(workerEmail),
-    db.prepare("SELECT report.id,report.case_id AS caseId,workflow.project_code AS projectCode,report.worker_email AS workerEmail,report.work_date AS workDate,report.completed_work AS completedWork,report.next_step AS nextStep,report.issues_delays AS issuesDelays,report.status,report.submitted_at AS submittedAt,report.reviewed_by AS reviewedBy,report.reviewed_at AS reviewedAt,report.review_note AS reviewNote FROM worker_reports report JOIN workflow_cases workflow ON workflow.id=report.case_id WHERE report.worker_email=? ORDER BY report.work_date DESC,report.submitted_at DESC LIMIT 60").bind(workerEmail),
+    db.prepare("SELECT report.id,report.case_id AS caseId,workflow.project_code AS projectCode,report.worker_email AS workerEmail,report.work_date AS workDate,report.completed_work AS completedWork,report.next_step AS nextStep,report.issues_delays AS issuesDelays,report.status,report.submitted_at AS submittedAt,COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind='worker_report:' || report.worker_email || ':' || report.work_date AND rv.case_id=report.case_id),report.submitted_at) AS revision,report.reviewed_by AS reviewedBy,report.reviewed_at AS reviewedAt,report.review_note AS reviewNote FROM worker_reports report JOIN workflow_cases workflow ON workflow.id=report.case_id WHERE report.worker_email=? ORDER BY report.work_date DESC,report.submitted_at DESC LIMIT 60").bind(workerEmail),
     db.prepare("SELECT email,role,COALESCE(NULLIF(trade_title,''),role) AS tradeTitle FROM staff_access_requests WHERE LOWER(email)=? LIMIT 1").bind(workerEmail),
   ]);
   const projectIds = new Set((results[0].results as Raw[]).map((item) => Number(item.caseId)));
@@ -167,14 +177,34 @@ export async function submitWorkerReport(workerEmailInput: string, role: string,
   const completedWork = required(payload.completedWork, "Work completed");
   const nextStep = required(payload.nextStep, "Next step");
   const issuesDelays = clean(payload.issuesDelays);
+  // The form names the version of that day's report it replaces (as shown, "" when there was none; required): a report sent meanwhile
+  // from another screen (with a newer issue, or already reviewed) is never overwritten by an older form. Every report gets a new random
+  // version, saved in the same batch and handed back to the form that sent it (a timestamp can repeat).
+  if (typeof payload.replacing !== "string") throw new ConflictError("This page is out of date. Refresh it before sending the report.");
+  await ensureCaseViewTables();
   const now = new Date().toISOString();
-  await db.prepare("INSERT INTO worker_reports (case_id,worker_email,work_date,completed_work,next_step,issues_delays,status,submitted_at) VALUES (?,?,?,?,?,?,'submitted',?) ON CONFLICT(case_id,worker_email,work_date) DO UPDATE SET completed_work=excluded.completed_work,next_step=excluded.next_step,issues_delays=excluded.issues_delays,status='submitted',submitted_at=excluded.submitted_at,reviewed_by='',reviewed_at='',review_note='' ")
-    .bind(caseId, workerEmail, workDate, completedWork, nextStep, issuesDelays, now).run();
-  await workflowEvent(db, caseId, String(assignment.tradeTitle || role), workerEmail, "worker_eod_submitted", `End-of-day report submitted for ${workDate}`, `Completed: ${completedWork}\nNext step: ${nextStep}${issuesDelays ? `\nIssues: ${issuesDelays}` : ""}`);
+  const kind = `worker_report:${workerEmail}:${workDate}`;
+  const revision = crypto.randomUUID();
+  const token = crypto.randomUUID();
+  const ifSent = "EXISTS (SELECT 1 FROM save_tokens WHERE token=?)";
+  const results = await db.batch([
+    db.prepare("INSERT INTO worker_reports (case_id,worker_email,work_date,completed_work,next_step,issues_delays,status,submitted_at) VALUES (?,?,?,?,?,?,'submitted',?) ON CONFLICT(case_id,worker_email,work_date) DO UPDATE SET completed_work=excluded.completed_work,next_step=excluded.next_step,issues_delays=excluded.issues_delays,status='submitted',submitted_at=excluded.submitted_at,reviewed_by='',reviewed_at='',review_note='' WHERE COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind=? AND rv.case_id=worker_reports.case_id),worker_reports.submitted_at)=?")
+      .bind(caseId, workerEmail, workDate, completedWork, nextStep, issuesDelays, now, kind, payload.replacing),
+    markPortfolioSaved(db, token, now),
+    db.prepare(`INSERT INTO record_revisions (kind,case_id,revision) SELECT ?,?,? WHERE ${ifSent} ON CONFLICT(kind,case_id) DO UPDATE SET revision=excluded.revision`).bind(kind, caseId, revision, token),
+    db.prepare(`INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) SELECT ?,?,?,?,?,?,'internal',? WHERE ${ifSent}`)
+      .bind(caseId, String(assignment.tradeTitle || role), workerEmail, "worker_eod_submitted", `End-of-day report submitted for ${workDate}`, `Completed: ${completedWork}\nNext step: ${nextStep}${issuesDelays ? `\nIssues: ${issuesDelays}` : ""}`, now, token),
+    clearPortfolioSaved(db, token),
+  ]);
+  if (!changed(results[0])) throw new ConflictError("A report for this day was already sent from another screen. Your text is kept: check the report that was sent, then choose whether to replace it.");
+  return { revision };
 }
 
-export async function getWorkerManagementSnapshot(): Promise<WorkerManagementSnapshot> {
+// Worker assignments, tasks, files and reports all belong to projects: an Admin whose project access the Owner switched off gets none of them.
+export async function getWorkerManagementSnapshot(viewerRole: "Owner" | "Admin"): Promise<WorkerManagementSnapshot> {
   await ensureWorkerDatabase();
+  await assertProjectAccess(viewerRole);
+  await ensureCaseViewTables();
   const db = await database();
   const results = await db.batch([
     db.prepare("SELECT id AS caseId,project_code AS projectCode,suburb AS siteLabel,service FROM workflow_cases WHERE stage='active_project' ORDER BY updated_at DESC"),
@@ -183,7 +213,7 @@ export async function getWorkerManagementSnapshot(): Promise<WorkerManagementSna
     db.prepare("SELECT task.id,task.case_id AS caseId,workflow.project_code AS projectCode,task.worker_email AS workerEmail,task.title,task.instructions,task.status,task.created_at AS createdAt,task.updated_at AS updatedAt,task.completed_at AS completedAt FROM worker_tasks task JOIN workflow_cases workflow ON workflow.id=task.case_id ORDER BY task.updated_at DESC"),
     db.prepare("SELECT id,case_id AS caseId,file_name AS fileName,mime_type AS mimeType,size_bytes AS sizeBytes,uploaded_at AS uploadedAt FROM workflow_files WHERE category='worker_document' ORDER BY uploaded_at DESC"),
     db.prepare("SELECT file_id AS fileId,worker_email AS workerEmail FROM worker_file_access ORDER BY granted_at"),
-    db.prepare("SELECT report.id,report.case_id AS caseId,workflow.project_code AS projectCode,report.worker_email AS workerEmail,report.work_date AS workDate,report.completed_work AS completedWork,report.next_step AS nextStep,report.issues_delays AS issuesDelays,report.status,report.submitted_at AS submittedAt,report.reviewed_by AS reviewedBy,report.reviewed_at AS reviewedAt,report.review_note AS reviewNote FROM worker_reports report JOIN workflow_cases workflow ON workflow.id=report.case_id ORDER BY report.work_date DESC,report.submitted_at DESC LIMIT 200"),
+    db.prepare("SELECT report.id,report.case_id AS caseId,workflow.project_code AS projectCode,report.worker_email AS workerEmail,report.work_date AS workDate,report.completed_work AS completedWork,report.next_step AS nextStep,report.issues_delays AS issuesDelays,report.status,report.submitted_at AS submittedAt,COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind='worker_report:' || report.worker_email || ':' || report.work_date AND rv.case_id=report.case_id),report.submitted_at) AS revision,report.reviewed_by AS reviewedBy,report.reviewed_at AS reviewedAt,report.review_note AS reviewNote FROM worker_reports report JOIN workflow_cases workflow ON workflow.id=report.case_id ORDER BY report.work_date DESC,report.submitted_at DESC LIMIT 200"),
   ]);
   return {
     projects: results[0].results as WorkerManagementSnapshot["projects"],
@@ -197,6 +227,7 @@ export async function getWorkerManagementSnapshot(): Promise<WorkerManagementSna
 
 export async function performWorkerManagementAction(actorRole: "Owner" | "Admin", actorEmail: string, action: string, payload: Record<string, unknown>) {
   await ensureWorkerDatabase();
+  await assertProjectAccess(actorRole);
   const db = await database();
   const now = new Date().toISOString();
   if (action === "assign_worker") {
@@ -204,14 +235,18 @@ export async function performWorkerManagementAction(actorRole: "Owner" | "Admin"
     const project = await activeProject(db, caseId);
     const worker = await approvedWorker(db, payload.workerEmail);
     const tradeTitle = clean(payload.tradeTitle) || worker.tradeTitle;
-    await db.prepare("INSERT INTO worker_project_assignments (case_id,worker_email,trade_title,status,assigned_by,assigned_at,removed_at) VALUES (?,?,?,'active',?,?, '') ON CONFLICT(case_id,worker_email) DO UPDATE SET trade_title=excluded.trade_title,status='active',assigned_by=excluded.assigned_by,assigned_at=excluded.assigned_at,removed_at='' ")
-      .bind(caseId, worker.email, tradeTitle, actorEmail, now).run();
-    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_assigned", `${tradeTitle} assigned to ${project.projectCode}`, worker.email);
+    await db.batch([
+      db.prepare("INSERT INTO worker_project_assignments (case_id,worker_email,trade_title,status,assigned_by,assigned_at,removed_at) VALUES (?,?,?,'active',?,?, '') ON CONFLICT(case_id,worker_email) DO UPDATE SET trade_title=excluded.trade_title,status='active',assigned_by=excluded.assigned_by,assigned_at=excluded.assigned_at,removed_at='' ")
+        .bind(caseId, worker.email, tradeTitle, actorEmail, now),
+      eventIfChanged(db, caseId, actorRole, actorEmail, "worker_assigned", `${tradeTitle} assigned to ${project.projectCode}`, worker.email, now),
+    ]);
   } else if (action === "unassign_worker") {
     const caseId = numeric(payload.caseId);
     const worker = await approvedWorker(db, payload.workerEmail);
-    await db.prepare("UPDATE worker_project_assignments SET status='removed',removed_at=? WHERE case_id=? AND worker_email=?").bind(now, caseId, worker.email).run();
-    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_unassigned", "Worker access removed from project", worker.email);
+    await db.batch([
+      db.prepare("UPDATE worker_project_assignments SET status='removed',removed_at=? WHERE case_id=? AND worker_email=? AND status<>'removed'").bind(now, caseId, worker.email),
+      eventIfChanged(db, caseId, actorRole, actorEmail, "worker_unassigned", "Worker access removed from project", worker.email, now),
+    ]);
   } else if (action === "create_task") {
     const caseId = numeric(payload.caseId);
     await activeProject(db, caseId);
@@ -220,23 +255,36 @@ export async function performWorkerManagementAction(actorRole: "Owner" | "Admin"
     if (!assigned) throw new Error("Assign this Worker to the project before creating a task.");
     const title = required(payload.title, "Task");
     const instructions = required(payload.instructions, "Task instructions");
-    await db.prepare("INSERT INTO worker_tasks (case_id,worker_email,title,instructions,status,created_by,created_at,updated_at) VALUES (?,?,?,?,'assigned',?,?,?)")
-      .bind(caseId, worker.email, title, instructions, actorEmail, now, now).run();
-    await workflowEvent(db, caseId, actorRole, actorEmail, "worker_task_created", `Task assigned to ${worker.email}`, title);
+    // The same task sent twice by the same person within two minutes (a double press, a retry after a lost answer) is saved once.
+    const since = new Date(Date.parse(now) - 120_000).toISOString();
+    // The task and its history line are one batch: both are saved or neither (a retry then saves both once).
+    await db.batch([
+      db.prepare(`INSERT INTO worker_tasks (case_id,worker_email,title,instructions,status,created_by,created_at,updated_at) SELECT ?,?,?,?,'assigned',?,?,?
+        WHERE NOT EXISTS (SELECT 1 FROM worker_tasks WHERE case_id=? AND worker_email=? AND title=? AND instructions=? AND created_by=? AND created_at>=?)`)
+        .bind(caseId, worker.email, title, instructions, actorEmail, now, now, caseId, worker.email, title, instructions, actorEmail, since),
+      eventIfChanged(db, caseId, actorRole, actorEmail, "worker_task_created", `Task assigned to ${worker.email}`, title, now),
+    ]);
   } else if (action === "set_task_status") {
     const taskId = numeric(payload.taskId);
     const status = clean(payload.status);
     if (!['assigned', 'in_progress', 'completed'].includes(status)) throw new Error("Choose a valid task status.");
+    // The screen names the status it showed (required): a card opened before someone else changed the task never undoes that change.
+    if (typeof payload.from !== "string") throw new ConflictError("This page is out of date. Refresh it before changing the task.");
     const task = await db.prepare("SELECT case_id AS caseId,title FROM worker_tasks WHERE id=? LIMIT 1").bind(taskId).first<Raw>();
     if (!task) throw new Error("Task was not found.");
-    await db.prepare("UPDATE worker_tasks SET status=?,updated_at=?,completed_at=? WHERE id=?").bind(status, now, status === "completed" ? now : "", taskId).run();
-    await workflowEvent(db, Number(task.caseId), actorRole, actorEmail, "worker_task_status", `Task marked ${status.replaceAll('_', ' ')}`, String(task.title));
+    const results = await db.batch([
+      db.prepare("UPDATE worker_tasks SET status=?,updated_at=?,completed_at=? WHERE id=? AND status=?").bind(status, now, status === "completed" ? now : "", taskId, payload.from),
+      eventIfChanged(db, Number(task.caseId), actorRole, actorEmail, "worker_task_status", `Task marked ${status.replaceAll('_', ' ')}`, String(task.title), now),
+    ]);
+    if (!changed(results[0])) throw new ConflictError("This task was changed by someone else after you opened the page. Nothing was changed: refresh to see its current status.");
   } else if (action === "delete_task") {
     const taskId = numeric(payload.taskId);
     const task = await db.prepare("SELECT case_id AS caseId,title FROM worker_tasks WHERE id=? LIMIT 1").bind(taskId).first<Raw>();
     if (!task) throw new Error("Task was not found.");
-    await db.prepare("DELETE FROM worker_tasks WHERE id=?").bind(taskId).run();
-    await workflowEvent(db, Number(task.caseId), actorRole, actorEmail, "worker_task_deleted", "Worker task removed", String(task.title));
+    await db.batch([
+      db.prepare("DELETE FROM worker_tasks WHERE id=?").bind(taskId),
+      eventIfChanged(db, Number(task.caseId), actorRole, actorEmail, "worker_task_deleted", "Worker task removed", String(task.title), now),
+    ]);
   } else if (action === "set_file_access") {
     const fileId = numeric(payload.fileId);
     const worker = await approvedWorker(db, payload.workerEmail);
@@ -245,18 +293,30 @@ export async function performWorkerManagementAction(actorRole: "Owner" | "Admin"
     if (!file) throw new Error("Worker file was not found.");
     const assigned = await db.prepare("SELECT id FROM worker_project_assignments WHERE case_id=? AND worker_email=? AND status='active' LIMIT 1").bind(Number(file.caseId), worker.email).first();
     if (granted && !assigned) throw new Error("Assign this Worker to the project before sharing a file.");
-    if (granted) await db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?) ON CONFLICT(file_id,worker_email) DO UPDATE SET granted_by=excluded.granted_by,granted_at=excluded.granted_at")
-      .bind(fileId, Number(file.caseId), worker.email, actorEmail, now).run();
-    else await db.prepare("DELETE FROM worker_file_access WHERE file_id=? AND worker_email=?").bind(fileId, worker.email).run();
-    await workflowEvent(db, Number(file.caseId), actorRole, actorEmail, granted ? "worker_file_shared" : "worker_file_revoked", granted ? `File shared with ${worker.email}` : `File access removed for ${worker.email}`, String(file.fileName));
+    await db.batch([
+      granted
+        ? db.prepare("INSERT INTO worker_file_access (file_id,case_id,worker_email,granted_by,granted_at) VALUES (?,?,?,?,?) ON CONFLICT(file_id,worker_email) DO UPDATE SET granted_by=excluded.granted_by,granted_at=excluded.granted_at")
+          .bind(fileId, Number(file.caseId), worker.email, actorEmail, now)
+        : db.prepare("DELETE FROM worker_file_access WHERE file_id=? AND worker_email=?").bind(fileId, worker.email),
+      eventIfChanged(db, Number(file.caseId), actorRole, actorEmail, granted ? "worker_file_shared" : "worker_file_revoked", granted ? `File shared with ${worker.email}` : `File access removed for ${worker.email}`, String(file.fileName), now),
+    ]);
   } else if (action === "review_report") {
     if (actorRole !== "Owner") throw new Error("Only the Owner can approve or comment on end-of-day reports.");
     const reportId = numeric(payload.reportId);
     const note = clean(payload.note);
     const report = await db.prepare("SELECT case_id AS caseId FROM worker_reports WHERE id=? LIMIT 1").bind(reportId).first<Raw>();
     if (!report) throw new Error("Worker report was not found.");
-    await db.prepare("UPDATE worker_reports SET status='reviewed',reviewed_by=?,reviewed_at=?,review_note=? WHERE id=?").bind(actorEmail, now, note, reportId).run();
-    await workflowEvent(db, Number(report.caseId), actorRole, actorEmail, "worker_report_reviewed", "Worker end-of-day report reviewed", note);
+    // The review names the report exactly as the Owner read it (when it was sent and what it says; required): a report the Worker
+    // replaced meanwhile is never marked reviewed unseen.
+    // Only a report still waiting for review: a second, older review screen never replaces the review instructions already given.
+    const shown = [payload.revision, payload.completedWork, payload.nextStep, payload.issuesDelays];
+    if (shown.some((value) => typeof value !== "string")) throw new ConflictError("This page is out of date. Refresh it before reviewing the report.");
+    await ensureCaseViewTables();
+    const results = await db.batch([
+      db.prepare("UPDATE worker_reports SET status='reviewed',reviewed_by=?,reviewed_at=?,review_note=? WHERE id=? AND status='submitted' AND COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind='worker_report:' || worker_reports.worker_email || ':' || worker_reports.work_date AND rv.case_id=worker_reports.case_id),worker_reports.submitted_at)=? AND completed_work=? AND next_step=? AND issues_delays=?").bind(actorEmail, now, note, reportId, ...shown),
+      eventIfChanged(db, Number(report.caseId), actorRole, actorEmail, "worker_report_reviewed", "Worker end-of-day report reviewed", note, now),
+    ]);
+    if (!changed(results[0])) throw new ConflictError("This report was sent again or already reviewed after you opened it. Nothing was changed: refresh and read the latest report first.");
   } else {
     throw new Error("Unknown Worker management action.");
   }
@@ -264,6 +324,7 @@ export async function performWorkerManagementAction(actorRole: "Owner" | "Admin"
 
 export async function addWorkerProjectFile(caseIdInput: number, file: File, workerEmails: string[], actorRole: "Owner" | "Admin", actorEmail: string) {
   await ensureWorkerDatabase();
+  await assertProjectAccess(actorRole);
   const db = await database();
   const caseId = numeric(caseIdInput);
   const project = await activeProject(db, caseId);
@@ -297,9 +358,11 @@ export async function addWorkerProjectFile(caseIdInput: number, file: File, work
   }
 }
 
-export async function getWorkerFile(fileId: number, workerEmail?: string, management = false) {
+// management: the Owner or Admin opening any project file (a Worker passes false and gets only files shared with them).
+export async function getWorkerFile(fileId: number, workerEmail?: string, management: "Owner" | "Admin" | false = false) {
   await ensureWorkerDatabase();
   const db = await database();
+  if (management && !await assertProjectAccess(management).then(() => true, () => false)) return null;
   if (management) return db.prepare("SELECT object_key AS objectKey,mime_type AS mimeType,file_name AS fileName FROM workflow_files WHERE id=? AND category='worker_document' LIMIT 1").bind(fileId).first<{ objectKey: string; mimeType: string; fileName: string }>();
   if (!workerEmail) return null;
   return db.prepare("SELECT file.object_key AS objectKey,file.mime_type AS mimeType,file.file_name AS fileName FROM workflow_files file JOIN worker_file_access access ON access.file_id=file.id JOIN worker_project_assignments assignment ON assignment.case_id=access.case_id AND assignment.worker_email=access.worker_email AND assignment.status='active' WHERE file.id=? AND file.category='worker_document' AND access.worker_email=? LIMIT 1")

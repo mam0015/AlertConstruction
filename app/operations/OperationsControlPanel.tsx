@@ -72,7 +72,9 @@ export default function OperationsControlPanel({ role, mode, preview = false, st
   const [contactedPerson, setContactedPerson] = useState("");
   const [contactedAt, setContactedAt] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
-  const [issueDrafts, setIssueDrafts] = useState<Record<number, { action: string; date: string; time: string; assignee: string; ownerNote: string }>>({});
+  // Typed text per issue, with the version of the issue it was started on (`opened`): a change someone else made meanwhile is never
+  // replaced unseen; the text is kept until the person chooses to go ahead.
+  const [issueDrafts, setIssueDrafts] = useState<Record<number, { action: string; date: string; time: string; assignee: string; ownerNote: string; opened: string }>>({});
   const [followProject, setFollowProject] = useState("Business / General");
   const [followTitle, setFollowTitle] = useState("");
   const [followDetails, setFollowDetails] = useState("");
@@ -116,7 +118,7 @@ export default function OperationsControlPanel({ role, mode, preview = false, st
   const openIssues = useMemo(() => data.issues.filter((issue) => issue.status !== "resolved"), [data.issues]);
   const followUps = useMemo(() => data.followUps.filter((item) => item.status !== "cancelled"), [data.followUps]);
 
-  async function action(name: string, payload: Record<string, unknown>, success: string) {
+  async function action(name: string, payload: Record<string, unknown>, success: string): Promise<{ revision?: string } | false> {
     setWorking(true); setError("");
     try {
       if (staticMode) {
@@ -140,12 +142,14 @@ export default function OperationsControlPanel({ role, mode, preview = false, st
           window.localStorage.setItem(staticStorageKey, JSON.stringify({ issues, followUps }));
           return next;
         });
-        setNotice(success); window.setTimeout(() => setNotice(""), 4500); return true;
+        setNotice(success); window.setTimeout(() => setNotice(""), 4500); return {};
       }
       const response = await fetch(`/api/operations${query}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: name, payload }) });
-      const result = await response.json() as { data?: OperationsSnapshot; error?: string };
+      const result = await response.json() as { data?: OperationsSnapshot; error?: string; revision?: string };
+      // Refused because someone changed it meanwhile: the page is re-read so the latest is shown (typed text stays).
+      if (response.status === 409) void load();
       if (!response.ok || !result.data) throw new Error(result.error ?? "The operation could not be saved.");
-      setData(result.data); setNotice(success); window.setTimeout(() => setNotice(""), 4500); return true;
+      setData(result.data); setNotice(success); window.setTimeout(() => setNotice(""), 4500); return { revision: result.revision };
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The operation could not be saved."); return false; }
     finally { setWorking(false); }
   }
@@ -157,7 +161,22 @@ export default function OperationsControlPanel({ role, mode, preview = false, st
   }
 
   function draft(issue: SiteIssue) {
-    return issueDrafts[issue.id] ?? { action: issue.adminAction, date: issue.rescheduledDate || data.tomorrow, time: issue.rescheduledTime || "08:00", assignee: issue.rescheduledAssignee || issue.reporterName || "Site Supervisor 01", ownerNote: issue.ownerNote };
+    return issueDrafts[issue.id] ?? { action: issue.adminAction, date: issue.rescheduledDate || data.tomorrow, time: issue.rescheduledTime || "08:00", assignee: issue.rescheduledAssignee || issue.reporterName || "Site Supervisor 01", ownerNote: issue.ownerNote, opened: issue.revision ?? "" };
+  }
+
+  // A change to one issue names the version its text was started on. After its own save the card shows the saved issue again, unless
+  // something was typed while it was saving: that text stays, now working on the version just saved.
+  async function issueAction(issue: SiteIssue, name: string, payload: Record<string, unknown>, success: string) {
+    const sent = issueDrafts[issue.id];
+    const saved = await action(name, { ...payload, issueId: issue.id, revision: draft(issue).opened }, success);
+    if (!saved) return;
+    setIssueDrafts((current) => {
+      const latest = current[issue.id];
+      if (latest && latest !== sent) return { ...current, [issue.id]: { ...latest, opened: saved.revision ?? latest.opened } };
+      const rest = { ...current };
+      delete rest[issue.id];
+      return rest;
+    });
   }
 
   function patchDraft(issue: SiteIssue, values: Partial<ReturnType<typeof draft>>) {
@@ -218,8 +237,9 @@ export default function OperationsControlPanel({ role, mode, preview = false, st
         <dl><div><dt>Project impact</dt><dd>{issue.impact || "Not supplied"}</dd></div><div><dt>Reported by</dt><dd>{issue.reporterName} · {readable(issue.reportedAt, true)}</dd></div><div><dt>Trade contacted</dt><dd>{issue.contactedPerson || "Not recorded"}{issue.contactedAt ? ` · ${readable(issue.contactedAt, true)}` : ""}</dd></div><div><dt>Expected date</dt><dd>{readable(issue.expectedDate)}</dd></div></dl>
         {issue.adminAction && <div className={styles.managementDirection}><span>ADMIN ACTION</span><strong>{issue.adminAction}</strong><small>{issue.rescheduledDate ? `${readable(issue.rescheduledDate)} at ${issue.rescheduledTime} · ${issue.rescheduledAssignee}` : statusLabel(issue.status)}</small></div>}
         {issue.ownerNote && <div className={styles.ownerDirection}><span>OWNER DIRECTION</span><strong>{issue.ownerNote}</strong></div>}
-        {role !== "supervisor" && issue.status !== "resolved" && <div className={styles.actionBox}><label><span>Management action / direction</span><textarea value={values.action} onChange={(event) => patchDraft(issue, { action: event.target.value })} placeholder="Record what Admin has confirmed and what happens next…" /></label><div><label><span>New date</span><input type="date" value={values.date} onChange={(event) => patchDraft(issue, { date: event.target.value })} /></label><label><span>Time</span><input type="time" value={values.time} onChange={(event) => patchDraft(issue, { time: event.target.value })} /></label><label><span>Assign to</span><input value={values.assignee} onChange={(event) => patchDraft(issue, { assignee: event.target.value })} /></label></div><footer><button disabled={working} onClick={() => void action("review_issue", { issueId: issue.id, adminAction: values.action }, "Issue marked under review.")}>Start review</button><button disabled={working} onClick={() => void action("reschedule_issue", { issueId: issue.id, adminAction: values.action, rescheduledDate: values.date, rescheduledTime: values.time, rescheduledAssignee: values.assignee }, "Schedule updated and Site Supervisor follow-up created.")}>Reschedule Site Supervisor</button><button disabled={working} onClick={() => void action("resolve_issue", { issueId: issue.id, adminAction: values.action }, "Issue resolved and project situation updated.")}>Resolve issue</button></footer></div>}
-        {role === "owner" && <div className={styles.ownerBox}><label><span>Owner direction</span><textarea value={values.ownerNote} onChange={(event) => patchDraft(issue, { ownerNote: event.target.value })} placeholder="Add Owner direction or escalation…" /></label><button disabled={working} onClick={() => void action("owner_note", { issueId: issue.id, ownerNote: values.ownerNote }, "Owner direction saved to the project activity.")}>Save Owner direction</button></div>}
+        {role !== "supervisor" && issueDrafts[issue.id] && values.opened !== (issue.revision ?? "") && <div role="alert" className={styles.managementDirection}><span>CHANGED BY SOMEONE ELSE</span><strong>This issue was changed after you started typing (now: {statusLabel(issue.status)}). Your text is kept; nothing is saved unless you choose to go ahead.</strong><button type="button" onClick={() => patchDraft(issue, { opened: issue.revision ?? "" })}>Go ahead with my text</button></div>}
+        {role !== "supervisor" && issue.status !== "resolved" && <div className={styles.actionBox}><label><span>Management action / direction</span><textarea value={values.action} onChange={(event) => patchDraft(issue, { action: event.target.value })} placeholder="Record what Admin has confirmed and what happens next…" /></label><div><label><span>New date</span><input type="date" value={values.date} onChange={(event) => patchDraft(issue, { date: event.target.value })} /></label><label><span>Time</span><input type="time" value={values.time} onChange={(event) => patchDraft(issue, { time: event.target.value })} /></label><label><span>Assign to</span><input value={values.assignee} onChange={(event) => patchDraft(issue, { assignee: event.target.value })} /></label></div><footer><button disabled={working} onClick={() => void issueAction(issue, "review_issue", { adminAction: values.action }, "Issue marked under review.")}>Start review</button><button disabled={working} onClick={() => void issueAction(issue, "reschedule_issue", { adminAction: values.action, rescheduledDate: values.date, rescheduledTime: values.time, rescheduledAssignee: values.assignee }, "Schedule updated and Site Supervisor follow-up created.")}>Reschedule Site Supervisor</button><button disabled={working} onClick={() => void issueAction(issue, "resolve_issue", { adminAction: values.action }, "Issue resolved and project situation updated.")}>Resolve issue</button></footer></div>}
+        {role === "owner" && <div className={styles.ownerBox}><label><span>Owner direction</span><textarea value={values.ownerNote} onChange={(event) => patchDraft(issue, { ownerNote: event.target.value })} placeholder="Add Owner direction or escalation…" /></label><button disabled={working} onClick={() => void issueAction(issue, "owner_note", { ownerNote: values.ownerNote }, "Owner direction saved to the project activity.")}>Save Owner direction</button></div>}
       </article>; })}{!data.issues.length && <div className={styles.empty}><strong>No site issue reported yet.</strong><span>New Site Supervisor reports will appear here immediately.</span></div>}</div>
     </section>
   </section>;

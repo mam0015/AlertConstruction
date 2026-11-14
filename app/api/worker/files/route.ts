@@ -34,9 +34,9 @@ export async function POST(request: Request) {
     const problem = activeContentProblem(file);
     if (problem) throw new Error(problem);
     await addWorkerProjectFile(caseId, file, workerEmails, actor.role as "Owner" | "Admin", actor.email);
-    return Response.json({ data: await getWorkerManagementSnapshot() }, { status: 201 });
+    return Response.json({ data: await getWorkerManagementSnapshot(actor.role as "Owner" | "Admin") }, { status: 201 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The project file could not be uploaded." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The project file could not be uploaded." }, { status: (error as { status?: number })?.status === 403 ? 403 : 400 });
   }
 }
 
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   if (!actor) return Response.json({ error: "Approved team sign-in required." }, { status: 401 });
   const fileId = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(fileId)) return Response.json({ error: "Invalid file." }, { status: 400 });
-  const record = await getWorkerFile(fileId, actor.email, actor.management);
+  const record = await getWorkerFile(fileId, actor.email, actor.management ? actor.role as "Owner" | "Admin" : false);
   const env = await runtimeBindings();
   if (!record || !env.BUCKET) return Response.json({ error: "File not found or not shared with this account." }, { status: 404 });
   const object = await env.BUCKET.get(record.objectKey);

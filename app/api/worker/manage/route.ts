@@ -15,9 +15,16 @@ async function manager(request: Request): Promise<{ role: "Owner" | "Admin"; ema
 }
 
 export async function GET(request: Request) {
-  if (!await manager(request)) return Response.json({ error: "Owner or Admin sign-in required." }, { status: 401 });
+  const identity = await manager(request);
+  if (!identity) return Response.json({ error: "Owner or Admin sign-in required." }, { status: 401 });
   if (process.env.NODE_ENV === "development") await seedWorkerDevelopmentPreview();
-  return Response.json({ data: await getWorkerManagementSnapshot() }, { headers: { "Cache-Control": "private, no-store" } });
+  try {
+    return Response.json({ data: await getWorkerManagementSnapshot(identity.role) }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    // Only the Owner's project-access switch is answered here; anything else stays a server error.
+    if ((error as { status?: number })?.status === 403) return Response.json({ error: (error as Error).message }, { status: 403 });
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
@@ -29,8 +36,8 @@ export async function POST(request: Request) {
     const body = await request.json() as { action?: string; payload?: Record<string, unknown> };
     if (!body.action || !body.payload) return Response.json({ error: "Invalid Worker management action." }, { status: 400 });
     await performWorkerManagementAction(identity.role, identity.email, body.action, body.payload);
-    return Response.json({ data: await getWorkerManagementSnapshot() });
+    return Response.json({ data: await getWorkerManagementSnapshot(identity.role) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The Worker change could not be saved." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The Worker change could not be saved." }, { status: [403, 409].includes(Number((error as { status?: number })?.status)) ? Number((error as { status?: number }).status) : 400 });
   }
 }

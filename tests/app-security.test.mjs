@@ -231,7 +231,7 @@ test("photos: a report can only use real photos of the right kind, each used onc
   for (const [action, payload] of [["review_started", {}], ["approve_intake", {}], ["assign_visit", { supervisorEmail: "super.photos@alert.test", supervisorName: "Photo Super", visitAt: "2026-12-03T09:00" }]]) {
     assert.equal((await request("/api/workflow", json(admin, { action, caseId, payload }))).status, 200, action);
   }
-  const report = (fileIds) => request("/api/workflow", json(supervisor, { action: "submit_site_visit", caseId, payload: { visitDate: "2026-12-03", summary: "Looked", findings: "None", recommendations: "Proceed", internalNotes: "", fileIds } }));
+  const report = (fileIds) => request("/api/workflow", json(supervisor, { action: "submit_site_visit", caseId, payload: { visitDate: "2026-12-03", summary: "Looked", findings: "None", recommendations: "Proceed", internalNotes: "", fileIds, replacing: "" } }));
   const fake = await report([99999999]);
   assert.equal(fake.status, 400);
   assert.match((await fake.json()).error, /site photo is required/);
@@ -284,7 +284,7 @@ test("customer decisions: accept and decline at the same moment cannot both win"
   const now = new Date().toISOString();
   app.d1.sqlite.prepare("UPDATE workflow_cases SET stage='estimate_sent' WHERE id = ?").run(caseId);
   app.d1.sqlite.prepare("INSERT INTO workflow_estimates (case_id,amount_cents,scope,terms,status,created_by,created_at,sent_at,customer_decided_at,confirmed_at) VALUES (?,?,?,?,?,?,?,?,'','')").run(caseId, 100000, "Scope", "Terms", "sent", "admin", now, now);
-  const decide = (decision) => request("/api/workflow/public", { method: "PATCH", headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.200" }, body: JSON.stringify({ code, decision }) });
+  const decide = (decision) => request("/api/workflow/public", { method: "PATCH", headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.200" }, body: JSON.stringify({ code, decision, estimateVersion: now }) });
   const answers = await Promise.all([decide("accept"), decide("decline")]);
   assert.deepEqual(answers.map((answer) => answer.status).sort(), [200, 400], "exactly one answer counts");
   const stage = app.d1.sqlite.prepare("SELECT stage FROM workflow_cases WHERE id = ?").get(caseId).stage;
@@ -292,7 +292,7 @@ test("customer decisions: accept and decline at the same moment cannot both win"
   assert.ok((stage === "customer_approved" && estimate === "customer_accepted") || (stage === "estimate_declined" && estimate === "customer_declined"), `consistent: ${stage} / ${estimate}`);
   if (stage === "estimate_declined") {
     // A declined estimate is not the end of the job: the price can be revised and sent again.
-    const revised = await request("/api/workflow", json(admin, { action: "save_estimate", caseId, payload: { amount: "900", scope: "Smaller scope", terms: "" } }));
+    const revised = await request("/api/workflow", json(admin, { action: "save_estimate", caseId, payload: { amount: "900", scope: "Smaller scope", terms: "", replacing: now } }));
     assert.equal(revised.status, 200, await revised.clone().text());
   }
 });

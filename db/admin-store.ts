@@ -1,6 +1,11 @@
 import { ensureOwnerDatabase, getOwnerSnapshot } from "./owner-store";
 import { ensureRequestFilesTable } from "./request-store";
 import { runtimeBindings } from "./runtime";
+import { ensureCaseViewTables, clearPortfolioSaved, markPortfolioSaved, openedProjectValues, openedRecordValues, portfolioStageStatements, staleProjectMessage, staleRecordMessage } from "./case-view-store";
+// A milestone is changed or removed only if it is still exactly what the editor opened (`opened`).
+const scheduleOpened = ["eventDate", "startTime", "title", "assignee", "projectCode", "tone", "notes"];
+const scheduleMatch = "event_date IS ? AND start_time IS ? AND title IS ? AND assignee IS ? AND project_code IS ? AND tone IS ? AND notes IS ?";
+import { ensureWorkflowDatabase } from "./workflow-store";
 
 type AdminResource = "project" | "request" | "schedule" | "message";
 
@@ -47,9 +52,10 @@ export async function getAdminSnapshot() {
   ]);
   return {
     projects: permissions.projects ? results[0].results : [],
-    requests: results[1].results,
-    scheduleEvents: permissions.schedule ? results[2].results : [],
-    messages: results[3].results,
+    requests: permissions.projects ? results[1].results : [],
+    scheduleEvents: !permissions.schedule ? [] : permissions.projects ? results[2].results : (results[2].results as { projectCode: string }[]).filter((event) => generalCode(event.projectCode)),
+    // Messages from customers on the older tracking page ("Customer · <reference>") are part of customer requests.
+    messages: permissions.projects ? results[3].results : (results[3].results as { sender: string; recipient: string }[]).filter((message) => !isCustomerThread(message.sender) && !isCustomerThread(message.recipient)),
     permissions,
   };
 }
@@ -63,9 +69,17 @@ function number(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+const isCustomerThread = (label: string) => String(label ?? "").trim().startsWith("Customer · ");
+// A schedule entry that belongs to no project. With project access off, Admin keeps only these (reads and changes).
+// "Business / General" (not a customer project), worked out the same way here and in SQL: missing, empty, or that label with spaces,
+// tabs or line breaks around it (older imported rows can have any of those).
+const generalCode = (code: unknown) => { const value = String(code ?? "").replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, ""); return value === "" || value === "Business / General"; };
+const generalRow = "TRIM(COALESCE(project_code,''),' '||char(9)||char(10)||char(13)) IN ('','Business / General')";
+const projectAccessOff = "Project access has been disabled by Owner.";
+
 async function requirePermission(resource: AdminResource) {
   const permissions = await adminPermissions();
-  if (resource === "project" && !permissions.projects) throw new Error("Project access has been disabled by Owner.");
+  if ((resource === "project" || resource === "request") && !permissions.projects) throw new Error("Project access has been disabled by Owner.");
   if (resource === "schedule" && !permissions.schedule) throw new Error("Schedule access has been disabled by Owner.");
 }
 
@@ -87,11 +101,13 @@ export async function createAdminRecord(resource: AdminResource, payload: Record
     return;
   }
   if (resource === "schedule") {
+    if (!generalCode(text(payload.projectCode, "Business / General")) && !(await adminPermissions()).projects) throw new Error(projectAccessOff);
     await db.prepare("INSERT INTO schedule_events (event_date,start_time,title,assignee,project_code,tone,notes) VALUES (?,?,?,?,?,?,?)")
       .bind(text(payload.eventDate), text(payload.startTime), text(payload.title), text(payload.assignee, "Site Supervisor 01"), text(payload.projectCode, "Business / General"), text(payload.tone, "gold"), text(payload.notes)).run();
     return;
   }
   if (resource === "message") {
+    if (isCustomerThread(text(payload.recipient)) && !(await adminPermissions()).projects) throw new Error("Project access has been disabled by Owner.");
     await db.prepare("INSERT INTO team_messages (sender,recipient,body,sent_at) VALUES (?,?,?,?)")
       .bind("Admin", text(payload.recipient, "Site Supervisor 01"), text(payload.body), now).run();
     return;
@@ -106,8 +122,25 @@ export async function updateAdminRecord(resource: AdminResource, id: number, pay
   const now = new Date().toISOString();
 
   if (resource === "project") {
-    await db.prepare("UPDATE projects SET code=?,name=?,service=?,stage=?,progress=?,customer_name=?,suburb=?,start_date=?,notes=?,updated_at=? WHERE id=?")
-      .bind(text(payload.code).toUpperCase(), text(payload.name), text(payload.service), text(payload.stage), Math.min(100, Math.max(0, number(payload.progress))), text(payload.customerName), text(payload.suburb), text(payload.startDate), text(payload.notes), now, id).run();
+    // The portfolio row and the workflow stage of the same project change together (one batch), or not at all. The workflow tables are
+    // made first, so editing a portfolio project works even before anyone has opened the workflow.
+    await ensureWorkflowDatabase();
+    await ensureCaseViewTables();
+    // The editor sends the project exactly as it was opened (required): a project changed meanwhile in any way (its stage in Workflow,
+    // another person's save) is not overwritten with old values, and its workflow stage is left alone too.
+    const opened = openedProjectValues(payload.opened, ["code", "name", "service", "stage", "progress", "customerName", "suburb", "startDate", "notes"]);
+    // A project number that a customer workflow (and its portal, tasks and files) uses cannot be renamed here.
+    const current = await db.prepare("SELECT code FROM projects WHERE id=?").bind(id).first<{ code: string }>();
+    if (current && text(payload.code).toUpperCase() !== String(current.code).toUpperCase() && await db.prepare("SELECT 1 FROM workflow_cases WHERE project_code=?").bind(current.code).first()) throw new Error("This project number is linked to a customer's workflow and portal, so it cannot be changed.");
+    const token = crypto.randomUUID();
+    const results = await db.batch([
+      db.prepare("UPDATE projects SET code=?,name=?,service=?,stage=?,progress=?,customer_name=?,suburb=?,start_date=?,notes=?,updated_at=? WHERE id=? AND code IS ? AND name IS ? AND service IS ? AND stage IS ? AND progress IS ? AND customer_name IS ? AND suburb IS ? AND start_date IS ? AND notes IS ? AND updated_at IS ?")
+        .bind(text(payload.code).toUpperCase(), text(payload.name), text(payload.service), text(payload.stage), Math.min(100, Math.max(0, number(payload.progress))), text(payload.customerName), text(payload.suburb), text(payload.startDate), text(payload.notes), now, id, ...opened),
+      markPortfolioSaved(db, token, now),
+      ...portfolioStageStatements(db, text(payload.code), text(payload.stage), "Admin (portfolio)", now, token),
+      clearPortfolioSaved(db, token),
+    ]);
+    if (!results[0].meta?.changes && await db.prepare("SELECT 1 FROM projects WHERE id=?").bind(id).first()) throw new Error(staleProjectMessage);
     return;
   }
   if (resource === "request") {
@@ -116,16 +149,30 @@ export async function updateAdminRecord(resource: AdminResource, id: number, pay
     return;
   }
   if (resource === "schedule") {
-    await db.prepare("UPDATE schedule_events SET event_date=?,start_time=?,title=?,assignee=?,project_code=?,tone=?,notes=? WHERE id=?")
-      .bind(text(payload.eventDate), text(payload.startTime), text(payload.title), text(payload.assignee), text(payload.projectCode), text(payload.tone, "gold"), text(payload.notes), id).run();
+    // Both the entry as it is and as it would become must be general while project access is off; the existing row is checked in the same write.
+    const projects = Boolean((await adminPermissions()).projects);
+    if (!projects && !generalCode(text(payload.projectCode))) throw new Error(projectAccessOff);
+    const opened = openedRecordValues(payload.opened, scheduleOpened, staleRecordMessage);
+    const saved = await db.prepare(`UPDATE schedule_events SET event_date=?,start_time=?,title=?,assignee=?,project_code=?,tone=?,notes=? WHERE id=? AND (?=1 OR ${generalRow}) AND ${scheduleMatch}`)
+      .bind(text(payload.eventDate), text(payload.startTime), text(payload.title), text(payload.assignee), text(payload.projectCode), text(payload.tone, "gold"), text(payload.notes), id, projects ? 1 : 0, ...opened).run();
+    if (!saved.meta.changes && await db.prepare("SELECT 1 FROM schedule_events WHERE id=?").bind(id).first()) {
+      if (!projects && !await db.prepare(`SELECT 1 FROM schedule_events WHERE id=? AND ${generalRow}`).bind(id).first()) throw new Error(projectAccessOff);
+      throw new Error(staleRecordMessage);
+    }
   }
 }
 
-export async function deleteAdminRecord(resource: AdminResource, id: number) {
+export async function deleteAdminRecord(resource: AdminResource, id: number, payload: Record<string, unknown> = {}) {
   await requirePermission(resource);
   if (resource !== "schedule") throw new Error("Admin can only remove schedule items.");
   const db = await database();
-  await db.prepare("DELETE FROM schedule_events WHERE id=?").bind(id).run();
+  const projects = Boolean((await adminPermissions()).projects);
+  const opened = openedRecordValues(payload.opened, scheduleOpened, staleRecordMessage);
+  const removed = await db.prepare(`DELETE FROM schedule_events WHERE id=? AND (?=1 OR ${generalRow}) AND ${scheduleMatch}`).bind(id, projects ? 1 : 0, ...opened).run();
+  if (!removed.meta.changes && await db.prepare("SELECT 1 FROM schedule_events WHERE id=?").bind(id).first()) {
+    if (!projects && !await db.prepare(`SELECT 1 FROM schedule_events WHERE id=? AND ${generalRow}`).bind(id).first()) throw new Error(projectAccessOff);
+    throw new Error(staleRecordMessage);
+  }
 }
 
 export async function getTeamMessagesFor(label: string) {

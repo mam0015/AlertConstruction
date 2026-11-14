@@ -48,6 +48,8 @@ export type WorkerReport = {
   issuesDelays: string;
   status: string;
   submittedAt: string;
+  // The version a correction or a review names (a new random value on every send).
+  revision: string;
   reviewedBy: string;
   reviewedAt: string;
   reviewNote: string;

@@ -15,12 +15,15 @@ async function limits(request: Request, kind: CustomerContactKind, contact: stri
 
 export async function POST(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
-  const body = await request.json().catch(() => ({})) as { method?: string; contact?: string; location?: string };
+  // Anything that is not a plain object with text fields is refused politely (it used to crash with a server error).
+  const raw = await request.json().catch(() => ({})) as unknown;
+  const body = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as { method?: unknown; contact?: unknown; location?: unknown };
+  if ((body.contact !== undefined && typeof body.contact !== "string") || (body.location !== undefined && typeof body.location !== "string")) return Response.json({ error: "The details could not be read." }, { status: 400 });
   const kind = body.method === "email" || body.method === "phone" ? body.method : null;
   if (!kind) return Response.json({ error: "Choose email or phone access." }, { status: 400 });
 
-  const contact = normaliseCustomerContact(kind, body.contact ?? "");
-  const location = (body.location ?? "").trim().slice(0, 120);
+  const contact = normaliseCustomerContact(kind, typeof body.contact === "string" ? body.contact : "");
+  const location = (typeof body.location === "string" ? body.location : "").trim().slice(0, 120);
   const valid = kind === "email"
     ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) && contact.length <= 254
     : /^0\d{9}$/.test(contact);

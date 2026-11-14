@@ -29,7 +29,7 @@ export default function ProjectStatusPage() {
         </Link>
         <nav className={styles.headerNav} aria-label="Customer portal navigation">
           <Link href="/">Home</Link>
-          <Link href="/#request">Secure support</Link>
+          <Link href="/support">Secure support</Link>
           <Link className={styles.exitLink} href="/">Exit project</Link>
         </nav>
       </header>
@@ -54,7 +54,7 @@ export default function ProjectStatusPage() {
       <footer className={styles.footer}>
         <BrandLogo kind="tradie" tone="dark" className={styles.footerLogo} />
         <p>Customer-visible project information only.</p>
-        <div><Link href="/#request">Secure support</Link><Link href="/">Return home</Link></div>
+        <div><Link href="/support">Secure support</Link><Link href="/">Return home</Link></div>
       </footer>
     </main>
   );

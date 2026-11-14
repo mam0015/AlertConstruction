@@ -50,6 +50,8 @@ export default function TaskManagementPanel({ role, scope }: { role: "owner" | "
     try {
       const response = await fetch(`/api/tasks/manage${query}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: name, payload }) });
       const result = await response.json() as { data?: TaskManagementSnapshot; error?: string };
+      // Refused because someone changed it meanwhile: the list is re-read so the current status is shown.
+      if (response.status === 409) void fetch(`/api/tasks/manage${query}`, { cache: "no-store" }).then((fresh) => fresh.json()).then((fresh: { data?: TaskManagementSnapshot }) => { if (fresh.data) setData(fresh.data); }).catch(() => undefined);
       if (!response.ok || !result.data) throw new Error(result.error ?? "The task change could not be saved.");
       setData(result.data); setNotice(success); window.setTimeout(() => setNotice(""), 4200); return true;
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The task change could not be saved."); return false; }
@@ -87,7 +89,7 @@ export default function TaskManagementPanel({ role, scope }: { role: "owner" | "
           <div className={styles.taskTop}><i className={styles[`priority${task.priority}`]}>{task.priority}</i><span>{task.projectCode}</span><small>{readable(task.updatedAt)}</small></div>
           <h4>{task.title}</h4><p>{task.instructions}</p>
           <div className={styles.assignee}><b>{task.assigneeTitle.slice(0, 2).toUpperCase()}</b><span><strong>{task.assigneeTitle}</strong><small>{task.assigneeEmail}</small></span></div>
-          <footer><select aria-label={`Status of ${task.title}`} value={task.status} onChange={(event) => void action("set_status", { taskId: task.id, status: event.target.value }, `Task marked ${event.target.value.replaceAll("_", " ")}.`)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><button onClick={() => void action("delete_task", { taskId: task.id }, "Task removed.")}>Remove</button></footer>
+          <footer><select aria-label={`Status of ${task.title}`} value={task.status} onChange={(event) => void action("set_status", { taskId: task.id, status: event.target.value, from: task.status }, `Task marked ${event.target.value.replaceAll("_", " ")}.`)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><button onClick={() => void action("delete_task", { taskId: task.id }, "Task removed.")}>Remove</button></footer>
         </article>)}
         {!tasks.length && <div className={styles.empty}><strong>No tasks in this section.</strong><span>Create the first assignment from the form.</span></div>}
       </section>

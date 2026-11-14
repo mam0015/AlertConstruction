@@ -98,13 +98,15 @@ export default function RenovationBudget({ prices, onPricesChange, onUseLines }:
     if (!canEdit || saving || !dirty.length) return;
     setSaving(true);
     setProblem("");
+    // The allowances as sent: after the save only these are cleared, and only if they were not typed over while it was saving.
+    const submitted = Object.fromEntries(dirty.map((key) => [key, draft[key]]));
     try {
       const rates = Object.fromEntries(dirty.map((key) => { const cents = toRateCents(draft[key]); return [key, cents === null ? null : cents / 100]; }));
       const response = await fetch("/api/estimate/rates", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rates }) });
       const body = await response.json().catch(() => ({})) as Partial<Prices> & { error?: string };
       if (!response.ok) throw new Error(body.error ?? "The prices could not be saved.");
       onPricesChange({ rates: body.rates ?? {}, margin: body.margin ?? 20, updatedAt: body.updatedAt ?? "", canEdit: true, ai: prices?.ai });
-      setDraft({});
+      setDraft((current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => !(key in submitted && submitted[key] === value))));
       setMessage("Prices saved. The plan below uses them.");
     } catch (error) {
       setProblem(error instanceof Error ? error.message : "The prices could not be saved.");

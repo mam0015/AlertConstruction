@@ -16,6 +16,6 @@ export async function POST(request: Request) {
     await submitStaffReport(me, await request.json() as Record<string, unknown>);
     return Response.json({ data: await listOwnStaffReports(me) }, { status: 201 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The report could not be submitted." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The report could not be submitted." }, { status: (error as { status?: number })?.status === 403 ? 403 : 400 });
   }
 }

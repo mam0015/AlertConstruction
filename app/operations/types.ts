@@ -8,6 +8,8 @@ export type OperationsProject = {
 };
 
 export type SiteIssue = {
+  // The version a change names (a new random value after every change; the last change time for older issues).
+  revision?: string;
   id: number;
   caseId: number;
   projectCode: string;

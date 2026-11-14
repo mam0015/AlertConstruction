@@ -283,3 +283,36 @@ test("screens: Estimate tools is in the Owner and Admin left menus and the Estim
   assert.match(read("app/workflow/EstimateCalculator.tsx"), /onEstimateLines/);
   assert.match(read("app/estimate-tools/bridge.ts"), /window\.dispatchEvent/);
 });
+
+// ---- Codex run-the-site review, round 22 (November 2026): the Invoice and the price editors ----
+test("invoice: a line's own % or $ choice wins over the invoice default, in both directions", () => {
+  const percentLine = calculateInvoice({ default_profit_type: "fixed", default_profit_value: 20, gst_enabled: true, gst_rate: 10 }, [{ description: "Supply", quantity: 1, base_cost: 200, profit_type: "percent", profit_value: 10, gst_applicable: true }]);
+  assert.equal(percentLine.subtotal, 220, "10% of $200, not $10");
+  assert.equal(percentLine.total_amount, 242);
+  const fixedLine = calculateInvoice({ default_profit_type: "percent", default_profit_value: 20, gst_enabled: false }, [{ description: "Install", quantity: 2, base_cost: 350, profit_type: "fixed", profit_value: 15 }]);
+  assert.equal(fixedLine.subtotal, 730, "$15 per unit on two units of $350");
+  const defaultLine = calculateInvoice({ default_profit_type: "fixed", default_profit_value: 20, gst_enabled: false }, [{ description: "Labour", quantity: 1, base_cost: 200, profit_type: undefined, profit_value: "" }]);
+  assert.equal(defaultLine.subtotal, 220, "a line without its own choice uses the default ($20)");
+});
+
+test("invoice screen: every line that charges something must be described before printing or copying; a blank line charges nothing", () => {
+  const screen = readFileSync(new URL("../app/estimate-tools/InvoiceTool.tsx", import.meta.url), "utf8");
+  assert.match(screen, /const unused = \(item: Item\) => !item\.description\.trim\(\) && !\(Number\(item\.baseCost\) > 0\)/);
+  assert.match(screen, /quantity: unused\(item\) \? 0 : item\.quantity/);
+  assert.match(screen, /const unnamedCharge = priced\.some\(\(item\) => !\(item\.description \?\? ""\)\.trim\(\) && item\.line_subtotal > 0\);/);
+  assert.match(screen, /function print\(\) \{\n    if \(unnamedCharge\) \{ setMessage\(unnamedMessage\); return; \}/);
+  assert.match(screen, /async function copy\(\) \{\n    if \(unnamedCharge\) \{ setMessage\(unnamedMessage\); return; \}/);
+  // The totals of a document that can be printed equal the sum of its printed lines.
+  const items = [{ description: "Tiling labour", quantity: 1, base_cost: 100 }, { description: "", quantity: 0, base_cost: "" }];
+  const result = calculateInvoice({ default_profit_type: "percent", default_profit_value: 20, gst_enabled: false }, items);
+  assert.equal(result.subtotal, result.items.filter((item) => item.description).reduce((sum, item) => sum + item.line_subtotal, 0));
+});
+
+test("price editors: a save clears only the prices it sent; prices typed while it was saving stay (trade price list and renovation allowances)", () => {
+  for (const file of ["app/estimate-tools/EstimateTools.tsx", "app/estimate-tools/RenovationBudget.tsx"]) {
+    const screen = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    assert.match(screen, /const submitted = Object\.fromEntries\(/, file);
+    assert.match(screen, /setDraft\(\(current\) => Object\.fromEntries\(Object\.entries\(current\)\.filter\(\(\[key, value\]\) => !\(key in submitted && submitted\[key\] === value\)\)\)\);/, file);
+    assert.ok(!/setDraft\(\{\}\);\n\s*(marginTouched|setMessage|setNotice)/.test(screen), `${file}: the draft is no longer wiped wholesale after a save`);
+  }
+});

@@ -8,6 +8,7 @@ import { ensureWorkflowDatabase } from "./workflow-store";
 import { ensureWorkerDatabase } from "./worker-store";
 import { estimatorStages } from "../app/workflow/types";
 import { isWorkerRole } from "../app/staff-access";
+import { hasProjectAccess, hasScheduleAccess, ProjectAccessError, ScheduleAccessError } from "./case-view-store";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -25,6 +26,14 @@ export type StaffReport = { id: number; projectCode: string; summary: string; su
 
 const CHANNEL = "*";
 const canPlan = new Set(["Owner", "Admin", "Manager"]);
+// The Owner's two switches for Admin, as they apply to the Team hub calendar:
+//  - "Master schedule" off: Admin is an ordinary team member here (sees only the work assigned to them, cannot plan or remove entries).
+//  - "Projects & customer requests" off: Admin does not see, plan or remove entries linked to a project, except their own assigned work.
+async function calendarRights(identity: TeamIdentity) {
+  const [schedule, projects] = await Promise.all([hasScheduleAccess(identity.role), hasProjectAccess(identity.role)]);
+  return { plans: canPlan.has(identity.role) && schedule, projects };
+}
+const projectLinked = (code: unknown) => String(code ?? "").trim() !== "";
 
 async function database(): Promise<D1> {
   const env = await runtimeBindings();
@@ -64,48 +73,74 @@ export async function listPeople(): Promise<TeamPerson[]> {
 }
 
 // ---------- Calendar ----------
-const dateOk = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+// A real calendar day (2026-02-30 is refused).
+const dateOk = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[3]);
+};
 
 export async function listCalendar(identity: TeamIdentity, from: string, to: string, person = ""): Promise<CalendarEntry[]> {
   await ensureTeamTables();
   if (!dateOk(from) || !dateOk(to)) throw new Error("Choose a valid date range.");
   const db = await database();
   const columns = "id,entry_date AS entryDate,start_time AS startTime,title,notes,project_code AS projectCode,assignee_email AS assigneeEmail,assignee_name AS assigneeName,created_by_email AS createdByEmail,created_by_name AS createdByName,created_by_role AS createdByRole,created_at AS createdAt";
-  const seesAll = canPlan.has(identity.role);
-  const target = seesAll ? person.trim().toLowerCase() : identity.email.toLowerCase();
+  const rights = await calendarRights(identity);
+  const seesAll = rights.plans;
+  const me = identity.email.toLowerCase();
+  const target = seesAll ? person.trim().toLowerCase() : me;
   const result = target
     ? await db.prepare(`SELECT ${columns} FROM calendar_entries WHERE entry_date>=? AND entry_date<=? AND assignee_email=? ORDER BY entry_date,start_time,id`).bind(from, to, target).all<Raw>()
     : await db.prepare(`SELECT ${columns} FROM calendar_entries WHERE entry_date>=? AND entry_date<=? ORDER BY entry_date,start_time,id`).bind(from, to).all<Raw>();
-  return result.results as unknown as CalendarEntry[];
+  const entries = result.results as unknown as CalendarEntry[];
+  return rights.projects ? entries : entries.filter((entry) => !projectLinked(entry.projectCode) || String(entry.assigneeEmail).toLowerCase() === me);
 }
 
 export async function createCalendarEntries(identity: TeamIdentity, payload: Record<string, unknown>) {
   if (!canPlan.has(identity.role)) throw new Error("Only Owner, Admin or Manager can assign calendar work.");
+  const rights = await calendarRights(identity);
+  if (!rights.plans) throw new ScheduleAccessError();
+  if (!rights.projects && projectLinked(payload.projectCode)) throw new ProjectAccessError();
   await ensureTeamTables();
   const people = await listPeople();
   const assignee = people.find((person) => person.email === clean(payload.assigneeEmail).toLowerCase());
   if (!assignee) throw new Error("Choose an approved team member.");
   const title = bounded(payload.title, "Title", 160);
-  const notes = clean(payload.notes).slice(0, 1000);
+  const notes = clean(payload.notes);
+  if (notes.length > 1000) throw new Error("Notes are too long (1,000 characters at most). Please shorten them and save again.");
   const projectCode = clean(payload.projectCode).slice(0, 60);
-  const startTime = /^\d{2}:\d{2}$/.test(clean(payload.startTime)) ? clean(payload.startTime) : "";
-  const dates = Array.isArray(payload.dates) ? payload.dates.map((value) => clean(value)).filter(dateOk) : [];
+  const typedTime = clean(payload.startTime);
+  if (typedTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(typedTime)) throw new Error("Choose a real start time.");
+  const startTime = typedTime;
+  const typedDates = Array.isArray(payload.dates) ? payload.dates.map((value) => clean(value)) : [];
+  if (typedDates.some((value) => !dateOk(value))) throw new Error("Choose real dates only (one of the dates does not exist).");
+  const dates = typedDates;
   const unique = [...new Set(dates)].sort();
   if (!unique.length) throw new Error("Choose at least one valid date.");
   if (unique.length > 62) throw new Error("A plan can contain at most 62 days at a time.");
   const db = await database();
   const now = new Date().toISOString();
-  await db.batch(unique.map((date) => db.prepare("INSERT INTO calendar_entries (entry_date,start_time,title,notes,project_code,assignee_email,assignee_name,created_by_email,created_by_name,created_by_role,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(date, startTime, title, notes, projectCode, assignee.email, assignee.name, identity.email.toLowerCase(), identity.name, identity.role, now)));
-  return unique.length;
+  // Exactly the same booking (person, day, time, title, project and notes) made twice by the same planner within two minutes — a double
+  // press or a retry — is saved once. Anything different (another project, other notes) is a separate booking and is saved.
+  const since = new Date(Date.parse(now) - 120_000).toISOString();
+  const results = await db.batch(unique.map((date) => db.prepare(`INSERT INTO calendar_entries (entry_date,start_time,title,notes,project_code,assignee_email,assignee_name,created_by_email,created_by_name,created_by_role,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?
+    WHERE NOT EXISTS (SELECT 1 FROM calendar_entries WHERE entry_date=? AND start_time=? AND title=? AND project_code=? AND notes=? AND assignee_email=? AND created_by_email=? AND created_at>=?)`)
+    .bind(date, startTime, title, notes, projectCode, assignee.email, assignee.name, identity.email.toLowerCase(), identity.name, identity.role, now, date, startTime, title, projectCode, notes, assignee.email, identity.email.toLowerCase(), since)));
+  // How many were really saved now, and how many were already there from the first press.
+  const created = results.reduce((total, result) => total + Number((result as { meta?: { changes?: number } }).meta?.changes ?? 0), 0);
+  return { created, alreadySaved: unique.length - created };
 }
 
 export async function deleteCalendarEntry(identity: TeamIdentity, id: number) {
   await ensureTeamTables();
   const db = await database();
-  const row = await db.prepare("SELECT created_by_email AS createdBy FROM calendar_entries WHERE id=?").bind(id).first<{ createdBy: string }>();
+  const row = await db.prepare("SELECT created_by_email AS createdBy,project_code AS projectCode FROM calendar_entries WHERE id=?").bind(id).first<{ createdBy: string; projectCode: string }>();
   if (!row) throw new Error("Entry not found.");
   if (identity.role !== "Owner" && !(canPlan.has(identity.role) && row.createdBy === identity.email.toLowerCase())) throw new Error("Only the person who created this entry (or the Owner) can remove it.");
+  const rights = await calendarRights(identity);
+  if (identity.role !== "Owner" && !rights.plans) throw new ScheduleAccessError();
+  if (!rights.projects && projectLinked(row.projectCode)) throw new ProjectAccessError();
   await db.prepare("DELETE FROM calendar_entries WHERE id=?").bind(id).run();
 }
 
@@ -172,6 +207,7 @@ export async function submitStaffReport(identity: TeamIdentity, payload: Record<
   await ensureTeamTables();
   const summary = bounded(payload.summary, "Report", 4000);
   const projectCode = clean(payload.projectCode).slice(0, 60) || "Business / General";
+  if (projectCode !== "Business / General" && !await hasProjectAccess(identity.role)) throw new ProjectAccessError();
   const db = await database();
   await db.prepare("INSERT INTO eod_reports (person,role,project_code,summary,submitted_at,status,owner_note) VALUES (?,?,?,?,?,'Pending','')")
     .bind(identity.email.toLowerCase(), identity.role, projectCode, summary, new Date().toISOString()).run();
@@ -181,7 +217,9 @@ export async function listOwnStaffReports(identity: TeamIdentity): Promise<Staff
   await ensureTeamTables();
   const db = await database();
   const rows = await db.prepare("SELECT id,project_code AS projectCode,summary,submitted_at AS submittedAt,status,owner_note AS ownerNote FROM eod_reports WHERE person=? ORDER BY id DESC LIMIT 30").bind(identity.email.toLowerCase()).all<Raw>();
-  return rows.results as unknown as StaffReport[];
+  const reports = rows.results as unknown as StaffReport[];
+  // An Admin whose project access the Owner switched off keeps only the Business / General reports (and the Owner's notes on them).
+  return await hasProjectAccess(identity.role) ? reports : reports.filter((report) => !projectLinked(report.projectCode) || String(report.projectCode).trim() === "Business / General");
 }
 
 // The project picker in the Team hub. Owner, Admin and Manager oversee every project; everyone else only gets the projects they are
@@ -192,6 +230,7 @@ export async function listProjectCodes(identity: TeamIdentity) {
   const columns = "SELECT p.code AS code,p.name AS name FROM projects p";
   const me = identity.email.toLowerCase();
   if (canPlan.has(identity.role)) {
+    if (!await hasProjectAccess(identity.role)) return [];
     return (await db.prepare(`${columns} ORDER BY p.updated_at DESC LIMIT 100`).all<{ code: string; name: string }>()).results;
   }
   if (identity.role === "Site Supervisor") {

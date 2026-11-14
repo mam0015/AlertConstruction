@@ -198,7 +198,7 @@ const MAX_PROJECTS = 60;
 const MAX_TASKS = 60;
 
 function projectXml(project) {
-  return `<project code="${attrEscape(project.code)}" stage="${attrEscape(project.stage)}" progress="${Number(project.progress) || 0}%" contract_value="${money(project.contractValue)}" still_to_collect="${money(project.balance)}">${xmlEscape(oneLine(redact(`${project.name} — customer ${displayName(project.customer)}${project.suburb ? `, ${project.suburb}` : ""}`), 160))}</project>`;
+  return `<project code="${attrEscape(project.code)}" stage="${attrEscape(redact(project.stage))}" progress="${Number(project.progress) || 0}%" contract_value="${money(project.contractValue)}" still_to_collect="${money(project.balance)}">${xmlEscape(oneLine(redact(`${project.name} — customer ${displayName(project.customer)}${project.suburb ? `, ${project.suburb}` : ""}`), 160))}</project>`;
 }
 function taskXml(task) {
   const who = staffHandle(task.assignee) || displayName(task.assignee);

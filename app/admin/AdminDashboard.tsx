@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, Workflow as WorkflowIcon, TriangleAlert, ArrowRight as ArrowRightIcon, HardHat, ListChecks, FolderKanban, Inbox, CalendarDays, MessageSquare, Briefcase, Calculator, type LucideIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
@@ -43,7 +43,7 @@ const services = ["Home Renovation", "Bathroom Renovation", "Kitchen Renovation"
 const stages = ["Admin review", "Site inspection", "Estimate", "Quote sent", "Customer approval", "Scheduled", "Construction", "Handover", "Complete"];
 const requestStatuses = ["New", "Contacted", "Needs review", "Site visit booked", "Converted", "Closed"];
 const assignees = ["Unassigned", "Admin 01", "Site Supervisor 01", "Estimator 01", "Engineer 01"];
-const projectBlank = { code: "", name: "", service: "Home Renovation", stage: "Admin review", progress: "0", customerName: "", suburb: "", startDate: "", notes: "" };
+const projectBlank = { code: "", name: "", service: "Home Renovation", stage: "Admin review", progress: "0", customerName: "", suburb: "", startDate: "", notes: "", updatedAt: "", openedStage: "" };
 const melbourneDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const scheduleBlank = { eventDate: melbourneDate(), startTime: "08:00", title: "", assignee: "Site Supervisor 01", projectCode: "Business / General", tone: "gold", notes: "" };
 
@@ -87,11 +87,32 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
   const [scheduleForm, setScheduleForm] = useState(scheduleBlank);
   const [requestFilter, setRequestFilter] = useState("All requests");
   const [projectQuery, setProjectQuery] = useState("");
-  const [recipient, setRecipient] = useState("Site Supervisor 01");
+  const [recipient, setRecipient] = useState("Owner");
   const [draft, setDraft] = useState("");
+  // Each save and each quiet refresh moves this on; a refresh answered after a newer save is thrown away.
+  const freshness = useRef(0);
+  // Moves on whenever an answer shows the Owner has taken a permission away. An answer to a request sent before that (a slow save, a
+  // slow load) is never applied: the dashboard reloads instead, so nothing restricted comes back on screen.
+  const lockEpoch = useRef(0);
+  const shownPermissions = useRef(empty.permissions);
+  function accept(snapshot: Snapshot, startedLock: number) {
+    if (startedLock !== lockEpoch.current) return false;
+    const before = shownPermissions.current, after = snapshot.permissions;
+    if ((before.projects && !after.projects) || (before.schedule && !after.schedule)) {
+      lockEpoch.current += 1;
+      // Any editor already open closes and forgets what it showed (a customer's name, address, notes).
+      setProjectModal(null); setProjectForm({ ...projectBlank });
+      setRequestModal(null); setRequestForm({ status: "New", priority: "Normal", assignedTo: "Unassigned", summary: "" });
+      setScheduleModal(null); setScheduleForm({ ...scheduleBlank });
+    }
+    shownPermissions.current = after;
+    setData(snapshot);
+    return true;
+  }
 
   useEffect(() => {
     let active = true;
+    const startedLock = lockEpoch.current;
     void (async () => {
       setLoading(true);
       setError("");
@@ -100,7 +121,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
         if (response.status === 401) { router.refresh(); return; }
         const result = await response.json() as { data?: Snapshot; error?: string };
         if (!response.ok || !result.data) throw new Error(result.error ?? "Admin data could not be loaded.");
-        if (active) setData(result.data);
+        if (active) accept(result.data, startedLock);
       } catch (reason) {
         if (active) setError(reason instanceof Error ? reason.message : "Admin data could not be loaded.");
       } finally {
@@ -111,6 +132,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
   }, [router, viewerEmail]);
 
   async function mutate(method: "POST" | "PATCH" | "DELETE", resource: Resource, payload: Record<string, unknown> = {}, id?: number, message = "Saved.") {
+    const startedLock = lockEpoch.current;
     setWorking(true);
     setError("");
     try {
@@ -118,28 +140,50 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
       if (response.status === 401) { router.refresh(); return false; }
       const result = await response.json() as { data?: Snapshot; error?: string };
       if (!response.ok || !result.data) throw new Error(result.error ?? "The change could not be saved.");
-      setData(result.data);
+      freshness.current += 1;
+      if (!accept(result.data, startedLock)) void refreshQuietly();
       setNotice(message);
       window.setTimeout(() => setNotice(""), 3500);
       return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The change could not be saved.");
+      // Refused (for example changed by someone else): the lists are re-read, so closing and reopening the editor shows the latest; an
+      // open editor keeps what was typed.
+      void refreshQuietly();
       return false;
     } finally { setWorking(false); }
   }
 
-  function choose(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  // Opening a section reloads the dashboard records quietly, so new requests appear and anything the Owner has since restricted disappears.
+  async function refreshQuietly() {
+    if (viewerEmail.endsWith(".invalid")) return;
+    const started = ++freshness.current;
+    const startedLock = lockEpoch.current;
+    try {
+      const response = await fetch("/api/admin/data", { cache: "no-store" });
+      if (response.status === 401) { router.refresh(); return; }
+      const result = await response.json() as { data?: Snapshot };
+      if (response.ok && result.data && freshness.current === started) accept(result.data, startedLock);
+    } catch { /* the next section change tries again */ }
+  }
+  function choose(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); void refreshQuietly(); }
+  const projectsAllowed = Boolean(data.permissions.projects), scheduleAllowed = Boolean(data.permissions.schedule);
+  // The same rule as the server: missing, empty, or "Business / General" with spaces, tabs or line breaks around it.
+  const generalEntry = (code: string | null | undefined) => ["", "Business / General"].includes(String(code ?? "").replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, ""));
   function openProject(project?: Project, request?: JobRequest) {
+    if (!projectsAllowed) { setError("Project access has been disabled by Owner."); return; }
     setProjectModal(project ?? "new");
-    setProjectForm(project ? { code: project.code, name: project.name, service: project.service, stage: project.stage, progress: String(project.progress), customerName: project.customerName, suburb: project.suburb, startDate: project.startDate, notes: project.notes } : request ? { code: request.code.replace(/^(REQ|JOB)/, "ATP"), name: `${request.service} · ${request.suburb}`, service: request.service, stage: "Admin review", progress: "0", customerName: request.customerName, suburb: request.suburb, startDate: "", notes: `${request.summary}\nSource request: ${request.code}` } : { ...projectBlank });
+    setProjectForm(project ? { code: project.code, name: project.name, service: project.service, stage: project.stage, progress: String(project.progress), customerName: project.customerName, suburb: project.suburb, startDate: project.startDate, notes: project.notes, updatedAt: project.updatedAt, openedStage: project.stage } : request ? { code: request.code.replace(/^(REQ|JOB)/, "ATP"), name: `${request.service} · ${request.suburb}`, service: request.service, stage: "Admin review", progress: "0", customerName: request.customerName, suburb: request.suburb, startDate: "", notes: `${request.summary}\nSource request: ${request.code}`, updatedAt: "", openedStage: "" } : { ...projectBlank });
   }
   async function saveProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const payload = { ...projectForm, progress: Number(projectForm.progress) };
+    // The project exactly as it was opened goes with the save: it is refused if anything changed meanwhile.
+    const payload = { ...projectForm, progress: Number(projectForm.progress), opened: projectModal === "new" ? undefined : projectModal };
     const ok = projectModal === "new" ? await mutate("POST", "project", payload, undefined, "Project created and added to operations.") : await mutate("PATCH", "project", payload, projectModal?.id, "Project details updated.");
     if (ok) setProjectModal(null);
   }
   function openRequest(request: JobRequest) {
+    if (!projectsAllowed) { setError("Project access has been disabled by Owner."); return; }
     setRequestModal(request);
     setRequestForm({ status: request.status, priority: request.priority, assignedTo: request.assignedTo, summary: request.summary });
   }
@@ -148,16 +192,19 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
     if (requestModal && await mutate("PATCH", "request", requestForm, requestModal.id, "Request follow-up saved.")) setRequestModal(null);
   }
   function openSchedule(item?: ScheduleEvent) {
+    if (!scheduleAllowed) { setError("Schedule access has been disabled by Owner."); return; }
+    if (item && !projectsAllowed && !generalEntry(item.projectCode)) { setError("Project access has been disabled by Owner."); return; }
     setScheduleModal(item ?? "new");
     setScheduleForm(item ? { eventDate: item.eventDate, startTime: item.startTime, title: item.title, assignee: item.assignee, projectCode: item.projectCode, tone: item.tone, notes: item.notes } : { ...scheduleBlank, projectCode: data.projects[0]?.code ?? "Business / General" });
   }
   async function saveSchedule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ok = scheduleModal === "new" ? await mutate("POST", "schedule", scheduleForm, undefined, `Work scheduled for ${scheduleForm.assignee}.`) : await mutate("PATCH", "schedule", scheduleForm, scheduleModal?.id, "Scheduled work updated.");
+    // The milestone exactly as it was opened goes with the save: it is refused if someone changed it meanwhile.
+    const ok = scheduleModal === "new" ? await mutate("POST", "schedule", scheduleForm, undefined, `Work scheduled for ${scheduleForm.assignee}.`) : await mutate("PATCH", "schedule", { ...scheduleForm, opened: scheduleModal }, scheduleModal?.id, "Scheduled work updated.");
     if (ok) setScheduleModal(null);
   }
   async function removeSchedule(item: ScheduleEvent) {
-    if (window.confirm(`Remove ${item.title} from the schedule?`)) await mutate("DELETE", "schedule", {}, item.id, "Schedule item removed.");
+    if (window.confirm(`Remove ${item.title} from the schedule?`)) await mutate("DELETE", "schedule", { opened: item }, item.id, "Schedule item removed.");
   }
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -172,7 +219,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
   }
 
   const newRequests = data.requests.filter((request) => ["New", "Needs review"].includes(request.status));
-  const activeProjects = data.projects.filter((project) => project.stage !== "Complete");
+  const activeProjects = data.projects.filter((project) => project.stage !== "Complete" && project.stage !== "Closed");
   const todayItems = data.scheduleEvents.filter((item) => item.eventDate === melbourneDate());
   const week = currentWeek();
   const filteredRequests = requestFilter === "All requests" ? data.requests : data.requests.filter((request) => request.requestType === requestFilter);
@@ -187,7 +234,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
     tasks: ["Operational direction", "Team task centre", "Assign tasks to Site Supervisors, Electricians, Plumbers and other approved field Workers."],
     projects: ["Project control", "Projects", "Create and update operational project records without access to private finance."],
     requests: ["Intake & follow-up", "New requests", "Review new project and job requests, contact customers and assign the next action."],
-    schedule: ["Site coordination", "Schedule", "Send clear dates, times and task directions to the Site Supervisor and team."],
+    schedule: ["Site coordination", "Schedule", "Company-level milestones. To book a person (they see it on their own calendar), use Calendar & messages → Calendar."],
     messages: ["Team coordination", "Messages", "Keep project follow-up and site direction inside the management portal."],
   };
 
@@ -200,7 +247,7 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
       <div className={styles.sidebarBottom}><div><i /><span>Secure session active</span></div>{previewAsOwner ? <Link href="/owner">← Back to Owner</Link> : <button onClick={signOut}>Sign out</button>}<Link href="/">Public website ↗</Link></div>
     </aside>
     <section className={styles.mainPanel}>
-      <header className={styles.topbar}><div className={styles.mobileBrand}><BrandLogo kind="tradie" tone="dark" className={styles.mobileLogo} /></div><div><span>{todayLabel()}</span><strong>Alert Tradie Pro · Operation Hub</strong></div><div className={styles.profileChip}><span>AD</span><div><strong>{previewAsOwner ? "Admin preview" : viewerName}</strong><small>{viewerEmail}</small></div></div></header>
+      <header className={styles.topbar}><div className={styles.mobileBrand}><BrandLogo kind="tradie" tone="dark" className={styles.mobileLogo} /></div><div style={{ display: "flex", flexDirection: "column", gap: 4 }}><span>{todayLabel()}</span><strong>Alert Tradie Pro · Operation Hub</strong></div><div className={styles.profileChip}><span>AD</span><div><strong>{previewAsOwner ? "Admin preview" : viewerName}</strong><small>{viewerEmail}</small></div></div></header>
       <div className={styles.content}>
         <section className={styles.pageHeading}><div><p className={styles.eyebrow}>{headers[view][0]}</p><h1>{headers[view][1]}</h1><p>{headers[view][2]}</p></div><div className={styles.headingActions}>{view === "projects" && <button className={styles.primaryButton} onClick={() => openProject()}>＋ New project</button>}{view === "schedule" && <button className={styles.primaryButton} onClick={() => openSchedule()}>＋ Schedule site time</button>}{view === "overview" && <><button className={styles.secondaryButton} onClick={() => choose("requests")}>Review requests</button><button className={styles.primaryButton} onClick={() => openSchedule()}>Schedule work</button></>}</div></section>
         {(notice || error) && <div className={`${styles.notice} ${error ? styles.errorNotice : ""}`}><span>{error ? "!" : "✓"}</span>{error || notice}<button onClick={() => { setNotice(""); setError(""); }}>×</button></div>}
@@ -222,19 +269,19 @@ export default function AdminDashboard({ viewerName, viewerEmail, previewAsOwner
 
           {view === "requests" && <><div className={styles.segmented}>{["All requests", "Project Request", "Job Request"].map((filter) => <button key={filter} className={requestFilter === filter ? styles.segmentActive : ""} onClick={() => setRequestFilter(filter)}>{filter}</button>)}</div><section className={styles.requestGrid}>{filteredRequests.map((request) => <article className={styles.panel} key={request.id}><header><div><span>{request.requestType}</span><strong>{request.code}</strong></div><i className={styles[`priority${request.priority}`]}>{request.priority}</i></header><div className={styles.requestBody}><small>{request.service}</small><h2>{request.customerName}</h2><p>{request.suburb} · {request.contact}</p><blockquote>{request.summary}</blockquote><dl><div><dt>Status</dt><dd>{request.status}</dd></div><div><dt>Assigned to</dt><dd>{request.assignedTo}</dd></div><div><dt>Received</dt><dd>{formatDate(request.submittedAt, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</dd></div></dl></div><footer><button onClick={() => openRequest(request)}>Follow up</button><button className={styles.primaryButton} onClick={() => openProject(undefined, request)}>Create project →</button></footer></article>)}</section></>}
 
-          {view === "schedule" && <><section className={styles.weekCalendar}>{week.map((date) => <article key={date.key}><header><small>{date.day}</small><span>{date.date}</span></header>{data.scheduleEvents.filter((item) => item.eventDate === date.key).map((item) => <button key={item.id} className={styles[`event_${item.tone}`]} onClick={() => openSchedule(item)}><strong>{item.startTime}</strong><span>{item.title}</span><small>{item.assignee}</small></button>)}</article>)}</section><section className={`${styles.panel} ${styles.scheduleList}`}><div className={styles.panelHeading}><div><span>Site Supervisor & team time</span><h2>Scheduled work</h2></div><button onClick={() => openSchedule()}>＋ Send time & task</button></div>{data.scheduleEvents.map((item) => <div key={item.id}><time>{formatDate(item.eventDate, { day: "2-digit", month: "short" })}<small>{item.startTime}</small></time><i className={styles[`tone_${item.tone}`]} /><div><strong>{item.title}</strong><small>{item.projectCode} · {item.assignee}{item.notes ? ` · ${item.notes}` : ""}</small></div><div><button onClick={() => openSchedule(item)}>Edit</button><button onClick={() => removeSchedule(item)}>Remove</button></div></div>)}{data.scheduleEvents.length === 0 && <p>No scheduled work has been saved.</p>}</section></>}
+          {view === "schedule" && <><section className={styles.weekCalendar}>{week.map((date) => <article key={date.key}><header><small>{date.day}</small><span>{date.date}</span></header>{data.scheduleEvents.filter((item) => item.eventDate === date.key).map((item) => <button key={item.id} className={styles[`event_${item.tone}`]} onClick={() => openSchedule(item)}><strong>{item.startTime}</strong><span>{item.title}</span><small>{item.assignee}</small></button>)}</article>)}</section><section className={`${styles.panel} ${styles.scheduleList}`}><div className={styles.panelHeading}><div><span>Company milestones</span><h2>Master schedule</h2></div><div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}><a href="/team/hub" style={{ color: "inherit", fontWeight: 700 }}>Book a person on the team Calendar →</a><button onClick={() => openSchedule()}>＋ Add milestone</button></div></div>{data.scheduleEvents.map((item) => <div key={item.id}><time>{formatDate(item.eventDate, { day: "2-digit", month: "short" })}<small>{item.startTime}</small></time><i className={styles[`tone_${item.tone}`]} /><div><strong>{item.title}</strong><small>{item.projectCode} · {item.assignee}{item.notes ? ` · ${item.notes}` : ""}</small></div><div><button onClick={() => openSchedule(item)}>Edit</button><button onClick={() => removeSchedule(item)}>Remove</button></div></div>)}{data.scheduleEvents.length === 0 && <p>No milestones have been saved.</p>}</section></>}
 
-          {view === "messages" && <section className={`${styles.panel} ${styles.messageWorkspace}`}><aside><p className={styles.eyebrow}>Team channels</p>{["Site Supervisor 01", "Owner", "Estimator 01", "Engineer 01"].map((person) => <button key={person} className={recipient === person ? styles.selectedPerson : ""} onClick={() => setRecipient(person)}><span>{person.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><div><strong>{person}</strong><small>{person === "Site Supervisor 01" ? "On site" : "Team member"}</small></div></button>)}</aside><section><header><span>{recipient.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><div><strong>{recipient}</strong><small>Management portal conversation</small></div></header><div>{data.messages.filter((message) => message.sender === recipient || message.recipient === recipient || (recipient === "Owner" && [message.sender, message.recipient].includes("Owner"))).map((message) => <article key={message.id} className={message.sender === "Admin" ? styles.ownMessage : styles.teamMessage}><small>{message.sender}</small><p>{message.body}</p><span>{formatDate(message.sentAt, { hour: "numeric", minute: "2-digit" })}</span></article>)}</div><form onSubmit={sendMessage}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`Message ${recipient}…`} /><button disabled={working}>Send ↑</button></form></section></section>}
+          {view === "messages" && <section className={`${styles.panel} ${styles.messageWorkspace}`}><aside><p className={styles.eyebrow}>Team channels</p>{["Site Supervisor 01", "Owner", "Estimator 01", "Engineer 01"].map((person) => <button key={person} className={recipient === person ? styles.selectedPerson : ""} onClick={() => setRecipient(person)}><span>{person.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><div><strong>{person}</strong><small>{person === "Site Supervisor 01" ? "On site" : "Team member"}</small></div></button>)}</aside><section><header><span>{recipient.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><div><strong>{recipient}</strong><small>Management portal conversation</small></div></header><div>{data.messages.filter((message) => message.sender === recipient || message.recipient === recipient || (recipient === "Owner" && [message.sender, message.recipient].includes("Owner"))).map((message) => <article key={message.id} className={message.sender === "Admin" ? styles.ownMessage : styles.teamMessage}><small>{message.sender}</small><p>{message.body}</p><span>{formatDate(message.sentAt, { hour: "numeric", minute: "2-digit" })}</span></article>)}</div>{recipient === "Owner" ? <form onSubmit={sendMessage}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`Message ${recipient}…`} /><button disabled={working}>Send ↑</button></form> : <p role="note" style={{ padding: "12px 16px" }}>This older channel is kept for its history only (it was shared by job title, so messages did not reach the right person). To message a Site Supervisor, Estimator or trade privately, use <a href="/team/hub?tab=messages" style={{ color: "inherit", fontWeight: 700 }}>Calendar &amp; messages → Messages</a>.</p>}</section></section>}
         </>}
       </div>
     </section>
 
     <nav className={styles.mobileNav}>{nav.map((item) => <button key={item.id} className={view === item.id ? styles.activeMobileNav : ""} onClick={() => choose(item.id)}><i><NavIcon icon={item.icon} /></i><span>{item.label.split(" ")[0]}</span></button>)}</nav>
 
-    {projectModal && <div className={styles.modalBackdrop} onMouseDown={() => setProjectModal(null)}><form className={styles.recordModal} onSubmit={saveProject} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setProjectModal(null)}>×</button><p className={styles.eyebrow}>Operational project record</p><h2>{projectModal === "new" ? "Create project" : "Edit project"}</h2><div className={styles.formGrid}>{[["ATP project code", "code", "text"], ["Project name", "name", "text"], ["Customer name", "customerName", "text"], ["Suburb", "suburb", "text"], ["Progress %", "progress", "number"], ["Start date", "startDate", "date"]].map(([label, key, type]) => <label key={key}><span>{label}</span><input type={type} value={projectForm[key as keyof typeof projectForm]} onChange={(event) => setProjectForm((current) => ({ ...current, [key]: event.target.value }))} required={["code", "name"].includes(key)} /></label>)}<label><span>Service</span><select value={projectForm.service} onChange={(event) => setProjectForm((current) => ({ ...current, service: event.target.value }))}>{services.map((service) => <option key={service}>{service}</option>)}</select></label><label><span>Stage</span><select value={projectForm.stage} onChange={(event) => setProjectForm((current) => ({ ...current, stage: event.target.value }))}>{stages.map((stage) => <option key={stage}>{stage}</option>)}</select></label><label className={styles.fullField}><span>Operational note</span><textarea value={projectForm.notes} onChange={(event) => setProjectForm((current) => ({ ...current, notes: event.target.value }))} /></label></div><div className={styles.restrictedNotice}>Private contract values, balances and Finance records remain Owner-only.</div><button className={styles.primaryButton} disabled={working}>{working ? "Saving…" : "Save project"}</button></form></div>}
+    {projectModal && projectsAllowed && <div className={styles.modalBackdrop} onMouseDown={() => setProjectModal(null)}><form className={styles.recordModal} onSubmit={saveProject} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setProjectModal(null)}>×</button><p className={styles.eyebrow}>Operational project record</p><h2>{projectModal === "new" ? "Create project" : "Edit project"}</h2><div className={styles.formGrid}>{[["ATP project code", "code", "text"], ["Project name", "name", "text"], ["Customer name", "customerName", "text"], ["Suburb", "suburb", "text"], ["Progress %", "progress", "number"], ["Start date", "startDate", "date"]].map(([label, key, type]) => <label key={key}><span>{label}</span><input type={type} value={projectForm[key as keyof typeof projectForm]} onChange={(event) => setProjectForm((current) => ({ ...current, [key]: event.target.value }))} required={["code", "name"].includes(key)} /></label>)}<label><span>Service</span><select value={projectForm.service} onChange={(event) => setProjectForm((current) => ({ ...current, service: event.target.value }))}>{(!projectForm.service || services.includes(projectForm.service) ? services : [...services, projectForm.service]).map((service) => <option key={service}>{service}</option>)}</select></label><label><span>Stage</span><select value={projectForm.stage} onChange={(event) => setProjectForm((current) => ({ ...current, stage: event.target.value }))}>{(!projectForm.stage || stages.includes(projectForm.stage) ? stages : [...stages, projectForm.stage]).map((stage) => <option key={stage}>{stage}</option>)}</select></label><label className={styles.fullField}><span>Operational note</span><textarea value={projectForm.notes} onChange={(event) => setProjectForm((current) => ({ ...current, notes: event.target.value }))} /></label></div><div className={styles.restrictedNotice}>Private contract values, balances and Finance records remain Owner-only.</div><button className={styles.primaryButton} disabled={working}>{working ? "Saving…" : "Save project"}</button></form></div>}
 
-    {requestModal && <div className={styles.modalBackdrop} onMouseDown={() => setRequestModal(null)}><form className={styles.recordModal} onSubmit={saveRequest} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setRequestModal(null)}>×</button><p className={styles.eyebrow}>{requestModal.requestType} · {requestModal.code}</p><h2>Follow up request</h2><div className={styles.requestSummary}><strong>{requestModal.customerName}</strong><span>{requestModal.service} · {requestModal.suburb}</span><small>{requestModal.contact}</small></div><div className={styles.formGrid}><label><span>Status</span><select value={requestForm.status} onChange={(event) => setRequestForm((current) => ({ ...current, status: event.target.value }))}>{requestStatuses.map((status) => <option key={status}>{status}</option>)}</select></label><label><span>Priority</span><select value={requestForm.priority} onChange={(event) => setRequestForm((current) => ({ ...current, priority: event.target.value }))}>{["Normal", "High", "Urgent"].map((priority) => <option key={priority}>{priority}</option>)}</select></label><label className={styles.fullField}><span>Assign next action to</span><select value={requestForm.assignedTo} onChange={(event) => setRequestForm((current) => ({ ...current, assignedTo: event.target.value }))}>{assignees.map((assignee) => <option key={assignee}>{assignee}</option>)}</select></label><label className={styles.fullField}><span>Follow-up note</span><textarea value={requestForm.summary} onChange={(event) => setRequestForm((current) => ({ ...current, summary: event.target.value }))} /></label></div><button className={styles.primaryButton} disabled={working}>Save follow-up</button></form></div>}
+    {requestModal && projectsAllowed && <div className={styles.modalBackdrop} onMouseDown={() => setRequestModal(null)}><form className={styles.recordModal} onSubmit={saveRequest} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setRequestModal(null)}>×</button><p className={styles.eyebrow}>{requestModal.requestType} · {requestModal.code}</p><h2>Follow up request</h2><div className={styles.requestSummary}><strong>{requestModal.customerName}</strong><span>{requestModal.service} · {requestModal.suburb}</span><small>{requestModal.contact}</small></div><div className={styles.formGrid}><label><span>Status</span><select value={requestForm.status} onChange={(event) => setRequestForm((current) => ({ ...current, status: event.target.value }))}>{requestStatuses.map((status) => <option key={status}>{status}</option>)}</select></label><label><span>Priority</span><select value={requestForm.priority} onChange={(event) => setRequestForm((current) => ({ ...current, priority: event.target.value }))}>{["Normal", "High", "Urgent"].map((priority) => <option key={priority}>{priority}</option>)}</select></label><label className={styles.fullField}><span>Assign next action to</span><select value={requestForm.assignedTo} onChange={(event) => setRequestForm((current) => ({ ...current, assignedTo: event.target.value }))}>{assignees.map((assignee) => <option key={assignee}>{assignee}</option>)}</select></label><label className={styles.fullField}><span>Follow-up note</span><textarea value={requestForm.summary} onChange={(event) => setRequestForm((current) => ({ ...current, summary: event.target.value }))} /></label></div><button className={styles.primaryButton} disabled={working}>Save follow-up</button></form></div>}
 
-    {scheduleModal && <div className={styles.modalBackdrop} onMouseDown={() => setScheduleModal(null)}><form className={styles.recordModal} onSubmit={saveSchedule} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setScheduleModal(null)}>×</button><p className={styles.eyebrow}>Site time & direction</p><h2>{scheduleModal === "new" ? "Schedule work" : "Edit scheduled work"}</h2><div className={styles.formGrid}>{[["Date", "eventDate", "date"], ["Start time", "startTime", "time"], ["Task / work", "title", "text"]].map(([label, key, type]) => <label key={key}><span>{label}</span><input type={type} value={scheduleForm[key as keyof typeof scheduleForm]} onChange={(event) => setScheduleForm((current) => ({ ...current, [key]: event.target.value }))} required /></label>)}<label><span>Assignee</span><select value={scheduleForm.assignee} onChange={(event) => setScheduleForm((current) => ({ ...current, assignee: event.target.value }))}>{assignees.filter((item) => item !== "Unassigned").map((assignee) => <option key={assignee}>{assignee}</option>)}</select></label><label><span>Project</span><select value={scheduleForm.projectCode} onChange={(event) => setScheduleForm((current) => ({ ...current, projectCode: event.target.value }))}><option>Business / General</option>{data.projects.map((project) => <option key={project.id} value={project.code}>{project.code}</option>)}</select></label><label><span>Calendar colour</span><select value={scheduleForm.tone} onChange={(event) => setScheduleForm((current) => ({ ...current, tone: event.target.value }))}><option value="gold">Gold</option><option value="blue">Blue</option><option value="green">Green</option><option value="orange">Orange</option></select></label><label className={styles.fullField}><span>Site direction / note</span><textarea value={scheduleForm.notes} onChange={(event) => setScheduleForm((current) => ({ ...current, notes: event.target.value }))} /></label></div><button className={styles.primaryButton} disabled={working}>{working ? "Saving…" : `Send time to ${scheduleForm.assignee}`}</button></form></div>}
+    {scheduleModal && scheduleAllowed && (projectsAllowed || generalEntry(scheduleForm.projectCode)) && <div className={styles.modalBackdrop} onMouseDown={() => setScheduleModal(null)}><form className={styles.recordModal} onSubmit={saveSchedule} onMouseDown={(event) => event.stopPropagation()}><button type="button" onClick={() => setScheduleModal(null)}>×</button><p className={styles.eyebrow}>Company milestone · not sent to anyone&apos;s calendar</p><h2>{scheduleModal === "new" ? "Add a milestone" : "Edit milestone"}</h2><div className={styles.formGrid}>{[["Date", "eventDate", "date"], ["Start time", "startTime", "time"], ["Milestone", "title", "text"]].map(([label, key, type]) => <label key={key}><span>{label}</span><input type={type} value={scheduleForm[key as keyof typeof scheduleForm]} onChange={(event) => setScheduleForm((current) => ({ ...current, [key]: event.target.value }))} required /></label>)}<label><span>Role responsible</span><select value={scheduleForm.assignee} onChange={(event) => setScheduleForm((current) => ({ ...current, assignee: event.target.value }))}>{assignees.filter((item) => item !== "Unassigned").map((assignee) => <option key={assignee}>{assignee}</option>)}</select></label><label><span>Project</span><select value={scheduleForm.projectCode} onChange={(event) => setScheduleForm((current) => ({ ...current, projectCode: event.target.value }))}><option>Business / General</option>{data.projects.map((project) => <option key={project.id} value={project.code}>{project.code}</option>)}</select></label><label><span>Calendar colour</span><select value={scheduleForm.tone} onChange={(event) => setScheduleForm((current) => ({ ...current, tone: event.target.value }))}><option value="gold">Gold</option><option value="blue">Blue</option><option value="green">Green</option><option value="orange">Orange</option></select></label><label className={styles.fullField}><span>Note</span><textarea value={scheduleForm.notes} onChange={(event) => setScheduleForm((current) => ({ ...current, notes: event.target.value }))} /></label></div><button className={styles.primaryButton} disabled={working}>{working ? "Saving…" : "Save milestone"}</button></form></div>}
   </main>;
 }

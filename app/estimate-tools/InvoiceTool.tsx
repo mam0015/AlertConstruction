@@ -11,6 +11,8 @@ const plusDays = (days: number) => new Intl.DateTimeFormat("en-CA", { timeZone: 
 const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 type Priced = { description: string; quantity: number; selling_unit_price: number; line_subtotal: number; gst_applicable: boolean };
 const blank = (id: number): Item => ({ id, description: "", quantity: "1", baseCost: "", profitType: "", profitValue: "", gst: true });
+// A line nobody has filled in (no description, no cost, no profit of its own) charges nothing, even with a $ default profit.
+const unused = (item: Item) => !item.description.trim() && !(Number(item.baseCost) > 0) && !(item.profitValue.trim() !== "" && Number(item.profitValue) > 0);
 
 // The Invoice Generator of the older site, kept as a calculator you can print: items with a cost and a profit, a discount, GST, a payment.
 // Invoices are not saved in the app by this screen. Print or save the PDF, or copy the text.
@@ -33,14 +35,18 @@ export default function InvoiceTool() {
 
   const result = useMemo(() => calculateInvoice(
     { default_profit_type: defaultType, default_profit_value: defaultProfit, discount_amount: discount, gst_enabled: gstOn, gst_rate: 10, amount_paid: paid },
-    items.map((item) => ({ description: item.description, quantity: item.quantity, base_cost: item.baseCost, profit_type: item.profitType || undefined, profit_value: item.profitValue, gst_applicable: item.gst })),
+    items.map((item) => ({ description: item.description, quantity: unused(item) ? 0 : item.quantity, base_cost: item.baseCost, profit_type: item.profitType || undefined, profit_value: item.profitValue, gst_applicable: item.gst })),
   ), [items, defaultType, defaultProfit, discount, gstOn, paid]);
 
   const update = (id: number, patch: Partial<Item>) => setItems((all) => all.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   const priced = result.items as unknown as Priced[];
   const filled = priced.filter((item) => (item.description ?? "").trim() && item.quantity > 0);
+  // Every line that charges something must say what it is: the customer's document lists exactly what the total is made of.
+  const unnamedCharge = priced.some((item) => !(item.description ?? "").trim() && item.line_subtotal > 0);
+  const unnamedMessage = "A line with a price has no description. Describe it (or clear its price) before printing or copying: every charge on the invoice must say what it is for.";
 
   function print() {
+    if (unnamedCharge) { setMessage(unnamedMessage); return; }
     const win = window.open("", "_blank");
     if (!win) { setMessage("Your browser blocked the print window. Allow pop-ups for this site and try again."); return; }
     const rows = filled.map((item) => `<tr><td>${esc(item.description)}</td><td class="n">${esc(item.quantity)}</td><td class="n">${formatAUD(item.selling_unit_price)}</td><td class="n">${formatAUD(item.line_subtotal)}${item.gst_applicable || !gstOn ? "" : " (no GST)"}</td></tr>`).join("");
@@ -56,6 +62,7 @@ ${notes ? `<p class="notes">${esc(notes)}</p>` : ""}
   }
 
   async function copy() {
+    if (unnamedCharge) { setMessage(unnamedMessage); return; }
     const text = [`Invoice ${number}`, `Bill to: ${customer || "Customer"}`, ...filled.map((item) => `• ${item.description} — ${item.quantity} × ${formatAUD(item.selling_unit_price)} = ${formatAUD(item.line_subtotal)}`),
       `Subtotal ${formatAUD(result.subtotal)}${result.discount_amount ? ` · Discount −${formatAUD(result.discount_amount)}` : ""}${gstOn ? ` · GST ${formatAUD(result.gst_amount)}` : ""} · Total ${formatAUD(result.total_amount)}${result.amount_paid ? ` · Balance due ${formatAUD(result.balance_due)}` : ""}`].join("\n");
     try { await navigator.clipboard.writeText(text); setMessage("Copied."); } catch { setMessage("Your browser did not allow copying. Use Print instead."); }
@@ -108,7 +115,8 @@ ${notes ? `<p class="notes">${esc(notes)}</p>` : ""}
     <div className={styles.summary}>
       <div className={styles.totalBox}><span>{result.amount_paid ? "Balance due" : gstOn ? "Total inc GST" : "Total"}</span><strong>{formatAUD(result.amount_paid ? result.balance_due : result.total_amount)}</strong>
         <small>Subtotal {formatAUD(result.subtotal)}{result.discount_amount ? ` · discount −${formatAUD(result.discount_amount)}` : ""}{gstOn ? ` · GST ${formatAUD(result.gst_amount)}` : ""} · your profit {formatAUD(result.profit_amount)} (internal)</small></div>
-      <div className={styles.actions}><button type="button" className={styles.primary} onClick={print}>Print / save PDF</button><button type="button" onClick={() => void copy()}>Copy as text</button></div>
+      {unnamedCharge && <p role="alert">{unnamedMessage}</p>}
+      <div className={styles.actions}><button type="button" className={styles.primary} onClick={print} disabled={unnamedCharge}>Print / save PDF</button><button type="button" onClick={() => void copy()} disabled={unnamedCharge}>Copy as text</button></div>
     </div>
   </section>;
 }
