@@ -145,6 +145,8 @@ export default function EstimateTools({ role, onUseLines }: { role: "owner" | "a
     setSaving(true);
     setProblem("");
     setNotice("");
+    // The prices as sent: after the save only these are cleared, and only if they were not typed over while it was saving.
+    const submitted = Object.fromEntries(dirtyKeys.map((key) => [key, draft[key]]));
     try {
       const rates = Object.fromEntries(dirtyKeys.map((key) => {
         const cents = toRateCents(draft[key]);
@@ -157,7 +159,7 @@ export default function EstimateTools({ role, onUseLines }: { role: "owner" | "a
       const body = await response.json().catch(() => ({})) as Partial<Prices> & { error?: string };
       if (!response.ok) throw new Error(body.error ?? "The prices could not be saved.");
       setPrices((current) => ({ rates: body.rates ?? {}, margin: body.margin ?? DEFAULT_MARGIN, updatedAt: body.updatedAt ?? "", canEdit: true, ai: current?.ai }));
-      setDraft({});
+      setDraft((current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => !(key in submitted && submitted[key] === value))));
       marginTouched.current = false;
       setNotice("Prices saved. Every calculator now uses them.");
     } catch (error) {

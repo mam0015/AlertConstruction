@@ -16,15 +16,16 @@ function failed(error: unknown) {
 export async function GET(request: Request) {
   const code = new URL(request.url).searchParams.get("code")?.trim() ?? "";
   if (!code) return Response.json({ error: "Enter your project reference." }, { status: 400 });
-  // The attempt is counted BEFORE it is looked up (one atomic statement), so a burst of parallel guesses cannot all pass a "not over the limit yet" check.
-  // A right reference gives its slot back: only wrong guesses use up the allowance.
+  // A correct private reference (128 random bits — it cannot be guessed) always opens the project, however many wrong ones were tried from the
+  // same connection (an office or a phone network shares one address) and however often the page refreshes. Only wrong references are
+  // counted: 12 per 30 minutes per connection, then "too many attempts".
+  const wellFormed = /^REQ-\d{4}-[A-F0-9]{32}$/i.test(code);
+  const data = wellFormed ? await getPublicWorkflow(code) : null;
+  if (data) return Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
   const key = await sha256Hex(`customer-track|${clientAddress(request)}`);
   const slot = await throttleHit(key, 12, TRACK_WINDOW);
   if (!slot.allowed) return tooManyRequests("Too many reference attempts. Try again later.", slot.retryAfterSeconds);
-  const data = await getPublicWorkflow(code);
-  if (!data) return Response.json({ error: "We could not find that project reference." }, { status: 404 });
-  await throttleRefund(key);
-  return Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ error: "We could not find that project reference." }, { status: 404 });
 }
 
 export async function POST(request: Request) {
@@ -56,12 +57,19 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   try {
-    const body = await request.json().catch(() => null) as { code?: string; decision?: "accept" | "decline"; proposalId?: number; reply?: string } | null;
+    const body = await request.json().catch(() => null) as { code?: string; decision?: "accept" | "decline"; proposalId?: number; reply?: string; estimateVersion?: string } | null;
     if (!body || typeof body.code !== "string" || !body.code || !body.decision || !["accept", "decline"].includes(body.decision)) return Response.json({ error: "Invalid decision." }, { status: 400 });
+    // A page opened before this version of the site does not name the quote it shows (the live site's portal sent no version at all):
+    // nothing is decided and the customer is asked to reload the page (an in-page refresh would keep the old page).
+    if (!Number.isInteger(body.proposalId) && typeof body.estimateVersion !== "string") {
+      return Response.json({ error: "This page has been updated. Please reload it with your browser's Refresh button, then check the estimate before deciding." }, { status: 409 });
+    }
     if (Number.isInteger(body.proposalId)) await customerChangeDecision(body.code, body.proposalId!, body.decision, body.reply ?? "");
-    else await customerEstimateDecision(body.code, body.decision);
+    else await customerEstimateDecision(body.code, body.decision, typeof body.estimateVersion === "string" ? body.estimateVersion : "");
     return Response.json({ data: await getPublicWorkflow(body.code) });
   } catch (error) {
+    // The quote was revised after this screen was opened: the customer is asked to look at the new one.
+    if ((error as { status?: number })?.status === 409) return Response.json({ error: (error as Error).message }, { status: 409 });
     return failed(error);
   }
 }

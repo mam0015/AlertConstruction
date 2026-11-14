@@ -45,6 +45,8 @@ export const stageLabels: Record<WorkflowStage, string> = {
 
 export type QualityInspection = {
   id: number;
+  // The version Admin's decision names (a new value each time it is submitted again).
+  revision: string;
   caseId: number;
   supervisorEmail: string;
   inspectedAt: string;
@@ -75,6 +77,8 @@ export type WorkflowFile = {
 
 export type SiteVisitReport = {
   id: number;
+  // The version Admin's decision and the Site Supervisor's corrected report name (a new value each time it is submitted again).
+  revision: string;
   caseId: number;
   supervisorEmail: string;
   visitDate: string;
@@ -90,6 +94,8 @@ export type SiteVisitReport = {
 
 export type WorkflowEstimate = {
   id: number;
+  // The version the calculator and Send name (a new value each time the estimate is saved again).
+  revision: string;
   caseId: number;
   amountCents: number;
   scope: string;
@@ -100,6 +106,8 @@ export type WorkflowEstimate = {
   sentAt: string;
   customerDecidedAt: string;
   confirmedAt: string;
+  // The priced working (unit prices, margin): sent to Owner and Admin only.
+  breakdown?: string;
 };
 
 export type ProjectUpdate = {
@@ -180,6 +188,7 @@ export type WorkflowCase = {
   updates: ProjectUpdate[];
   proposals: ChangeProposal[];
   messages: CustomerMessage[];
+  view?: CaseStatusView;
 };
 
 export type WorkflowSnapshot = {
@@ -187,4 +196,16 @@ export type WorkflowSnapshot = {
   events: WorkflowEvent[];
   supervisors: Array<{ email: string; name: string }>;
   role: WorkflowRole;
+  stageOptions?: string[];
+};
+
+// What the Owner/Admin decided about a project beside the step-by-step workflow (see db/case-view-store.ts).
+export type CustomerNote = { id: number; body: string; showFrom: string; showUntil: string; createdBy: string; createdAt: string; removedAt: string };
+export type CaseStatusView = {
+  origin: "website" | "team";
+  statusLabel: string;
+  statusUpdatedAt: string;
+  customerStatus: { title: string; detail: string; shownAt: string } | null;
+  draft: { title: string; detail: string; updatedAt: string } | null;
+  notes: CustomerNote[];
 };

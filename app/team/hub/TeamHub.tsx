@@ -23,9 +23,11 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return result.data;
 }
 
-export default function TeamHub({ me, home }: { me: Me; home: string }) {
+export default function TeamHub({ me, home, initialTab = "calendar" }: { me: Me; home: string; initialTab?: "calendar" | "messages" | "report" }) {
   const isManager = MANAGEMENT.includes(me.role);
-  const [tab, setTab] = useState<Tab>("calendar");
+  const [tab, setTab] = useState<Tab>(initialTab);
+  // Who the Messages tab opens on: a person's "Message" button sets it; otherwise the conversation list starts on the team channel.
+  const [chatWith, setChatWith] = useState("*");
   const [people, setPeople] = useState<TeamPerson[]>([]);
   const [projects, setProjects] = useState<Array<{ code: string; name: string }>>([]);
   const [unread, setUnread] = useState<Record<string, number>>({});
@@ -76,16 +78,18 @@ export default function TeamHub({ me, home }: { me: Me; home: string }) {
       {error && <p className={styles.error} role="alert">{error}</p>}
       {notice && <p className={styles.notice} role="status">{notice}</p>}
       {tab === "calendar" && <CalendarTab me={me} isManager={isManager} people={people} projects={projects} onError={setError} onNotice={flash} />}
-      {tab === "messages" && <MessagesTab me={me} others={others} unread={unread} onRead={markRead} onError={setError} />}
+      {tab === "messages" && <MessagesTab key={chatWith} initialPeer={chatWith} me={me} others={others} unread={unread} onRead={markRead} onError={setError} />}
       {tab === "report" && me.role !== "Owner" && <ReportTab projects={projects} onError={setError} onNotice={flash} />}
-      {tab === "team" && isManager && <section className={styles.panel}><h2>Approved team ({people.length})</h2><div className={styles.roster}>{people.map((person) => <article key={person.email}><strong>{person.name}</strong><small>{person.role} · {person.email}</small>{person.email !== me.email.toLowerCase() && <p><button className={styles.btn} onClick={() => setTab("messages")}>Message</button></p>}</article>)}</div></section>}
+      {tab === "team" && isManager && <section className={styles.panel}><h2>Approved team ({people.length})</h2><div className={styles.roster}>{people.map((person) => <article key={person.email}><strong>{person.name}</strong><small>{person.role} · {person.email}</small>{person.email !== me.email.toLowerCase() && <p><button className={styles.btn} onClick={() => { setChatWith(person.email); setTab("messages"); }}>Message</button></p>}</article>)}</div></section>}
     </div>
   </main>;
 }
 
 function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { me: Me; isManager: boolean; people: TeamPerson[]; projects: Array<{ code: string; name: string }>; onError: (value: string) => void; onNotice: (value: string) => void }) {
-  const today = iso(new Date());
-  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  // Today in MELBOURNE, the same on the server (which runs on UTC) and in the browser: otherwise between midnight and 11am the page was
+  // drawn for "yesterday" on the server and "today" in the browser (a hydration error, and the wrong day selected for a moment).
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const [cursor, setCursor] = useState(() => { const [year, month] = today.split("-").map(Number); return new Date(year, month - 1, 1); });
   const [selected, setSelected] = useState(today);
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [person, setPerson] = useState("");
@@ -111,6 +115,8 @@ function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { m
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); onError("");
+    // What was sent: after the save the fields are cleared only if nothing was typed into them while it was saving.
+    const sent = { title: form.title, notes: form.notes, untilDate: form.untilDate };
     try {
       const dates: string[] = [];
       const end = form.untilDate && form.untilDate > selected ? parseIso(form.untilDate) : parseIso(selected);
@@ -118,9 +124,12 @@ function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { m
         const weekday = day.getDay();
         if (!form.weekdaysOnly || end.getTime() === parseIso(selected).getTime() || (weekday !== 0 && weekday !== 6)) dates.push(iso(day));
       }
-      const created = await api<{ created: number }>("/api/team/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, dates }) });
-      onNotice(`${created.created} calendar ${created.created === 1 ? "entry" : "entries"} saved. The assigned person sees ${created.created === 1 ? "it" : "them"} in their calendar.`);
-      setForm((value) => ({ ...value, title: "", notes: "", untilDate: "" }));
+      const created = await api<{ created: number; alreadySaved?: number }>("/api/team/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, dates }) });
+      const repeated = Number(created.alreadySaved ?? 0);
+      onNotice(created.created === 0
+        ? "These calendar entries were already saved (sent twice). Nothing was added again."
+        : `${created.created} calendar ${created.created === 1 ? "entry" : "entries"} saved. The assigned person sees ${created.created === 1 ? "it" : "them"} in their calendar.${repeated ? ` ${repeated} ${repeated === 1 ? "was" : "were"} already saved and not added again.` : ""}`);
+      setForm((value) => value.title === sent.title && value.notes === sent.notes && value.untilDate === sent.untilDate ? { ...value, title: "", notes: "", untilDate: "" } : value);
       await load();
     } catch (reason) { onError(reason instanceof Error ? reason.message : "The entry could not be saved."); }
     finally { setBusy(false); }
@@ -145,7 +154,7 @@ function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { m
       <div className={styles.dow}>{["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((d) => <span key={d}>{d}</span>)}</div>
       <div className={styles.days}>{cells.map((date) => {
         const key = iso(date); const list = byDay.get(key) ?? [];
-        return <button key={key} className={`${styles.day} ${date.getMonth() !== cursor.getMonth() ? styles.dayOther : ""} ${key === today ? styles.dayToday : ""} ${key === selected ? styles.daySel : ""}`} onClick={() => setSelected(key)}>
+        return <button key={key} className={`${styles.day} ${date.getMonth() !== cursor.getMonth() ? styles.dayOther : ""} ${key === today ? styles.dayToday : ""} ${key === selected ? styles.daySel : ""}`} aria-label={`${new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long" }).format(date)}${list.length ? `, ${list.length} planned` : ""}`} aria-pressed={key === selected} onClick={() => setSelected(key)}>
           <span className={styles.dayNum}>{date.getDate()}</span>
           {list.slice(0, 2).map((entry) => <span className={styles.chip} key={entry.id}>{entry.title}</span>)}
           {list.length > 2 && <span className={styles.more}>+{list.length - 2} more</span>}
@@ -168,7 +177,7 @@ function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { m
         <h2>Assign work on {longDate(selected)}</h2>
         <form className={styles.form} onSubmit={(event) => void save(event)}>
           <label>Who is this for?<select value={form.assigneeEmail} onChange={(event) => setForm({ ...form, assigneeEmail: event.target.value })} required><option value="">Choose a team member…</option>{people.map((p) => <option key={p.email} value={p.email}>{p.name}</option>)}</select></label>
-          <label>Title<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Rough-in electrical at Parramatta" maxLength={160} required /></label>
+          <label>Title<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Rough-in electrical at Glen Waverley" maxLength={160} required /></label>
           <div className={styles.row2}>
             <label>Start time<input type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} /></label>
             <label>Project<select value={form.projectCode} onChange={(event) => setForm({ ...form, projectCode: event.target.value })}><option value="">No project</option>{projects.map((p) => <option key={p.code} value={p.code}>{p.code} · {p.name}</option>)}</select></label>
@@ -183,9 +192,14 @@ function CalendarTab({ me, isManager, people, projects, onError, onNotice }: { m
   </div>;
 }
 
-function MessagesTab({ me, others, unread, onRead, onError }: { me: Me; others: TeamPerson[]; unread: Record<string, number>; onRead: (peer: string) => void; onError: (value: string) => void }) {
-  const [peer, setPeer] = useState("*");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function MessagesTab({ me, others, unread, onRead, onError, initialPeer = "*" }: { me: Me; others: TeamPerson[]; unread: Record<string, number>; onRead: (peer: string) => void; onError: (value: string) => void; initialPeer?: string }) {
+  // Opens on the person chosen (a person's "Message" button) — never on the whole-team channel by accident.
+  const [peer, setPeer] = useState(initialPeer);
+  // The list on screen belongs to one conversation: an answer for another person (a slow send, a slow refresh) is never shown here.
+  const [thread, setThread] = useState<{ peer: string; messages: ChatMessage[] }>({ peer: initialPeer, messages: [] });
+  // One send at a time, whether Send was clicked or Enter pressed (a slow answer never leads to the same message twice).
+  const sending = useRef(false);
+  const messages = thread.peer === peer ? thread.messages : [];
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -195,7 +209,7 @@ function MessagesTab({ me, others, unread, onRead, onError }: { me: Me; others: 
   useEffect(() => {
     let active = true;
     const load = () => void api<{ messages: ChatMessage[] }>(`/api/team/chat?with=${encodeURIComponent(peer)}`)
-      .then((data) => { if (active) { setMessages(data.messages); onRead(peer); } })
+      .then((data) => { if (active) { setThread({ peer, messages: data.messages }); onRead(peer); } })
       .catch((reason: unknown) => { if (active) onError(reason instanceof Error ? reason.message : "Messages could not be loaded."); });
     load();
     const timer = window.setInterval(load, 8000);
@@ -205,14 +219,20 @@ function MessagesTab({ me, others, unread, onRead, onError }: { me: Me; others: 
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!text.trim() && !file) return;
+    if (sending.current || (!text.trim() && !file)) return;
+    sending.current = true;
     setBusy(true); onError("");
+    // What was sent: after the send only that text and that file are cleared; anything typed or chosen while sending stays.
+    const sentPeer = peer, sentText = text, sentFile = file;
     try {
-      const form = new FormData(); form.set("to", peer); form.set("body", text); if (file) form.set("file", file);
+      const form = new FormData(); form.set("to", sentPeer); form.set("body", sentText); if (sentFile) form.set("file", sentFile);
       const data = await api<{ messages: ChatMessage[] }>("/api/team/chat", { method: "POST", body: form });
-      setMessages(data.messages); setText(""); setFile(null); if (fileRef.current) fileRef.current.value = "";
+      setThread((current) => current.peer === sentPeer ? { peer: sentPeer, messages: data.messages } : current);
+      setText((current) => current === sentText ? "" : current);
+      setFile((current) => current === sentFile ? null : current);
+      if (fileRef.current && (fileRef.current.files?.[0] ?? null) === sentFile) fileRef.current.value = "";
     } catch (reason) { onError(reason instanceof Error ? reason.message : "The message could not be sent."); }
-    finally { setBusy(false); }
+    finally { sending.current = false; setBusy(false); }
   }
 
   const peerName = peer === "*" ? "Whole team channel" : others.find((person) => person.email === peer)?.name ?? peer;
@@ -251,7 +271,9 @@ function ReportTab({ projects, onError, onNotice }: { projects: Array<{ code: st
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); onError("");
-    try { setReports(await api<StaffReport[]>("/api/team/eod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary, projectCode }) })); setSummary(""); onNotice("Your end-of-day report was sent to the Owner."); }
+    // What was sent: after sending, the box is emptied only if nothing was typed into it meanwhile.
+    const sentSummary = summary;
+    try { setReports(await api<StaffReport[]>("/api/team/eod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary: sentSummary, projectCode }) })); setSummary((current) => current === sentSummary ? "" : current); onNotice("Your end-of-day report was sent to the Owner."); }
     catch (reason) { onError(reason instanceof Error ? reason.message : "The report could not be submitted."); }
     finally { setBusy(false); }
   }

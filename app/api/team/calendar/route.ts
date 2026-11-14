@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     return Response.json({ data: await listCalendar(me, params.get("from") ?? "", params.get("to") ?? "", params.get("person") ?? "") }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Calendar could not be loaded." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "Calendar could not be loaded." }, { status: (error as { status?: number })?.status === 403 ? 403 : 400 });
   }
 }
 
@@ -18,10 +18,10 @@ export async function POST(request: Request) {
   const me = await teamIdentityFromRequest(request);
   if (!me) return Response.json({ error: "Team sign-in required." }, { status: 401 });
   try {
-    const count = await createCalendarEntries(me, await request.json() as Record<string, unknown>);
-    return Response.json({ data: { created: count } }, { status: 201 });
+    const saved = await createCalendarEntries(me, await request.json() as Record<string, unknown>);
+    return Response.json({ data: saved }, { status: saved.created ? 201 : 200 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The calendar entry could not be saved." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The calendar entry could not be saved." }, { status: (error as { status?: number })?.status === 403 ? 403 : 400 });
   }
 }
 
@@ -35,6 +35,6 @@ export async function DELETE(request: Request) {
     await deleteCalendarEntry(me, body.id!);
     return Response.json({ data: { ok: true } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The entry could not be removed." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The entry could not be removed." }, { status: (error as { status?: number })?.status === 403 ? 403 : 400 });
   }
 }

@@ -27,9 +27,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: string; payload?: Record<string, unknown> };
     if (body.action !== "submit_report" || !body.payload) return Response.json({ error: "Invalid Worker action." }, { status: 400 });
-    await submitWorkerReport(session.email, session.role, body.payload);
-    return Response.json({ data: await getWorkerSnapshot(session.email, session.role) });
+    // The version of the report just sent goes back with the answer: the form names it next time (never a version read later).
+    const sent = await submitWorkerReport(session.email, session.role, body.payload);
+    return Response.json({ data: await getWorkerSnapshot(session.email, session.role), revision: sent.revision });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The report could not be submitted." }, { status: 400 });
+    // 409: a newer report for the day was sent from another screen (the page reloads it and keeps the typed text).
+    return Response.json({ error: error instanceof Error ? error.message : "The report could not be submitted." }, { status: (error as { status?: number })?.status === 409 ? 409 : 400 });
   }
 }

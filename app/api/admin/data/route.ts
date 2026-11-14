@@ -47,9 +47,9 @@ export async function DELETE(request: Request) {
   if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
   if (!await authorised(request)) return Response.json({ error: "Admin sign-in required." }, { status: 401 });
   try {
-    const body = await request.json() as { resource?: unknown; id?: number };
+    const body = await request.json() as { resource?: unknown; id?: number; payload?: Record<string, unknown> };
     if (!valid(body.resource) || !Number.isInteger(body.id)) return Response.json({ error: "Invalid record." }, { status: 400 });
-    await deleteAdminRecord(body.resource, body.id!);
+    await deleteAdminRecord(body.resource, body.id!, body.payload && typeof body.payload === "object" ? body.payload : {});
     return Response.json({ data: await getAdminSnapshot() });
   } catch (error) { return errorResponse(error); }
 }

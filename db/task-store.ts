@@ -3,6 +3,7 @@ import type { PersonalTaskSnapshot, TaskManagementSnapshot, TaskPerson, TeamTask
 import { ensureWorkflowDatabase } from "./workflow-store";
 import { ensureStaffAccessTable } from "./staff-store";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
+import { assertProjectAccess, ConflictError, hasProjectAccess } from "./case-view-store";
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -85,12 +86,13 @@ async function people(db: D1) {
 }
 
 async function projects(db: D1) {
-  const result = await db.prepare("SELECT id AS caseId,project_code AS projectCode,suburb AS siteLabel FROM workflow_cases WHERE stage='active_project' ORDER BY updated_at DESC").all<Raw>();
-  return result.results.map((row) => ({ caseId: Number(row.caseId), projectCode: String(row.projectCode), siteLabel: String(row.siteLabel || "Active project") }));
+  // Open jobs, including enquiries that have no project number yet (a follow-up task can belong to them too).
+  const result = await db.prepare("SELECT id AS caseId,COALESCE(NULLIF(project_code,''),'New request · ' || service) AS projectCode,suburb AS siteLabel FROM workflow_cases WHERE stage NOT IN ('closed','complete') ORDER BY updated_at DESC").all<Raw>();
+  return result.results.map((row) => ({ caseId: Number(row.caseId), projectCode: String(row.projectCode), siteLabel: String(row.siteLabel || "Open job") }));
 }
 
 async function tasks(db: D1, where = "", bindings: unknown[] = []) {
-  const result = await db.prepare(`SELECT task.id,task.case_id AS caseId,COALESCE(workflow.project_code,'Business / General') AS projectCode,COALESCE(NULLIF(workflow.suburb,''),'Company operations') AS siteLabel,task.assignee_email AS assigneeEmail,task.assignee_role AS assigneeRole,task.assignee_title AS assigneeTitle,task.title,task.instructions,task.priority,task.status,task.created_by_role AS createdByRole,task.created_by_email AS createdByEmail,task.created_at AS createdAt,task.updated_at AS updatedAt,task.completed_at AS completedAt FROM team_tasks task LEFT JOIN workflow_cases workflow ON workflow.id=task.case_id ${where} ORDER BY CASE task.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,CASE task.priority WHEN 'Urgent' THEN 0 WHEN 'High' THEN 1 ELSE 2 END,task.updated_at DESC`).bind(...bindings).all<Raw>();
+  const result = await db.prepare(`SELECT task.id,task.case_id AS caseId,CASE WHEN workflow.id IS NULL THEN 'Business / General' WHEN workflow.project_code<>'' THEN workflow.project_code ELSE 'New request · ' || workflow.service END AS projectCode,COALESCE(NULLIF(workflow.suburb,''),'Company operations') AS siteLabel,task.assignee_email AS assigneeEmail,task.assignee_role AS assigneeRole,task.assignee_title AS assigneeTitle,task.title,task.instructions,task.priority,task.status,task.created_by_role AS createdByRole,task.created_by_email AS createdByEmail,task.created_at AS createdAt,task.updated_at AS updatedAt,task.completed_at AS completedAt FROM team_tasks task LEFT JOIN workflow_cases workflow ON workflow.id=task.case_id ${where} ORDER BY CASE task.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,CASE task.priority WHEN 'Urgent' THEN 0 WHEN 'High' THEN 1 ELSE 2 END,task.updated_at DESC`).bind(...bindings).all<Raw>();
   return result.results.map(mapTask);
 }
 
@@ -119,10 +121,12 @@ export async function seedTaskDevelopmentPreview() {
 export async function getTaskManagementSnapshot(viewerRole: "Owner" | "Admin"): Promise<TaskManagementSnapshot> {
   await ensureTaskDatabase();
   const db = await database();
-  const [allPeople, allProjects, allTasks] = await Promise.all([people(db), projects(db), tasks(db)]);
+  const [allPeople, allProjects, allTasks, projectAccess] = await Promise.all([people(db), projects(db), tasks(db), hasProjectAccess(viewerRole)]);
   const visiblePeople = viewerRole === "Owner" ? allPeople : allPeople.filter((person) => person.group === "operations");
   const visibleEmails = new Set(visiblePeople.map((person) => person.email));
-  return { viewerRole, people: visiblePeople, projects: allProjects, tasks: allTasks.filter((task) => visibleEmails.has(task.assigneeEmail)) };
+  // The Owner switched off Admin project access: Admin keeps the Business / General tasks, never project ones.
+  const visibleTasks = allTasks.filter((task) => visibleEmails.has(task.assigneeEmail) && (projectAccess || !task.caseId));
+  return { viewerRole, people: visiblePeople, projects: projectAccess ? allProjects : [], tasks: visibleTasks };
 }
 
 async function approvedAssignee(db: D1, emailInput: unknown) {
@@ -137,14 +141,21 @@ async function requireTaskScope(db: D1, actorRole: "Owner" | "Admin", id: number
   const task = await db.prepare("SELECT id,case_id AS caseId,assignee_email AS assigneeEmail,assignee_role AS assigneeRole,title FROM team_tasks WHERE id=? LIMIT 1").bind(id).first<Raw>();
   if (!task) throw new Error("Task was not found.");
   if (actorRole === "Admin" && taskGroup(String(task.assigneeRole)) !== "operations") throw new Error("Only Owner can control Admin and Manager tasks.");
+  if (Number(task.caseId)) await assertProjectAccess(actorRole);
   return task;
 }
 
-async function taskEvent(db: D1, task: { caseId: number; title: string }, actorRole: string, actorEmail: string, eventType: string, detail: string) {
-  if (!task.caseId) return;
-  await db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) VALUES (?,?,?,?,?,?,'internal',?)")
-    .bind(task.caseId, actorRole, actorEmail, eventType, task.title, detail, new Date().toISOString()).run();
+// A task change and its project history line in ONE batch: the line is written only if the statement just before it changed a row
+// (SQLite changes()), so a change is never saved without its line and a refused change never gets one. Business / General tasks
+// (no project) have no project history.
+async function changeWithEvent(db: D1, change: ReturnType<D1["prepare"]>, task: { caseId: number; title: string }, actorRole: string, actorEmail: string, eventType: string, detail: string) {
+  const statements = [change];
+  if (task.caseId) statements.push(db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) SELECT ?,?,?,?,?,?,'internal',? WHERE changes() > 0")
+    .bind(task.caseId, actorRole, actorEmail, eventType, task.title, detail, new Date().toISOString()));
+  const results = await db.batch(statements);
+  return Number((results[0] as { meta?: { changes?: number } })?.meta?.changes ?? 0);
 }
+const staleTask = "This task was changed by someone else after you opened the page. Nothing was changed: refresh to see its current status.";
 
 export async function performTaskManagementAction(actorRole: "Owner" | "Admin", actorEmail: string, action: string, payload: Record<string, unknown>) {
   await ensureTaskDatabase();
@@ -155,28 +166,34 @@ export async function performTaskManagementAction(actorRole: "Owner" | "Admin", 
     if (actorRole === "Admin" && assignee.group !== "operations") throw new Error("Admin can assign tasks only to Site Supervisors and trade Workers.");
     const caseId = projectId(payload.caseId);
     if (caseId) {
-      const project = await db.prepare("SELECT id FROM workflow_cases WHERE id=? AND stage='active_project' LIMIT 1").bind(caseId).first();
-      if (!project) throw new Error("Choose an active project or Business / General.");
+      await assertProjectAccess(actorRole);
+      const project = await db.prepare("SELECT id FROM workflow_cases WHERE id=? AND stage NOT IN ('closed','complete') LIMIT 1").bind(caseId).first();
+      if (!project) throw new Error("Choose an open project or Business / General.");
     }
     const title = required(payload.title, "Task");
     const instructions = required(payload.instructions, "Instructions");
     const priority = clean(payload.priority) || "Normal";
     if (!allowedPriorities.has(priority)) throw new Error("Choose a valid priority.");
-    await db.prepare("INSERT INTO team_tasks (case_id,assignee_email,assignee_role,assignee_title,title,instructions,priority,status,created_by_role,created_by_email,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,'assigned',?,?,?,?, '')")
-      .bind(caseId, assignee.email, assignee.role, assignee.title, title, instructions, priority, actorRole, actorEmail, now, now).run();
-    await taskEvent(db, { caseId, title }, actorRole, actorEmail, "team_task_created", `Assigned to ${assignee.title} (${assignee.email})`);
+    // The same task sent twice by the same person within two minutes (a double press, a retry after a lost answer) is saved once.
+    const since = new Date(Date.parse(now) - 120_000).toISOString();
+    await changeWithEvent(db, db.prepare(`INSERT INTO team_tasks (case_id,assignee_email,assignee_role,assignee_title,title,instructions,priority,status,created_by_role,created_by_email,created_at,updated_at,completed_at) SELECT ?,?,?,?,?,?,?,'assigned',?,?,?,?,''
+      WHERE NOT EXISTS (SELECT 1 FROM team_tasks WHERE case_id=? AND assignee_email=? AND title=? AND instructions=? AND created_by_email=? AND created_at>=?)`)
+      .bind(caseId, assignee.email, assignee.role, assignee.title, title, instructions, priority, actorRole, actorEmail, now, now, caseId, assignee.email, title, instructions, actorEmail, since),
+      { caseId, title }, actorRole, actorEmail, "team_task_created", `Assigned to ${assignee.title} (${assignee.email})`);
   } else if (action === "set_status") {
     const id = taskId(payload.taskId);
     const task = await requireTaskScope(db, actorRole, id);
     const status = required(payload.status, "Status");
     if (!allowedStatuses.has(status)) throw new Error("Choose a valid task status.");
-    await db.prepare("UPDATE team_tasks SET status=?,updated_at=?,completed_at=? WHERE id=?").bind(status, now, status === "completed" ? now : "", id).run();
-    await taskEvent(db, { caseId: Number(task.caseId), title: String(task.title) }, actorRole, actorEmail, "team_task_status", `Marked ${status.replaceAll("_", " ")}`);
+    // The screen names the status it showed (required): a card opened before someone else changed the task never undoes that change.
+    if (typeof payload.from !== "string") throw new ConflictError("This page is out of date. Refresh it before changing the task.");
+    const saved = await changeWithEvent(db, db.prepare("UPDATE team_tasks SET status=?,updated_at=?,completed_at=? WHERE id=? AND status=?").bind(status, now, status === "completed" ? now : "", id, payload.from),
+      { caseId: Number(task.caseId), title: String(task.title) }, actorRole, actorEmail, "team_task_status", `Marked ${status.replaceAll("_", " ")}`);
+    if (!saved) throw new ConflictError(staleTask);
   } else if (action === "delete_task") {
     const id = taskId(payload.taskId);
     const task = await requireTaskScope(db, actorRole, id);
-    await db.prepare("DELETE FROM team_tasks WHERE id=?").bind(id).run();
-    await taskEvent(db, { caseId: Number(task.caseId), title: String(task.title) }, actorRole, actorEmail, "team_task_deleted", `Removed from ${String(task.assigneeEmail)}`);
+    await changeWithEvent(db, db.prepare("DELETE FROM team_tasks WHERE id=?").bind(id), { caseId: Number(task.caseId), title: String(task.title) }, actorRole, actorEmail, "team_task_deleted", `Removed from ${String(task.assigneeEmail)}`);
   } else {
     throw new Error("Unknown task action.");
   }
@@ -188,13 +205,16 @@ export async function getPersonalTaskSnapshot(emailInput: string, role: string):
   const email = emailInput.toLowerCase();
   const allPeople = await people(db);
   const person = allPeople.find((item) => item.email === email);
+  // An Admin whose project access the Owner switched off keeps only the Business / General tasks.
+  const projectAccess = await hasProjectAccess(role);
+  const own = await tasks(db, "WHERE LOWER(task.assignee_email)=?", [email]);
   return {
     identity: { email, role, title: person?.title || role },
-    tasks: await tasks(db, "WHERE LOWER(task.assignee_email)=?", [email]),
+    tasks: projectAccess ? own : own.filter((task) => !task.caseId),
   };
 }
 
-export async function setPersonalTaskStatus(emailInput: string, taskIdInput: unknown, statusInput: unknown) {
+export async function setPersonalTaskStatus(emailInput: string, role: string, taskIdInput: unknown, statusInput: unknown, fromInput: unknown) {
   await ensureTaskDatabase();
   const db = await database();
   const email = emailInput.toLowerCase();
@@ -203,9 +223,13 @@ export async function setPersonalTaskStatus(emailInput: string, taskIdInput: unk
   if (!allowedStatuses.has(status)) throw new Error("Choose a valid task status.");
   const task = await db.prepare("SELECT case_id AS caseId,title FROM team_tasks WHERE id=? AND LOWER(assignee_email)=? LIMIT 1").bind(id, email).first<Raw>();
   if (!task) throw new Error("This task is not assigned to your account.");
+  if (Number(task.caseId)) await assertProjectAccess(role);
+  // The card names the status it showed (required): pressing Start on a card that someone has since completed never reopens the task.
+  if (typeof fromInput !== "string") throw new ConflictError("This page is out of date. Refresh it before changing the task.");
   const now = new Date().toISOString();
-  await db.prepare("UPDATE team_tasks SET status=?,updated_at=?,completed_at=? WHERE id=? AND LOWER(assignee_email)=?").bind(status, now, status === "completed" ? now : "", id, email).run();
-  await taskEvent(db, { caseId: Number(task.caseId), title: String(task.title) }, "Assignee", email, "team_task_self_status", `Marked ${status.replaceAll("_", " ")}`);
+  const saved = await changeWithEvent(db, db.prepare("UPDATE team_tasks SET status=?,updated_at=?,completed_at=? WHERE id=? AND LOWER(assignee_email)=? AND status=?").bind(status, now, status === "completed" ? now : "", id, email, fromInput),
+    { caseId: Number(task.caseId), title: String(task.title) }, "Assignee", email, "team_task_self_status", `Marked ${status.replaceAll("_", " ")}`);
+  if (!saved) throw new ConflictError(staleTask);
 }
 
 export const ensureTaskDatabase = memoizePerDatabase(ensureTaskDatabaseOnce);

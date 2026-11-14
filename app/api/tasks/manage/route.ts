@@ -34,6 +34,6 @@ export async function POST(request: Request) {
     await performTaskManagementAction(identity.role, identity.email, body.action, body.payload);
     return Response.json({ data: await getTaskManagementSnapshot(identity.role) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The task change could not be saved." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The task change could not be saved." }, { status: [403, 409].includes(Number((error as { status?: number })?.status)) ? Number((error as { status?: number }).status) : 400 });
   }
 }

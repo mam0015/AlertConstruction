@@ -4,3 +4,6 @@
 .decision{flex-wrap:wrap}
 .decision label{min-width:0;flex:1 1 100%}
 .decision input[type=file]{max-width:100%}
+/* The attachment line reads like the rest of the card (it was large, unstyled browser text). */
+.decision label{display:grid;gap:6px;color:#bcc0c1;font-size:11px;font-weight:700}
+.decision input[type=file]{color:#9ba0a2;font-size:11px;font-family:inherit}

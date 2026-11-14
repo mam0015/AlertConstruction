@@ -8,8 +8,11 @@ export const metadata = { title: "Calendar & messages", robots: { index: false, 
 
 export const dynamic = "force-dynamic";
 
-export default async function TeamHubPage() {
+export default async function TeamHubPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const me = await teamIdentityFromCookies(await cookies());
   if (!me) redirect("/#team-sign-in");
-  return <TeamHub me={me} home={roleHome(me.role)} />;
+  // A link can open a section directly (for example the Site Supervisor's "Daily report" and "Team messages").
+  const wanted = (await searchParams).tab;
+  const initialTab = wanted === "messages" || (wanted === "report" && me.role !== "Owner") ? wanted : "calendar";
+  return <TeamHub me={me} home={roleHome(me.role)} initialTab={initialTab} />;
 }

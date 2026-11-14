@@ -34,9 +34,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: string; payload?: Record<string, unknown> };
     if (!body.action || !body.payload) return Response.json({ error: "Invalid operations action." }, { status: 400 });
-    await performOperationsAction(viewer, body.action, body.payload);
-    return Response.json({ data: await getOperationsSnapshot(viewer) });
+    const saved = await performOperationsAction(viewer, body.action, body.payload);
+    // The version of an issue just changed goes back with the answer: the screen names it for its next change.
+    return Response.json({ data: await getOperationsSnapshot(viewer), ...(saved && typeof saved.revision === "string" ? { revision: saved.revision } : {}) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The operation could not be saved." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The operation could not be saved." }, { status: [403, 409].includes(Number((error as { status?: number })?.status)) ? Number((error as { status?: number }).status) : 400 });
   }
 }

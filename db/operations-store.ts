@@ -2,6 +2,10 @@ import type { FollowUpItem, OperationsProject, OperationsRole, OperationsSnapsho
 import { ensureOwnerDatabase } from "./owner-store";
 import { ensureWorkflowDatabase } from "./workflow-store";
 import { memoizePerDatabase, runtimeBindings } from "./runtime";
+import { assertProjectAccess, clearPortfolioSaved, ConflictError, ensureCaseViewTables, hasProjectAccess, hasScheduleAccess, markPortfolioSaved, ProjectAccessError, ScheduleAccessError } from "./case-view-store";
+
+// A follow-up that belongs to no project.
+const generalFollowUp = (code: unknown) => { const value = String(code ?? "").trim(); return value === "" || value === "Business / General"; };
 
 type D1 = NonNullable<(typeof import("cloudflare:workers"))["env"]["DB"]>;
 type Raw = Record<string, unknown>;
@@ -61,7 +65,7 @@ async function ensureOperationsDatabaseOnce() {
 function mapProject(row: Raw): OperationsProject {
   return {
     caseId: Number(row.caseId),
-    projectCode: String(row.projectCode || row.requestCode || ""),
+    projectCode: String(row.projectCode || ""),
     projectName: String(row.projectName || `${row.service || "Project"} · ${row.suburb || "Site"}`),
     siteLocation: String(row.siteLocation || row.suburb || "Location to be confirmed"),
   };
@@ -72,6 +76,7 @@ function mapIssue(row: Raw): SiteIssue {
     id: Number(row.id), caseId: Number(row.caseId), projectCode: String(row.projectCode || ""), projectName: String(row.projectName || ""), siteLocation: String(row.siteLocation || ""),
     affectedTrade: String(row.affectedTrade || "Other"), issueType: String(row.issueType || "Delay"), severity: String(row.severity || "High") as SiteIssue["severity"],
     summary: String(row.summary || ""), details: String(row.details || ""), impact: String(row.impact || ""), contactedPerson: String(row.contactedPerson || ""), contactedAt: String(row.contactedAt || ""), expectedDate: String(row.expectedDate || ""),
+    revision: String(row.revision ?? ""),
     reporterEmail: String(row.reporterEmail || ""), reporterName: String(row.reporterName || "Site Supervisor"), status: String(row.status || "reported") as SiteIssue["status"],
     adminAction: String(row.adminAction || ""), rescheduledDate: String(row.rescheduledDate || ""), rescheduledTime: String(row.rescheduledTime || ""), rescheduledAssignee: String(row.rescheduledAssignee || ""), adminEmail: String(row.adminEmail || ""), adminReviewedAt: String(row.adminReviewedAt || ""), ownerNote: String(row.ownerNote || ""),
     reportedAt: String(row.reportedAt || ""), updatedAt: String(row.updatedAt || ""), resolvedAt: String(row.resolvedAt || ""),
@@ -85,7 +90,7 @@ function mapFollowUp(row: Raw): FollowUpItem {
 }
 
 async function projectRows(db: D1, identity: { email: string; role: OperationsRole }) {
-  const base = "SELECT id AS caseId,request_code AS requestCode,project_code AS projectCode,service,suburb,(CASE WHEN project_code='' THEN service || ' request' ELSE service || ' · ' || suburb END) AS projectName,suburb AS siteLocation FROM workflow_cases";
+  const base = "SELECT id AS caseId,project_code AS projectCode,service,suburb,(CASE WHEN project_code='' THEN service || ' request' ELSE service || ' · ' || suburb END) AS projectName,suburb AS siteLocation FROM workflow_cases";
   const result = identity.role === "Site Supervisor"
     ? await db.prepare(`${base} WHERE LOWER(assigned_supervisor_email)=? AND stage IN ('site_visit_scheduled','site_visit_submitted','site_visit_approved','estimate_ready','estimate_sent','customer_approved','active_project') ORDER BY updated_at DESC`).bind(identity.email.toLowerCase()).all<Raw>()
     : await db.prepare(`${base} WHERE project_code!='' ORDER BY updated_at DESC`).all<Raw>();
@@ -95,7 +100,7 @@ async function projectRows(db: D1, identity: { email: string; role: OperationsRo
 async function issueRows(db: D1, identity: { email: string; role: OperationsRole }) {
   const where = identity.role === "Site Supervisor" ? "WHERE LOWER(reporter_email)=?" : "";
   const bindings = identity.role === "Site Supervisor" ? [identity.email.toLowerCase()] : [];
-  const result = await db.prepare(`SELECT id,case_id AS caseId,project_code AS projectCode,project_name AS projectName,site_location AS siteLocation,affected_trade AS affectedTrade,issue_type AS issueType,severity,summary,details,impact,contacted_person AS contactedPerson,contacted_at AS contactedAt,expected_date AS expectedDate,reporter_email AS reporterEmail,reporter_name AS reporterName,status,admin_action AS adminAction,rescheduled_date AS rescheduledDate,rescheduled_time AS rescheduledTime,rescheduled_assignee AS rescheduledAssignee,admin_email AS adminEmail,admin_reviewed_at AS adminReviewedAt,owner_note AS ownerNote,reported_at AS reportedAt,updated_at AS updatedAt,resolved_at AS resolvedAt FROM site_issue_reports ${where} ORDER BY CASE status WHEN 'reported' THEN 0 WHEN 'under_review' THEN 1 WHEN 'rescheduled' THEN 2 WHEN 'monitoring' THEN 3 ELSE 4 END,CASE severity WHEN 'Critical' THEN 0 WHEN 'High' THEN 1 ELSE 2 END,reported_at DESC`).bind(...bindings).all<Raw>();
+  const result = await db.prepare(`SELECT id,case_id AS caseId,project_code AS projectCode,project_name AS projectName,site_location AS siteLocation,affected_trade AS affectedTrade,issue_type AS issueType,severity,summary,details,impact,contacted_person AS contactedPerson,contacted_at AS contactedAt,expected_date AS expectedDate,reporter_email AS reporterEmail,reporter_name AS reporterName,status,admin_action AS adminAction,rescheduled_date AS rescheduledDate,rescheduled_time AS rescheduledTime,rescheduled_assignee AS rescheduledAssignee,admin_email AS adminEmail,admin_reviewed_at AS adminReviewedAt,owner_note AS ownerNote,reported_at AS reportedAt,updated_at AS updatedAt,resolved_at AS resolvedAt,COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind='site_issue:' || site_issue_reports.id AND rv.case_id=site_issue_reports.case_id),updated_at) AS revision FROM site_issue_reports ${where} ORDER BY CASE status WHEN 'reported' THEN 0 WHEN 'under_review' THEN 1 WHEN 'rescheduled' THEN 2 WHEN 'monitoring' THEN 3 ELSE 4 END,CASE severity WHEN 'Critical' THEN 0 WHEN 'High' THEN 1 ELSE 2 END,reported_at DESC`).bind(...bindings).all<Raw>();
   return result.results.map(mapIssue);
 }
 
@@ -106,16 +111,15 @@ async function followUpRows(db: D1, identity: { email: string; role: OperationsR
   return result.results.map(mapFollowUp);
 }
 
-async function addWorkflowEvent(db: D1, caseId: number, actorRole: string, actorEmail: string, eventType: string, title: string, detail: string) {
-  if (!caseId) return;
-  await db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) VALUES (?,?,?,?,?,?,'internal',?)")
-    .bind(caseId, actorRole, actorEmail, eventType, title, detail, new Date().toISOString()).run();
-}
-
 export async function getOperationsSnapshot(identity: { email: string; role: OperationsRole; name: string }): Promise<OperationsSnapshot> {
   await ensureOperationsDatabase();
+  await ensureCaseViewTables();
   const db = await database();
-  const [projects, issues, followUps] = await Promise.all([projectRows(db, identity), issueRows(db, identity), followUpRows(db, identity)]);
+  const [allProjects, allIssues, allFollowUps, projectAccess] = await Promise.all([projectRows(db, identity), issueRows(db, identity), followUpRows(db, identity), hasProjectAccess(identity.role)]);
+  // The Owner switched off Admin project access: site problems (always about a project) and project follow-ups are not sent; general follow-ups stay.
+  const projects = projectAccess ? allProjects : [];
+  const issues = projectAccess ? allIssues : [];
+  const followUps = projectAccess ? allFollowUps : allFollowUps.filter((item) => generalFollowUp(item.projectCode));
   const today = melbourneDate();
   return {
     viewer: identity,
@@ -133,8 +137,9 @@ export async function getOperationsSnapshot(identity: { email: string; role: Ope
   };
 }
 
-export async function performOperationsAction(identity: { email: string; role: OperationsRole; name: string }, action: string, payload: Record<string, unknown>) {
+export async function performOperationsAction(identity: { email: string; role: OperationsRole; name: string }, action: string, payload: Record<string, unknown>): Promise<{ revision?: string } | void> {
   await ensureOperationsDatabase();
+  await ensureCaseViewTables();
   const db = await database();
   const now = new Date().toISOString();
 
@@ -149,45 +154,78 @@ export async function performOperationsAction(identity: { email: string; role: O
     if (!severities.has(severity)) throw new Error("Choose a valid severity.");
     const summary = required(payload.summary, "Problem summary");
     const siteLocation = required(payload.siteLocation, "Project location");
-    await db.prepare("INSERT INTO site_issue_reports (case_id,project_code,project_name,site_location,affected_trade,issue_type,severity,summary,details,impact,contacted_person,contacted_at,expected_date,reporter_email,reporter_name,status,reported_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'reported',?,?)")
-      .bind(caseId, projectCode, `${String(project.service || "Project")} · ${String(project.suburb || "Site")}`, siteLocation, affectedTrade, required(payload.issueType, "Issue type"), severity, summary, clean(payload.details), clean(payload.impact), clean(payload.contactedPerson), clean(payload.contactedAt), clean(payload.expectedDate), identity.email, identity.name, now, now).run();
-    await addWorkflowEvent(db, caseId, identity.role, identity.email, "site_issue_reported", `${affectedTrade} ${clean(payload.issueType).toLowerCase() || "issue"}`, `${siteLocation}: ${summary}. Severity: ${severity}.`);
+    // The report and its history line are saved together, or neither.
+    await db.batch([
+      db.prepare("INSERT INTO site_issue_reports (case_id,project_code,project_name,site_location,affected_trade,issue_type,severity,summary,details,impact,contacted_person,contacted_at,expected_date,reporter_email,reporter_name,status,reported_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'reported',?,?)")
+        .bind(caseId, projectCode, `${String(project.service || "Project")} · ${String(project.suburb || "Site")}`, siteLocation, affectedTrade, required(payload.issueType, "Issue type"), severity, summary, clean(payload.details), clean(payload.impact), clean(payload.contactedPerson), clean(payload.contactedAt), clean(payload.expectedDate), identity.email, identity.name, now, now),
+      db.prepare("INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) SELECT ?,?,?,?,?,?,'internal',? WHERE changes() > 0")
+        .bind(caseId, identity.role, identity.email, "site_issue_reported", `${affectedTrade} ${clean(payload.issueType).toLowerCase() || "issue"}`, `${siteLocation}: ${summary}. Severity: ${severity}.`, now),
+    ]);
     return;
   }
 
   if (["review_issue", "reschedule_issue", "resolve_issue", "owner_note"].includes(action)) {
     if (identity.role === "Site Supervisor") throw new Error("Admin or Owner review is required.");
+    await assertProjectAccess(identity.role);
     const issueId = positiveId(payload.issueId, "issue");
     const issue = await db.prepare("SELECT id,case_id AS caseId,project_code AS projectCode,affected_trade AS affectedTrade,reporter_email AS reporterEmail,reporter_name AS reporterName,summary FROM site_issue_reports WHERE id=? LIMIT 1").bind(issueId).first<Raw>();
     if (!issue) throw new Error("The site issue was not found.");
+    // Every change names the version of the issue on screen (required): a screen opened before someone else reviewed, rescheduled or
+    // resolved it, or gave a newer Owner direction, changes nothing. Review, reschedule and resolve also need the issue to be still open.
+    // The change, its new version, the schedule entry and follow-up of a reschedule, and the history line are ONE batch: all or nothing.
+    const opened = typeof payload.revision === "string" ? payload.revision : null;
+    const kind = `site_issue:${issueId}`;
+    const revision = crypto.randomUUID();
+    const token = crypto.randomUUID();
+    const ifSaved = "EXISTS (SELECT 1 FROM save_tokens WHERE token=?)";
+    const sameVersion = "COALESCE((SELECT rv.revision FROM record_revisions rv WHERE rv.kind=? AND rv.case_id=site_issue_reports.case_id),site_issue_reports.updated_at)=?";
+    const caseId = Number(issue.caseId);
+    const event = (eventType: string, title: string, detail: string) => db.prepare(`INSERT INTO workflow_events (case_id,actor_role,actor_email,event_type,title,detail,audience,created_at) SELECT ?,?,?,?,?,?,'internal',? WHERE ${ifSaved} AND ?<>0`)
+      .bind(caseId, identity.role, identity.email, eventType, title, detail, now, token, caseId);
+    let change: ReturnType<D1["prepare"]>;
+    const extra: ReturnType<D1["prepare"]>[] = [];
+    let history: ReturnType<D1["prepare"]>;
     if (action === "owner_note") {
       if (identity.role !== "Owner") throw new Error("Only Owner can add the Owner direction.");
-      await db.prepare("UPDATE site_issue_reports SET owner_note=?,updated_at=? WHERE id=?").bind(required(payload.ownerNote, "Owner direction"), now, issueId).run();
-      await addWorkflowEvent(db, Number(issue.caseId), identity.role, identity.email, "site_issue_owner_direction", `Owner direction: ${String(issue.affectedTrade)}`, clean(payload.ownerNote));
-      return;
-    }
-    if (action === "review_issue") {
-      await db.prepare("UPDATE site_issue_reports SET status='under_review',admin_action=?,admin_email=?,admin_reviewed_at=?,updated_at=? WHERE id=?").bind(required(payload.adminAction, "Review action"), identity.email, now, now, issueId).run();
-      await addWorkflowEvent(db, Number(issue.caseId), identity.role, identity.email, "site_issue_reviewed", `Reviewing ${String(issue.affectedTrade)} issue`, clean(payload.adminAction));
-      return;
-    }
-    if (action === "reschedule_issue") {
+      const ownerNote = required(payload.ownerNote, "Owner direction");
+      change = db.prepare(`UPDATE site_issue_reports SET owner_note=?,updated_at=? WHERE id=? AND ${sameVersion}`).bind(ownerNote, now, issueId, kind, opened);
+      history = event("site_issue_owner_direction", `Owner direction: ${String(issue.affectedTrade)}`, ownerNote);
+    } else if (action === "review_issue") {
+      const adminAction = required(payload.adminAction, "Review action");
+      change = db.prepare(`UPDATE site_issue_reports SET status='under_review',admin_action=?,admin_email=?,admin_reviewed_at=?,updated_at=? WHERE id=? AND status<>'resolved' AND ${sameVersion}`).bind(adminAction, identity.email, now, now, issueId, kind, opened);
+      history = event("site_issue_reviewed", `Reviewing ${String(issue.affectedTrade)} issue`, adminAction);
+    } else if (action === "reschedule_issue") {
+      // Rescheduling also puts an entry on the master schedule, so it needs the Owner's "Master schedule" switch as well.
+      if (!await hasScheduleAccess(identity.role)) throw new ScheduleAccessError();
       const rescheduledDate = required(payload.rescheduledDate, "New date");
       const rescheduledTime = required(payload.rescheduledTime, "New time");
       const assignee = required(payload.rescheduledAssignee, "Site Supervisor assignee");
       const actionNote = required(payload.adminAction, "Reschedule direction");
-      await db.batch([
-        db.prepare("UPDATE site_issue_reports SET status='rescheduled',admin_action=?,rescheduled_date=?,rescheduled_time=?,rescheduled_assignee=?,admin_email=?,admin_reviewed_at=?,updated_at=? WHERE id=?").bind(actionNote, rescheduledDate, rescheduledTime, assignee, identity.email, now, now, issueId),
-        db.prepare("INSERT INTO schedule_events (event_date,start_time,title,assignee,project_code,tone,notes) VALUES (?,?,?,?,?,'orange',?)").bind(rescheduledDate, rescheduledTime, `Follow up ${String(issue.affectedTrade)} delay`, assignee, String(issue.projectCode || "Business / General"), actionNote),
-        db.prepare("INSERT INTO follow_up_items (person_email,person_role,person_name,project_code,title,details,target_date,source,dedupe_key,status,created_by_email,created_by_role,work_date,clocked_out_at,created_at,updated_at,completed_at) VALUES (?,'Site Supervisor',?,?,?,?,?,'site_issue',NULL,'open',?,?,?,'',?,?,'')")
-          .bind(String(issue.reporterEmail), String(issue.reporterName), String(issue.projectCode || "Business / General"), `Follow up ${String(issue.affectedTrade)} delay`, actionNote, rescheduledDate, identity.email, identity.role, melbourneDate(), now, now),
-      ]);
-      await addWorkflowEvent(db, Number(issue.caseId), identity.role, identity.email, "site_issue_rescheduled", `${String(issue.affectedTrade)} follow-up rescheduled`, `${rescheduledDate} ${rescheduledTime} · ${assignee}. ${actionNote}`);
-      return;
+      change = db.prepare(`UPDATE site_issue_reports SET status='rescheduled',admin_action=?,rescheduled_date=?,rescheduled_time=?,rescheduled_assignee=?,admin_email=?,admin_reviewed_at=?,updated_at=? WHERE id=? AND status<>'resolved' AND ${sameVersion}`).bind(actionNote, rescheduledDate, rescheduledTime, assignee, identity.email, now, now, issueId, kind, opened);
+      extra.push(
+        db.prepare(`INSERT INTO schedule_events (event_date,start_time,title,assignee,project_code,tone,notes) SELECT ?,?,?,?,?,'orange',? WHERE ${ifSaved}`).bind(rescheduledDate, rescheduledTime, `Follow up ${String(issue.affectedTrade)} delay`, assignee, String(issue.projectCode || "Business / General"), actionNote, token),
+        db.prepare(`INSERT INTO follow_up_items (person_email,person_role,person_name,project_code,title,details,target_date,source,dedupe_key,status,created_by_email,created_by_role,work_date,clocked_out_at,created_at,updated_at,completed_at) SELECT ?,'Site Supervisor',?,?,?,?,?,'site_issue',NULL,'open',?,?,?,'',?,?,'' WHERE ${ifSaved}`)
+          .bind(String(issue.reporterEmail), String(issue.reporterName), String(issue.projectCode || "Business / General"), `Follow up ${String(issue.affectedTrade)} delay`, actionNote, rescheduledDate, identity.email, identity.role, melbourneDate(), now, now, token),
+      );
+      history = event("site_issue_rescheduled", `${String(issue.affectedTrade)} follow-up rescheduled`, `${rescheduledDate} ${rescheduledTime} · ${assignee}. ${actionNote}`);
+    } else {
+      const resolution = required(payload.adminAction, "Resolution");
+      change = db.prepare(`UPDATE site_issue_reports SET status='resolved',admin_action=?,admin_email=?,admin_reviewed_at=?,resolved_at=?,updated_at=? WHERE id=? AND status<>'resolved' AND ${sameVersion}`).bind(resolution, identity.email, now, now, now, issueId, kind, opened);
+      history = event("site_issue_resolved", `${String(issue.affectedTrade)} issue resolved`, resolution);
     }
-    await db.prepare("UPDATE site_issue_reports SET status='resolved',admin_action=?,admin_email=?,admin_reviewed_at=?,resolved_at=?,updated_at=? WHERE id=?").bind(required(payload.adminAction, "Resolution"), identity.email, now, now, now, issueId).run();
-    await addWorkflowEvent(db, Number(issue.caseId), identity.role, identity.email, "site_issue_resolved", `${String(issue.affectedTrade)} issue resolved`, clean(payload.adminAction));
-    return;
+    // Checked after the role and access checks above, so a refusal for access is reported as such.
+    if (opened === null) throw new ConflictError("This page is out of date. Refresh it before changing the issue.");
+    const results = await db.batch([
+      change,
+      markPortfolioSaved(db, token, now),
+      db.prepare(`INSERT INTO record_revisions (kind,case_id,revision) SELECT ?,?,? WHERE ${ifSaved} ON CONFLICT(kind,case_id) DO UPDATE SET revision=excluded.revision`).bind(kind, caseId, revision, token),
+      ...extra,
+      history,
+      clearPortfolioSaved(db, token),
+    ]);
+    if (!Number((results[0] as { meta?: { changes?: number } }).meta?.changes ?? 0)) throw new ConflictError("This issue was changed by someone else (or resolved) after you opened it. Nothing was saved and your text is kept: check the latest, then choose whether to go ahead.");
+    // The version just saved: the screen names it for its next change to this issue.
+    return { revision };
   }
 
   if (action === "create_follow_up" || action === "clock_out_follow_up") {
@@ -197,8 +235,13 @@ export async function performOperationsAction(identity: { email: string; role: O
     const workDate = melbourneDate();
     const clockedOutAt = source === "clock_out" ? now : "";
     const dedupeKey = source === "clock_out" ? `${identity.email.toLowerCase()}|${workDate}|clock_out` : null;
-    await db.prepare("INSERT INTO follow_up_items (person_email,person_role,person_name,project_code,title,details,target_date,source,dedupe_key,status,created_by_email,created_by_role,work_date,clocked_out_at,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'open',?,?,?,?,?,?, '') ON CONFLICT(dedupe_key) DO UPDATE SET project_code=excluded.project_code,title=excluded.title,details=excluded.details,target_date=excluded.target_date,clocked_out_at=excluded.clocked_out_at,updated_at=excluded.updated_at,status='open',completed_at=''")
-      .bind(identity.email, identity.role, identity.name, clean(payload.projectCode) || "Business / General", title, clean(payload.details), targetDate, source, dedupeKey, identity.email, identity.role, workDate, clockedOutAt, now, now).run();
+    if (!generalFollowUp(payload.projectCode)) await assertProjectAccess(identity.role);
+    // The day's clock-out note replaces the earlier one, but never a project follow-up while this Admin's project access is off
+    // (decided inside the same write, so nothing can slip in between).
+    const projectAccess = await hasProjectAccess(identity.role);
+    const saved = await db.prepare("INSERT INTO follow_up_items (person_email,person_role,person_name,project_code,title,details,target_date,source,dedupe_key,status,created_by_email,created_by_role,work_date,clocked_out_at,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'open',?,?,?,?,?,?, '') ON CONFLICT(dedupe_key) DO UPDATE SET project_code=excluded.project_code,title=excluded.title,details=excluded.details,target_date=excluded.target_date,clocked_out_at=excluded.clocked_out_at,updated_at=excluded.updated_at,status='open',completed_at='' WHERE ?=1 OR TRIM(follow_up_items.project_code) IN ('','Business / General')")
+      .bind(identity.email, identity.role, identity.name, clean(payload.projectCode) || "Business / General", title, clean(payload.details), targetDate, source, dedupeKey, identity.email, identity.role, workDate, clockedOutAt, now, now, projectAccess ? 1 : 0).run();
+    if (!saved.meta.changes) throw new ProjectAccessError();
     return;
   }
 
@@ -206,6 +249,8 @@ export async function performOperationsAction(identity: { email: string; role: O
     const id = positiveId(payload.followUpId, "follow-up");
     const status = required(payload.status, "Status");
     if (!followUpStatuses.has(status)) throw new Error("Choose a valid follow-up status.");
+    const target = await db.prepare("SELECT project_code AS projectCode FROM follow_up_items WHERE id=? LIMIT 1").bind(id).first<Raw>();
+    if (target && !generalFollowUp(target.projectCode)) await assertProjectAccess(identity.role);
     const ownership = identity.role === "Site Supervisor" ? " AND LOWER(person_email)=?" : "";
     const bindings = identity.role === "Site Supervisor" ? [status, now, status === "completed" ? now : "", id, identity.email.toLowerCase()] : [status, now, status === "completed" ? now : "", id];
     const result = await db.prepare(`UPDATE follow_up_items SET status=?,updated_at=?,completed_at=? WHERE id=?${ownership}`).bind(...bindings).run();

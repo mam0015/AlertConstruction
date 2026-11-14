@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LayoutDashboard, Workflow as WorkflowIcon, ListChecks, TriangleAlert, ArrowRight as ArrowRightIcon, FolderKanban, CalendarDays, ClipboardCheck, FileText, MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 import Link from "next/link";
@@ -43,16 +43,13 @@ const demoProjects: AssignedProject[] = [
 
 const checks = ["Site access clear and secure", "PPE and amenities checked", "Framing dimensions verified", "Plumbing set-out confirmed", "Photos uploaded to project", "Weather and delay notes recorded"];
 const todayLabel = () => new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" }).format(new Date());
-const messageTime = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" }).format(date); };
+
+// The greeting follows the time of day in Melbourne.
+const greeting = () => {const hour=Number(new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Melbourne",hour:"numeric",hourCycle:"h23"}).format(new Date()));return hour<12?"Good morning":hour<18?"Good afternoon":"Good evening"};
 
 export default function SiteSupervisor({ previewTasks = false }: { previewTasks?: boolean }) {
   const [view, setView] = useState<View>("overview");
   const [checked, setChecked] = useState<Record<string, boolean>>(previewTasks ? { "Site access clear and secure": true, "PPE and amenities checked": true, "Framing dimensions verified": true } : {});
-  const [reportSent, setReportSent] = useState(false);
-  const [message, setMessage] = useState("");
-  const [teamMessages, setTeamMessages] = useState<Array<{ id: number; sender: string; recipient: string; body: string; sentAt: string }>>([]);
-  const [messageError, setMessageError] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [projects, setProjects] = useState<AssignedProject[]>(previewTasks ? demoProjects : []);
   const [directions, setDirections] = useState<AssignedTask[]>(previewTasks ? demoDirections.map((item, index) => ({ id: index + 1, projectCode: item.project, title: item.title, instructions: "Preview management direction", priority: "Normal", status: index < 2 ? "completed" : "assigned" })) : []);
   const [openIssues, setOpenIssues] = useState(previewTasks ? 1 : 0);
@@ -95,34 +92,9 @@ export default function SiteSupervisor({ previewTasks = false }: { previewTasks?
     return () => { active = false; };
   }, [previewTasks]);
 
-  useEffect(() => {
-    if (previewTasks) return;
-    let active = true;
-    void fetch("/api/team/messages", { cache: "no-store" })
-      .then((response) => response.json().then((result: { data?: typeof teamMessages; error?: string }) => ({ response, result })))
-      .then(({ response, result }) => { if (active && response.ok && result.data) setTeamMessages(result.data); })
-      .catch(() => { /* keep the last known list on transient network errors */ });
-    return () => { active = false; };
-  }, [previewTasks]);
 
-  async function sendMessage(event: FormEvent) {
-    event.preventDefault();
-    if (!message.trim()) return;
-    setSendingMessage(true); setMessageError("");
-    try {
-      const response = await fetch("/api/team/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: message.trim() }) });
-      const result = await response.json() as { data?: typeof teamMessages; error?: string };
-      if (!response.ok || !result.data) throw new Error(result.error ?? "Message could not be sent.");
-      setTeamMessages(result.data);
-      setMessage("");
-    } catch (reason) {
-      setMessageError(reason instanceof Error ? reason.message : "Message could not be sent.");
-    } finally {
-      setSendingMessage(false);
-    }
-  }
   const heading: Record<View, [string, string, string]> = {
-    overview: ["Operation Hub · Site Supervisor", "Good morning, Site Supervisor.", "Your assigned projects, site directions and reporting tools — without private finance or pricing."],
+    overview: ["Operation Hub · Site Supervisor", `${greeting()}, Site Supervisor.`, "Your assigned projects, site directions and reporting tools — without private finance or pricing."],
     workflow: ["Assigned hand-offs", "Site Visit workflow", "Upload mandatory site evidence, submit Visit Reports and send internal and customer-safe updates."],
     tasks: ["Management direction", "Assigned tasks", "Only tasks that Owner or Admin assigned to your Site Supervisor account appear here."],
     issues: ["Immediate escalation", "Delays & site problems", "Report a trade delay or site problem immediately so Admin can review and reschedule it."],
@@ -170,9 +142,11 @@ export default function SiteSupervisor({ previewTasks = false }: { previewTasks?
 
         {view === "checklist" && <section className={styles.panel}><header><div><span>{selectedProject?.projectCode || "NO PROJECT"}</span><h2>Quality inspection checklist</h2></div><strong>{selectedProject ? `${completed} of ${checks.length} complete` : "0 complete"}</strong></header>{selectedProject ? <div className={styles.checklist}>{checks.map((item, index) => <label key={item}><input type="checkbox" checked={Boolean(checked[item])} onChange={() => setChecked((current) => ({ ...current, [item]: !current[item] }))} /><span>{checked[item] ? "✓" : index + 1}</span><div><strong>{item}</strong><small>{checked[item] ? "Completed in this session" : "Tap to confirm when complete"}</small></div></label>)}</div> : <div className={styles.emptyState}><strong>No assigned project.</strong><span>A quality inspection starts only after a project is assigned.</span></div>}</section>}
 
-        {view === "report" && <form className={`${styles.panel} ${styles.report}`} onSubmit={(event) => { event.preventDefault(); if (selectedProject) setReportSent(true); }}><header><div><span>END-OF-DAY</span><h2>Daily site report</h2></div><strong>{selectedProject?.projectCode || "No project assigned"}</strong></header><div className={styles.formGrid}><label><span>Work completed</span><textarea required disabled={!selectedProject} /></label><label><span>Delay or issue</span><textarea disabled={!selectedProject} /></label><label><span>Tomorrow&apos;s requirement</span><textarea required disabled={!selectedProject} /></label><label><span>Site photos</span><div className={styles.upload}>＋ Add customer-safe and internal photos</div></label></div><button disabled={!selectedProject}>Submit report to Owner</button>{!selectedProject && <p>No report can be submitted until a project is assigned.</p>}{reportSent && <p>✓ Report submitted to Owner approval.</p>}</form>}
-
-        {view === "messages" && <section className={`${styles.panel} ${styles.messages}`}><header><div><span>PROJECT CHANNEL</span><h2>Owner & Admin</h2></div></header><div>{previewTasks ? <><article><small>Admin Preview · 9:12 am</small><p>Please confirm the plumbing set-out before the trade starts.</p></article><article className={styles.mine}><small>Site Supervisor Preview · 9:36 am</small><p>Confirmed. Marked-up photos are ready to upload.</p></article></> : teamMessages.length ? teamMessages.map((item) => <article key={item.id} className={item.recipient === "Admin" ? styles.mine : ""}><small>{item.sender} · {messageTime(item.sentAt)}</small><p>{item.body}</p></article>) : <div className={styles.emptyState}><strong>No message history.</strong><span>Messages will appear after the secure channel receives its first item.</span></div>}</div>{messageError && <p role="alert">{messageError}</p>}<form onSubmit={sendMessage}><input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Message Owner and Admin…" disabled={sendingMessage} /><button disabled={sendingMessage}>Send ↑</button></form></section>}
+        {/* The daily report that is really saved and reaches the Owner is the Team hub's (this form used to say "submitted" without saving). */}
+        {view === "report" && <section className={`${styles.panel} ${styles.report}`}><header><div><span>END-OF-DAY</span><h2>Daily site report</h2></div><strong>{selectedProject?.projectCode || "No project assigned"}</strong></header><p>Write today&apos;s report — work completed, any delay or issue, and tomorrow&apos;s requirement — in Calendar &amp; messages. It is saved there and goes straight to the Owner for approval. Site photos for the customer belong in Project workflow → daily progress update.</p><a className={styles.upload} href="/team/hub?tab=report">Open the daily report →</a></section>}
+        {/* Messages are private between two people (Calendar & messages). The old shared "Owner & Admin" channel grouped people by job title,
+            so one Site Supervisor could read another's notes; it is closed. */}
+        {view === "messages" && <section className={`${styles.panel} ${styles.messages}`}><header><div><span>PRIVATE MESSAGES</span><h2>Owner, Admin &amp; team</h2></div></header><p>Messages are private between you and the person you write to (Owner, Admin or a team member), with photos and files if needed.</p><a className={styles.upload} href="/team/hub?tab=messages">Open messages →</a></section>}
       </div>
     </section>
   </main>;

@@ -583,6 +583,7 @@ export default function Home() {
               <div className="preview-notice" role="status">
                 <strong>Request received · {submitted}</strong>
                 <span>Keep this reference to follow Admin review, Site Visit, estimate and approved project updates.</span>
+                <a href={`/track/${encodeURIComponent(submitted)}`} style={{ display: "inline-block", marginTop: 8, fontWeight: 700 }}>Open my project →</a>
               </div>
             )}
             {requestDuplicate && <div className="preview-notice" role="status"><strong>We already have this request</strong><span>We found an earlier request from you with the same details, so we did not save a second one. To follow it, use Customer Sign In with your email and the suburb you gave us.</span></div>}
@@ -703,7 +704,7 @@ export default function Home() {
                         <input
                           value={customerLocation}
                           onChange={(event) => { setCustomerLocation(event.target.value); setCustomerError(""); setCustomerSuccess(""); setCustomerMatches([]); }}
-                          placeholder="e.g. Parramatta"
+                          placeholder="e.g. Glen Waverley"
                           autoComplete="off"
                           minLength={4}
                           required

@@ -24,7 +24,18 @@ export class PreparedStatement {
 export class TestD1 {
   constructor() { this.sqlite = new DatabaseSync(":memory:"); }
   prepare(sql) { return new PreparedStatement(this.sqlite, sql); }
-  async batch(statements) { return statements.map((statement) => statement.batchResult()); }
+  // Like Cloudflare D1, a batch is one transaction: if any statement fails, none of them is kept.
+  async batch(statements) {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results = statements.map((statement) => statement.batchResult());
+      this.sqlite.exec("COMMIT");
+      return results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
   close() { this.sqlite.close(); }
 }
 

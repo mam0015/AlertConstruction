@@ -8,7 +8,8 @@
 
   export function calculateItem(item={},defaults={}){
     const quantity=positive(item.quantity),baseCostCents=cents(positive(item.base_cost));
-    const profitType=item.profit_type==='fixed'?'fixed':(defaults.profit_type==='fixed'?'fixed':'percent');
+    // A line's own choice (% or $ per unit) always wins; the invoice default applies only to lines without one.
+    const profitType=item.profit_type==='fixed'||item.profit_type==='percent'?item.profit_type:(defaults.profit_type==='fixed'?'fixed':'percent');
     const rawProfit=item.profit_value===''||item.profit_value==null?defaults.profit_value:item.profit_value;
     const profitValue=positive(rawProfit);
     const profitUnitCents=profitType==='fixed'?cents(profitValue):Math.round(baseCostCents*profitValue/100);

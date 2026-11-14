@@ -36,9 +36,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: string; payload?: Record<string, unknown> };
     if (body.action !== "set_status" || !body.payload) return Response.json({ error: "Invalid task action." }, { status: 400 });
-    await setPersonalTaskStatus(identity.email, body.payload.taskId, body.payload.status);
+    await setPersonalTaskStatus(identity.email, identity.role, body.payload.taskId, body.payload.status, body.payload.from);
     return Response.json({ data: await getPersonalTaskSnapshot(identity.email, identity.role) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "The task could not be updated." }, { status: 400 });
+    return Response.json({ error: error instanceof Error ? error.message : "The task could not be updated." }, { status: [403, 409].includes(Number((error as { status?: number })?.status)) ? Number((error as { status?: number }).status) : 400 });
   }
 }

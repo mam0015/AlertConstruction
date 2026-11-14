@@ -26,7 +26,8 @@ export default function BusinessPositionChart({ rows }: { rows: Row[] }) {
   const incomePath = smoothPath(incomePoints);
   const outcomePath = smoothPath(outcomePoints);
   const net = chartRows.reduce((sum, row) => sum + row.income - row.outcome, 0);
-  const formatter = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  // Whole dollars without cents; otherwise always two decimals ($1,234.50, never $1,234.5).
+  const formatter = { format: (dollars: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: Math.round(dollars * 100) % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(dollars) };
 
   return <div className={styles.businessChart}>
     <div className={styles.businessChartMeta}>

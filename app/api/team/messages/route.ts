@@ -1,33 +1,13 @@
-import { adminSessionFromRequest } from "../../../admin-auth";
-import { requestIsSameOrigin } from "../../../owner-auth";
-import { getStaffAccessRequest } from "../../../../db/staff-store";
-import { getTeamMessagesFor, sendTeamMessage } from "../../../../db/admin-store";
+// The old shared "Owner & Admin" staff channel is closed. It was keyed by job title (for example "Site Supervisor"), so every person with the
+// same title received the same conversation: one Site Supervisor could read another's notes to management, and Admin's replies to
+// "Site Supervisor 01" never reached anyone. Staff messages are now private between two people in Calendar & messages (/api/team/chat).
+// The history stays with the Owner and Admin (their dashboards); nothing is deleted.
+const closed = () => Response.json({ error: "Team messages have moved to Calendar & messages, where each conversation is private between two people. Open /team/hub?tab=messages." }, { status: 410, headers: { "Cache-Control": "no-store" } });
 
-async function staffLabel(request: Request) {
-  const staff = await adminSessionFromRequest(request);
-  if (!staff || staff.role === "Admin") return null;
-  const record = await getStaffAccessRequest(staff.email);
-  return record?.tradeTitle?.trim() || staff.role;
+export async function GET() {
+  return closed();
 }
 
-export async function GET(request: Request) {
-  const label = await staffLabel(request);
-  if (!label) return Response.json({ error: "Team sign-in required." }, { status: 401 });
-  return Response.json({ data: await getTeamMessagesFor(label) }, { headers: { "Cache-Control": "no-store" } });
-}
-
-export async function POST(request: Request) {
-  if (!requestIsSameOrigin(request)) return Response.json({ error: "Request blocked." }, { status: 403 });
-  const label = await staffLabel(request);
-  if (!label) return Response.json({ error: "Team sign-in required." }, { status: 401 });
-  try {
-    const payload = await request.json() as { body?: string };
-    const body = typeof payload.body === "string" ? payload.body.trim() : "";
-    if (!body) throw new Error("Message cannot be empty.");
-    if (body.length > 2000) throw new Error("Message is too long.");
-    await sendTeamMessage(label, "Admin", body);
-    return Response.json({ data: await getTeamMessagesFor(label) }, { status: 201 });
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Message could not be sent." }, { status: 400 });
-  }
+export async function POST() {
+  return closed();
 }

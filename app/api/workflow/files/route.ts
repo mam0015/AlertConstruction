@@ -71,6 +71,8 @@ export async function GET(request: Request) {
     // Staff only get files of cases they are allowed to see, never any file by number.
     record = await getWorkflowFile(id, false);
     if (record && !await canAccessWorkflowCase(identity.role, identity.email, Number(record.caseId))) record = null;
+    // The project folder ("Admin & Owner only") is never downloaded by a Site Supervisor or an Estimator.
+    if (record && record.category === "document" && identity.role !== "owner" && identity.role !== "admin") record = null;
   } else {
     // Customers use a signed link to a published photo.
     if (await validCustomerFileLink(id, url.searchParams.get("k") ?? "")) record = await getWorkflowFile(id, true);

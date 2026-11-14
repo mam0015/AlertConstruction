@@ -20,13 +20,20 @@ async function actor(request: Request): Promise<{ role: WorkflowRole; email: str
 }
 
 function failed(error: unknown) {
-  return Response.json({ error: error instanceof Error ? error.message : "The workflow action could not be completed." }, { status: 400 });
+  const status = (error as { status?: number })?.status;
+  return Response.json({ error: error instanceof Error ? error.message : "The workflow action could not be completed." }, { status: status === 409 || status === 403 ? status : 400 });
 }
 
 export async function GET(request: Request) {
   const identity = await actor(request);
   if (!identity) return Response.json({ error: "Team sign-in required." }, { status: 401 });
-  return Response.json({ data: await getWorkflowSnapshot(identity.role, identity.email) }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    return Response.json({ data: await getWorkflowSnapshot(identity.role, identity.email) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    // Only the Owner's switch is reported as such; any other failure keeps its usual server error.
+    if ((error as { status?: number })?.status === 403) return failed(error);
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
@@ -36,8 +43,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: string; caseId?: number; payload?: Record<string, unknown> };
     if (!body.action || !Number.isInteger(body.caseId)) return Response.json({ error: "Invalid workflow action." }, { status: 400 });
-    await performWorkflowAction(identity.role, identity.email, body.action, body.caseId!, body.payload ?? {});
-    return Response.json({ data: await getWorkflowSnapshot(identity.role, identity.email) });
+    const outcome = await performWorkflowAction(identity.role, identity.email, body.action, body.caseId!, body.payload ?? {});
+    const revision = (outcome as { revision?: unknown } | undefined)?.revision;
+    // The change is saved. If the fresh board cannot be read right now, the screen is still told it worked (and reloads the board itself),
+    // so nobody presses again and saves it twice.
+    const data = await getWorkflowSnapshot(identity.role, identity.email).catch(() => null);
+    return Response.json({ data, saved: true, ...(typeof revision === "string" ? { revision } : {}) });
   } catch (error) {
     return failed(error);
   }
